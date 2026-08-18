@@ -17,6 +17,7 @@ import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.components.slot.SlotMachineMatchFinder;
 import com.avaricious.components.slot.SlotMachineResultRunner;
+import com.avaricious.effects.CrtEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.items.upgrades.Hand;
@@ -27,6 +28,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -66,6 +68,7 @@ public class SlotScreen extends ScreenAdapter {
 
         screenShake = ScreenShake.I().setCameras(app.getViewport().getCamera(), app.getUiViewport().getCamera());
         vfxManager.addEffect(new OldTvEffect());
+        vfxManager.addEffect(new CrtEffect());
         SlotMachine.I().setOnLastReelFinished(() -> SlotMachineResultRunner.I().runResult(SlotMachineMatchFinder.I().findMatches()));
 
         openShopButton.setVisibleAnimated(true);
@@ -138,8 +141,6 @@ public class SlotScreen extends ScreenAdapter {
 
 //        DeckUi.I().draw();
 //        ItemBag.I().draw(delta);
-
-        BouncingSymbolManager.I().drawFallingSymbols(delta);
         ParticleManager.I().draw(batch, delta);
         SlotMachine.I().draw(delta);   // 10
 
@@ -151,23 +152,7 @@ public class SlotScreen extends ScreenAdapter {
         levelUpWindow.draw(delta);
         shop.draw(delta);
 //        bossLootWindow.draw(delta);
-        PopupManager.I().draw(delta);
 
-
-        Vector2 mouse = new Vector2(Gdx.input.getX(), Gdx.input.getY());
-        app.getViewport().unproject(mouse);
-
-        float crosshairWidth = 0.5f;
-        float crosshairHeight = 0.5f;
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.CROSSHAIR),
-            mouse.x - crosshairWidth / 2f,
-            mouse.y - crosshairHeight / 2f,
-            crosshairWidth, crosshairHeight,
-            ZIndex.CROSSHAIR
-            ));
-
-//        vfxManager.cleanUpBuffers();
-//        vfxManager.beginInputCapture();
 
 //        feltBackground.render(delta);
 //        slotScreenBackground.render(delta, 0, SlotMachine.originY - 0.2f, 9f, 6.25f);
@@ -175,25 +160,39 @@ public class SlotScreen extends ScreenAdapter {
 //        background.render(batch, delta);
 
 //        ScreenUtils.clear(0.95f, 0.93f, 0.89f, 1f);
+        vfxManager.update(delta);
+        vfxManager.cleanUpBuffers();
+        vfxManager.beginInputCapture();
         batch.begin();
-//        batch.draw(charcoalPixel, -3, -3, 15, 26);
-//        batch.draw(charcoalPixel, -3f, 17.75f, 15f, 6f);
-//        batch.draw(charcoalPixel, -3f, SlotMachine.windowBounds.y + SlotMachine.windowBounds.height - 3f, 15f, 6.15f);
-//        batch.draw(charcoalPixel, -3f, -3f, 15f, 13f);
-//        batch.draw(charcoalPixel, -3f, SlotMachine.originY - 0.4f, 15f, 6.5f);
-        Pencil.I().draw(batch, delta);
+        Pencil.I().draw(batch, delta, false);
         batch.end();
-//        bulbBorderShader.update(delta);
-//        bulbBorderShader.draw(camera.combined, 1.5f, 15.75f, 6f, 1f);
+        vfxManager.endInputCapture();
 
-//        vfxManager.endInputCapture();
-//        vfxManager.applyEffects();
-//        vfxManager.renderToScreen(
-//            app.getViewport().getScreenX(),
-//            app.getViewport().getScreenY(),
-//            app.getViewport().getScreenWidth(),
-//            app.getViewport().getScreenHeight()
-//        );
+        vfxManager.applyEffects();
+        vfxManager.renderToScreen(
+            app.getViewport().getScreenX(),
+            app.getViewport().getScreenY(),
+            app.getViewport().getScreenWidth(),
+            app.getViewport().getScreenHeight()
+        );
+
+        batch.begin();
+
+        BouncingSymbolManager.I().drawFallingSymbols(delta);
+        SlotMachine.I().drawSymbolsInPatternHit();
+        PopupManager.I().draw(delta);
+
+
+        Pencil.I().draw(batch, delta, true);
+        float crosshairWidth = 0.75f;
+        float crosshairHeight = 0.75f;
+        batch.setColor(new Color(1.0f, 0.08f, 0.05f, 1.0f));
+        batch.draw(Assets.I().get(AssetKey.CROSSHAIR),
+            mouse.x - crosshairWidth / 2f,
+            mouse.y - crosshairHeight / 2f,
+            crosshairWidth, crosshairHeight);
+        batch.end();
+        batch.setColor(Color.BLACK);
     }
 
     private void handleInput(float delta) {
@@ -201,14 +200,14 @@ public class SlotScreen extends ScreenAdapter {
         app.getViewport().unproject(mouse);
         boolean leftClickPressed = Gdx.input.isTouched();
 
-        if (leftClickPressed && !leftClickWasPressed)
-            ParticleManager.I().startTrail(mouse.x, mouse.y, ParticleType.TRAIL, 0.02f, ZIndex.UNFOLDED_DECK_CARD);
-
-        if (leftClickPressed && leftClickWasPressed)
-            ParticleManager.I().moveTrail(mouse.x, mouse.y);
-
-        if (!leftClickPressed && leftClickWasPressed)
-            ParticleManager.I().stopTrail();
+//        if (leftClickPressed && !leftClickWasPressed)
+//            ParticleManager.I().startTrail(mouse.x, mouse.y, ParticleType.TRAIL, 0.02f, ZIndex.UNFOLDED_DECK_CARD);
+//
+//        if (leftClickPressed && leftClickWasPressed)
+//            ParticleManager.I().moveTrail(mouse.x, mouse.y);
+//
+//        if (!leftClickPressed && leftClickWasPressed)
+//            ParticleManager.I().stopTrail();
 
 
         if (shop.isShowing()) {
@@ -272,9 +271,10 @@ public class SlotScreen extends ScreenAdapter {
     @Override
     public void resize(int width, int height) {
         super.resize(width, height);
-        GameContext.I().viewport.update(width, height, true);
-        GameContext.I().viewport.update(width, height, true);
+
         vfxManager.resize(width, height);
+
+        screenShake.captureBaseNow();
     }
 
     private void onReturnedFromShop() {

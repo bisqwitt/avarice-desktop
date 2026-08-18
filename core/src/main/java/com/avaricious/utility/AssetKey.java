@@ -413,7 +413,7 @@ public enum AssetKey {
     V_BIG_SHADOW("v-big-shadow"),
     D_BIG("d-big"),
     D_BIG_SHADOW("d-big-shadow"),
-    CROSSHAIR("crosshair012"),
+    CROSSHAIR("crosshair086"),
     RED_CROSS("red-cross"),
     EXCLAMATION("exclamation"),
     EXCLAMATION_SHADOW("exclamation-shadow");

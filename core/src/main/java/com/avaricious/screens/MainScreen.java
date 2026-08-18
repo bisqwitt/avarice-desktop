@@ -71,7 +71,7 @@ public class MainScreen extends ScreenAdapter {
         joinQueueButton.draw(delta);
         newRunButton.draw(delta);
 
-        Pencil.I().draw(batch, delta);
+        Pencil.I().draw(batch, delta, true);
 
         float crosshairWidth = 0.5f;
         float crosshairHeight = 0.5f;

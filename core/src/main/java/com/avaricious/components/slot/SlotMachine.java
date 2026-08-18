@@ -220,12 +220,20 @@ public class SlotMachine {
         Camera cam = GameContext.I().viewport.getCamera();
         cam.update();
         Pencil.I().startScissors(cam, batch.getTransformMatrix(), area);
-        List<Vector2> symbolsInPatternHit = drawSymbols();
+        drawSymbols();
         Pencil.I().endScissors();
 
-        Seq.of(symbolsInPatternHit).forEach(this::drawSymbol);
-
         TextureEcho.draw(delta);
+    }
+
+    public void drawSymbolsInPatternHit() {
+        List<Vector2> symbolsInPatternHit = new ArrayList<>();
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[i].length; j++) {
+                if (grid[i][j].isInPatternHit()) symbolsInPatternHit.add(new Vector2(i, j));
+            }
+        }
+        Seq.of(symbolsInPatternHit).forEach(this::drawSymbol);
     }
 
     private List<Vector2> drawSymbols() {

@@ -59,7 +59,7 @@ public class InQueueScreen extends ScreenAdapter {
         drawDot(1, 6.7f);
         drawDot(2, 7.25f);
 
-        Pencil.I().draw(batch, delta);
+//        Pencil.I().draw(batch, delta);
 
         batch.end();
     }

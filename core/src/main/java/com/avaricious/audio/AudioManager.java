@@ -17,16 +17,22 @@ public class AudioManager {
 
     private final LoopingSound payout = new LoopingSound(
         "payout-start.wav", "payout-loop.wav", "payout-end.wav",
-        0.9f, 1f);
+        0.9f, 1f
+    );
 
     // 0 = base, 2 = whole step, 3 = minor third, 5 = fourth, 7 = fifth
     private static final float[] HIT_LADDER = {0f, 2f, 3f, 5f, 7f};
 
+    private boolean muted = false;
+
     private AudioManager() {
+        mute();
     }
 
     public void playHit(float streak) {
-        if (!DevTools.audioMuted()) playHitInternal(streak, -2f);
+        if (isMuted()) return;
+
+        playHitInternal(streak, -2f);
     }
 
     private void playHitInternal(float streak, float semitoneOffset) {
@@ -40,4 +46,24 @@ public class AudioManager {
         hit.play(volume, pitch, 0f);
     }
 
+    public void mute() {
+        muted = true;
+        payout.stop();
+    }
+
+    public void unmute() {
+        muted = false;
+    }
+
+    public void toggleMute() {
+        if (muted) {
+            unmute();
+        } else {
+            mute();
+        }
+    }
+
+    public boolean isMuted() {
+        return muted || DevTools.audioMuted();
+    }
 }

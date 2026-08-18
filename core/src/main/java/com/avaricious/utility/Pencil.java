@@ -47,8 +47,7 @@ public class Pencil {
 
     private final GlyphLayout mouseLocationTxt = new GlyphLayout();
 
-    public void draw(SpriteBatch batch, float delta) {
-
+    public void draw(SpriteBatch batch, float delta, boolean clearDrawings) {
         updateDarkenAnimation(Gdx.graphics.getDeltaTime());
         BorderPulseMesh.I().render(batch, Gdx.graphics.getDeltaTime());
 
@@ -61,7 +60,6 @@ public class Pencil {
         for (Drawing drawing : drawings) {
             drawing.draw(batch);
         }
-        drawings.clear();
 
         if (DevTools.showMouseLocation()) {
             Vector2 mouseLocation = new Vector2(Gdx.input.getX(), Gdx.input.getY());
@@ -70,6 +68,8 @@ public class Pencil {
             new FontDrawing(Assets.I().getSmallFont(), mouseLocationTxt, new Vector2(mouseLocation.x * 100, mouseLocation.y * 100), ZIndex.PACK_OPENING)
                 .draw(batch);
         }
+
+        if(clearDrawings) drawings.clear();
     }
 
     private void updateDarkenAnimation(float delta) {

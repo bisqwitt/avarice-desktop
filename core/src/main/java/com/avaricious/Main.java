@@ -13,10 +13,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
-
-/**
- * {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms.
- */
 public class Main extends Game {
 
     private SpriteBatch batch;
@@ -28,23 +24,47 @@ public class Main extends Game {
         this.deviceInfo = deviceInfo;
     }
 
-    public Main() {}
+    public Main() {
+    }
 
     @Override
     public void create() {
         SeededRandomizer.setSeed(MathUtils.random(1000, 9999));
 
         batch = new SpriteBatch();
+
         viewport = new FitViewport(16, 9);
         uiViewport = new FitViewport(1920, 1080);
 
-        GameContext.init(batch, viewport, uiViewport, deviceInfo);
-        ScreenManager.create(this).setScreen(LoadingScreen.class);
+        GameContext.init(
+            batch,
+            viewport,
+            uiViewport,
+            deviceInfo
+        );
 
-        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        Cursor emptyCursor = Gdx.graphics.newCursor(pixmap, 0, 0);
+        ScreenManager.create(this)
+            .setScreen(LoadingScreen.class);
+
+        Pixmap pixmap =
+            new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+
+        Cursor emptyCursor =
+            Gdx.graphics.newCursor(pixmap, 0, 0);
+
         Gdx.graphics.setCursor(emptyCursor);
+
         pixmap.dispose();
+    }
+
+    @Override
+    public void resize(int width, int height) {
+
+        viewport.update(width, height, true);
+        uiViewport.update(width, height, true);
+
+        // VERY IMPORTANT
+        super.resize(width, height);
     }
 
     public FitViewport getViewport() {
@@ -60,27 +80,11 @@ public class Main extends Game {
     }
 
     @Override
-    public void resize(int width, int height) {
-        viewport.update(width, height, true);
-        uiViewport.update(width, height, true);
-
-        Gdx.app.log("V", "width: " + viewport.getWorldWidth() + " height: " + viewport.getWorldHeight());
-        Gdx.app.log("SV", "width: " + uiViewport.getWorldWidth() + " height: " + uiViewport.getWorldHeight());
-    }
-
-    @Override
-    public void pause() {
-        super.pause();
-    }
-
-    @Override
-    public void resume() {
-        super.resume();
-    }
-
-    @Override
     public void dispose() {
         super.dispose();
-    }
 
+        if (batch != null) {
+            batch.dispose();
+        }
+    }
 }

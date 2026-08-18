@@ -57,7 +57,7 @@ public class BouncingSymbol {
     private static final float AIR_DRAG = 0.998f;
     private static final float ROTATION_DRAG = 0.997f;
 
-    private static final float MIN_BOUNCE = 0.85f;
+    private static final float MIN_BOUNCE = 0.75f;
     private static final float MAX_BOUNCE = 0.97f;
 
     /*
