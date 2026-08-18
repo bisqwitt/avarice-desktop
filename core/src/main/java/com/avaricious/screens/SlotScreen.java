@@ -148,7 +148,7 @@ public class SlotScreen extends ScreenAdapter {
 
 //        TextureGlow.draw(batch, delta, TextureGlow.Type.NUMBER);
         XpBar.I().draw();
-//        levelUpWindow.draw(delta);
+        levelUpWindow.draw(delta);
         shop.draw(delta);
 //        bossLootWindow.draw(delta);
         PopupManager.I().draw(delta);
@@ -213,7 +213,9 @@ public class SlotScreen extends ScreenAdapter {
 
         if (shop.isShowing()) {
             shop.handleInput(mouse, leftClickPressed, leftClickWasPressed, delta);
-        } else {
+        } else if(levelUpWindow.isShowing()) {
+            levelUpWindow.handleInput(mouse, leftClickPressed, leftClickWasPressed);
+        }else {
             SlotMachine.I().handleInput(mouse, leftClickPressed, leftClickWasPressed, delta);
             BouncingSymbolManager.I().handleInput(mouse, leftClickPressed, leftClickWasPressed);
             buttonBoard.handleInput(mouse, leftClickPressed, leftClickWasPressed);

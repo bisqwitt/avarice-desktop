@@ -23,10 +23,13 @@ public class LevelUpWindow {
 
     private boolean showing = false;
 
-    public void show() {
-        showing = true;
+    private boolean pressReleased = false;
 
-        generateChoices();
+    public void show() {
+//        showing = true;
+//        pressReleased = false;
+//
+//        generateChoices();
     }
 
     public void hide() {
@@ -121,7 +124,9 @@ public class LevelUpWindow {
     public void handleInput(Vector2 mouse, boolean pressed, boolean wasPressed) {
         if (!showing) return;
 
-        if (!pressed) {
+        if(!pressed && !pressReleased) pressReleased = true;
+
+        if (!pressed || !pressReleased) {
             return;
         }
 
