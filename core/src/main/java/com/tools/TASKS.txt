@@ -1,0 +1,47 @@
+ANTES
+- BOSSES
+    - LOOT (CORRELATE THEIR ABILITY WITH LOOT)
+
+DIFFERENTIATE BETWEEN SINGLE (DOUBLE?) CLICK / HOLD
+
+RUN TYPES
+-
+
+ONE TIME USE POTIONS
+
+CARD RARITIES / UPGRADES
+- BREAKABLE RINGS / CARDS (GLASS CARD)
+- MERGE SAME CARDS -> INCREASE RARITY
+- TRADE UP CARDS (3 COMMON -> RANDOM RARE)
+
+EVIL SYMBOLS
+- minus instead of plus
+- 6 symbol: resets pattern
+
+CREATE FOR SPACE BY:
+- pull down top window
+
+EASTER EGGS
+
+MORE PATTERNS
+- RING WITH ENABLES EVEN MORE
+ZB.
+  X
+X   X
+  X
+
+
+fade alpha of symbols in/out when showing spin results
+
+BUGS:
+- In shop: PackOpenings are "Passive" do "?"
+
+
+PLAYTESTING:
+types / rarities sehen aus wie buttons (gleiche textur)
+wann muss ich cashouten
+shop buy box sieht aus wie button (gleiche textur) wusste nicht dass man muss ziehen
+nicht gewusst dass man karten ziehen muss
+wieviel leben verliert man und warum
+current $ nur im shop mit coin hit visual indicator
+deckUI fold back tap anywhere not on card

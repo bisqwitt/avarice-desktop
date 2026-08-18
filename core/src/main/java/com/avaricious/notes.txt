@@ -1,0 +1,59 @@
+jokers:
+
+Increase Symbol Base Value (+Chips)
+Increase Single/Double/Tripple etc. Value
+Increase Pair/Triad/Quartet etc. Value
+
+Increase Symbol spawn chance
+Decrease Symbol spawn chance
+
+
+todos
+scoreFormula add "=" at the end
+
+right side: basevalue/% of every symbol
+
+
+balance low hands and high hands
+-> high for round goal
+-> low for coins
+
+overkill score, whats left -> convert to chips
+-> chips buy upgrades
+
+
+50 100 500 - chips
+common uncommon legendary - upgrades
+
+
+ultra rare upgrade drops
+
+
+Mode (Endless run?):
+dont overkill, scale hard on overkill
+if you overkill alot, the game scales extremely hard
+try to score the score target but dont overkill too hard
+-> balance
+
+
+
+
+
+- each upgrade has rarity
+eg. Increase Lemon value:
+common = +3
+uncommon = +5
+rare = +7
+epic = +10
+legendary = +15
+common + common = uncommon
+uncommon + uncommon = rare
+etc.
+
+tft, capped deck -> deckbuilder with upgrades
+
+one quest per round
+eg. dont use lemons -> lootbox can give any kind of rarity upgrade take it or sell for chips
+
+shop: only common upgrades
+- reroll
