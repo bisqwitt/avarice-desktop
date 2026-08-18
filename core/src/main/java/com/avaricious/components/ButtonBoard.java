@@ -123,4 +123,8 @@ public class ButtonBoard {
         buySpinButton.setVisibleAnimated(visible);
         drawCardButton.setVisibleAnimated(visible);
     }
+
+    public boolean isVisible() {
+        return drawCardButton.isVisibleNow();
+    }
 }

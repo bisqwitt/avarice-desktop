@@ -48,7 +48,7 @@ public class SlotScreen extends ScreenAdapter {
     private final LevelUpWindow levelUpWindow = new LevelUpWindow();
 
     private final OpenShopButton openShopButton = new OpenShopButton(
-        new Rectangle(14f, 7f, 17 / 20f, 17 / 20f), Input.Keys.SPACE
+        new Rectangle(14f, 7f, 17 / 20f, 17 / 20f), Input.Keys.S
     );
 
     private final ButtonBoard buttonBoard = ButtonBoard.I()
@@ -98,7 +98,7 @@ public class SlotScreen extends ScreenAdapter {
 
                 Automations.I().getSlotMachineSpeed().upgrade();
                 Automations.I().getSlotMachineSpeed().upgrade();
-                Automations.I().getSlotMachineSpeed().upgrade();
+//                Automations.I().getSlotMachineSpeed().upgrade();
 //                shop.show();
             }
         }, 1);
@@ -134,7 +134,7 @@ public class SlotScreen extends ScreenAdapter {
         PlayerHealths.I().draw(delta);
         ScoreDisplay.I().draw(delta);
         RunManager.I().getRoundsManager().getRoundTimer().draw(delta);
-        buttonBoard.draw(delta);
+        if(!SlotMachine.I().isStale()) buttonBoard.draw(delta);
         AutoSpinDisplay.I().draw(delta);
 
         openShopButton.draw(delta);
@@ -178,6 +178,7 @@ public class SlotScreen extends ScreenAdapter {
 
         batch.begin();
 
+        if(SlotMachine.I().isStale()) buttonBoard.draw(delta);
         BouncingSymbolManager.I().drawFallingSymbols(delta);
         SlotMachine.I().drawSymbolsInPatternHit();
         PopupManager.I().draw(delta);
@@ -186,7 +187,7 @@ public class SlotScreen extends ScreenAdapter {
         Pencil.I().draw(batch, delta, true);
         float crosshairWidth = 0.75f;
         float crosshairHeight = 0.75f;
-        batch.setColor(new Color(1.0f, 0.08f, 0.05f, 1.0f));
+//        batch.setColor(new Color(1.0f, 0.08f, 0.05f, 1.0f));
         batch.draw(Assets.I().get(AssetKey.CROSSHAIR),
             mouse.x - crosshairWidth / 2f,
             mouse.y - crosshairHeight / 2f,

@@ -70,6 +70,7 @@ public class NumberPopup implements IPopup {
             ? defaultOffset
             : defaultOffset + (bounds.width - defaultWidth) * 0.5f;
 
+        pulseEffect.setStrength(2f);
         pulseEffect.pulse();
     }
 

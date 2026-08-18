@@ -109,7 +109,7 @@ public class BouncingSymbol {
         /*
          * Bouncing symbol pulse settings.
          */
-        pulseEffect.setStrength(3.25f);
+        pulseEffect.setStrength(4f);
         pulseEffect.setSpeed(0.125f);
     }
 
@@ -152,9 +152,9 @@ public class BouncingSymbol {
     }
 
     private void updatePhysics(float delta) {
-        if (claimed) {
-            return;
-        }
+//        if (claimed) {
+//            return;
+//        }
 
         float movementDrag =
             (float) Math.pow(

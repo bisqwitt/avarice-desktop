@@ -91,6 +91,11 @@ public class PulseEffect {
         rotationDirection = MathUtils.randomBoolean() ? 1f : -1f;
     }
 
+    public void pulse(float strength) {
+        setStrength(strength);
+        pulse();
+    }
+
     public float getScale() {
         return currentScale;
     }

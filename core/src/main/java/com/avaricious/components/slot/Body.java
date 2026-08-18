@@ -39,6 +39,10 @@ public class Body {
         pulseEffect.pulse();
     }
 
+    public void pulse(float strength) {
+        pulseEffect.pulse(strength);
+    }
+
     public float getScale() {
         return scale * pulseEffect.getScale() * idleScaleEffect.getValue();
     }

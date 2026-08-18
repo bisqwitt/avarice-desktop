@@ -65,7 +65,7 @@ public class SlotMachineResultRunner {
                 PopupManager.I().releaseHoldingNumbers();
 
                 for (Body body : slots) {
-                    body.pulse();
+                    body.pulse(1.2f);
 
                     EffectManager.create(Assets.I().getSymbol(patternMatch.getSymbol()),
                         new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
@@ -135,7 +135,7 @@ public class SlotMachineResultRunner {
             scheduler.schedule(() -> {
                 slotScreen.addSymbolsHitLastSpin();
 
-                body.pulse();
+                body.pulse(1.75f);
                 ScreenShake.I().addTrauma(0.2f);
 
                 int points = SymbolValues.I().getValue(match.getSymbol());

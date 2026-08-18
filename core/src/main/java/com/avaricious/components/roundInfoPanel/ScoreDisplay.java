@@ -21,7 +21,7 @@ public class ScoreDisplay {
     private final float DIGIT_Y = 6.5f;
 
     private final DigitalNumber scoreNumber = new DigitalNumber(0, Assets.I().lightColor(),
-        new Rectangle(0.5f, DIGIT_Y, 7 / 15f, 11 / 15f), 0.55f)
+        new Rectangle(0.5f, DIGIT_Y, 7 / 12f, 11 / 12f), 0.75f)
         .setZIndex(ZIndex.BUTTON_BOARD);
 
     private final PropertyChangeSupport scoreChangeSupport = new PropertyChangeSupport(this);
