@@ -9,6 +9,10 @@ public class TaskScheduler {
     private final LinkedList<ScheduledTask> tasks = new LinkedList<>();
     private final float defaultDelay;
 
+    private final Timer timer = new Timer();
+
+    private boolean paused = false;
+
     public TaskScheduler(float defaultDelay) {
         this.defaultDelay = defaultDelay;
     }
@@ -29,12 +33,31 @@ public class TaskScheduler {
 
     public void runTasks() {
         float delay = defaultDelay;
+
         for (ScheduledTask task : tasks) {
-            Timer.schedule(create(task.runnable), delay);
-            delay += (task.delay);
+            timer.scheduleTask(create(task.runnable), delay);
+            delay += task.delay;
         }
 
         tasks.clear();
+    }
+
+    public void pause() {
+        if (paused) return;
+
+        paused = true;
+        timer.stop();
+    }
+
+    public void resume() {
+        if (!paused) return;
+
+        paused = false;
+        timer.start();
+    }
+
+    public boolean isPaused() {
+        return paused;
     }
 
     private Timer.Task create(Runnable r) {

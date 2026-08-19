@@ -9,8 +9,8 @@ import com.badlogic.gdx.math.Vector2;
 
 public class LevelUpChoice {
 
-    private final String title;
-    private final String description;
+    private final FabledText title;
+    private final FabledText description;
 
     private final Runnable upgrade;
 
@@ -20,8 +20,8 @@ public class LevelUpChoice {
         Assets.I().get(AssetKey.BLACK_PIXEL);
 
     public LevelUpChoice(
-        String title,
-        String description,
+        FabledText title,
+        FabledText description,
         Runnable upgrade
     ) {
         this.title = title;
@@ -31,6 +31,11 @@ public class LevelUpChoice {
 
     public void setBounds(Rectangle bounds) {
         this.bounds = bounds;
+        title.setX(bounds.x + 0.25f);
+        description.setX(bounds.x + 0.25f);
+
+        title.setY(5.5f);
+        description.setY(4.5f);
     }
 
     public boolean contains(Vector2 position) {
@@ -51,13 +56,11 @@ public class LevelUpChoice {
             bounds.y,
             bounds.width,
             bounds.height,
-            ZIndex.SHOP
+            ZIndex.SHOP,
+            new Color(0f, 0f, 0f, 0.5f)
         ));
 
-        // Replace these with however your FabledText
-        // constructor actually works.
-        //
-        // new FabledText(title, ...)
-        // new FabledText(description, ...)
+        title.draw(delta);
+        description.draw(delta);
     }
 }

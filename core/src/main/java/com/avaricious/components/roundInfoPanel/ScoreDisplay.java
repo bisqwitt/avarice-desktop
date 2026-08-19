@@ -71,4 +71,8 @@ public class ScoreDisplay {
         scoreChangeSupport.addPropertyChangeListener(listener);
     }
 
+    public boolean isPulsing() {
+        return scoreNumber.getPulseEffect().isActive();
+    }
+
 }

@@ -125,11 +125,15 @@ public class PopupManager {
         if (discardPopup != null) discardPopup.draw(delta);
     }
 
+    public void update(float delta) {
+        Seq.of(numberPopups).forEach(popup -> popup.update(delta));
+        Seq.of(statisticPopups).forEach(popup -> popup.update(delta));
+        Seq.of(textPopups).forEach(popup -> popup.update(delta));
+        Seq.of(redCrossPopups).forEach(popup -> popup.update(delta));
+    }
+
     private void drawPopups(List<? extends IPopup> popups, float delta) {
-        Seq.of(popups).forEach(popup -> {
-            popup.update(delta);
-            popup.draw(delta);
-        });
+        Seq.of(popups).forEach(popup -> popup.draw(delta));
         for (int i = 0; i < popups.size(); i++) {
             if (popups.get(i).isFinished()) popups.remove(i);
         }

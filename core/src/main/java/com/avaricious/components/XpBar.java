@@ -27,7 +27,7 @@ public class XpBar {
 
     private int level = 1;
     private int xp = 0;
-    private int xpRequired = 10;
+    private int xpRequired = 50;
 
     private XpBar() {
     }
@@ -87,7 +87,7 @@ public class XpBar {
     }
 
     private int calculateXpRequired(int level) {
-        return 10 + (level - 1) * 5;
+        return 50 + (level - 1) * 5;
     }
 
     public int getLevel() {

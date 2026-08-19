@@ -23,8 +23,6 @@ public class SymbolDescriptionText extends FabledText {
     }
 
     public void updateDescription(int currentValue, int nextValue) {
-        float y = 14f;
-        if (!getWords().isEmpty()) y = getWords().get(0).getStartingPos().y;
         setWords(
             new FabledWord(
                 Arrays.asList(
@@ -36,7 +34,7 @@ public class SymbolDescriptionText extends FabledText {
                     Assets.I().getDigitalNumberShadow(currentValue),
                     Assets.I().get(AssetKey.ARROW_LETTER_SHADOW),
                     Assets.I().getDigitalNumberShadow(nextValue)
-                ), new Vector2(1.25f, y), 27f, 0.3f, ZIndex.SHOP_CARD)
+                ), new Vector2(0f, 0f), 27f, 0.3f, ZIndex.SHOP_CARD)
         );
     }
 

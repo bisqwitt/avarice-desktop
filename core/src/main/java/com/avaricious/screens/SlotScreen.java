@@ -100,6 +100,7 @@ public class SlotScreen extends ScreenAdapter {
                 Automations.I().getSlotMachineSpeed().upgrade();
 //                Automations.I().getSlotMachineSpeed().upgrade();
 //                shop.show();
+//                XpBar.I().addXp(10);
             }
         }, 1);
 //        Timer.schedule(new Timer.Task() {
@@ -113,6 +114,12 @@ public class SlotScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         RunDataFileManager.I().update(delta);
+        if(!levelUpWindow.isShowing()) {
+            SlotMachine.I().update(delta);
+            BouncingSymbolManager.I().updateFallingSymbols(delta);
+            ParticleManager.I().update(delta);
+            PopupManager.I().update(delta);
+        }
 
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         ScreenUtils.clear(0f, 0f, 0f, 1f);
@@ -127,6 +134,12 @@ public class SlotScreen extends ScreenAdapter {
         camera.update();
 
         batch.setProjectionMatrix(camera.combined);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            Assets.I().get(AssetKey.CHARCOAL_PIXEL),
+            0, 0, 16, 9,
+            ZIndex.TEXTURE_ECHO,
+            Assets.I().shadowColor()));
 
         Pencil.I().drawDarkenWindow();
         RoundInfoPanel.I().draw(delta);
@@ -149,7 +162,6 @@ public class SlotScreen extends ScreenAdapter {
 
 //        TextureGlow.draw(batch, delta, TextureGlow.Type.NUMBER);
         XpBar.I().draw();
-        levelUpWindow.draw(delta);
         shop.draw(delta);
 //        bossLootWindow.draw(delta);
 
@@ -182,11 +194,11 @@ public class SlotScreen extends ScreenAdapter {
         BouncingSymbolManager.I().drawFallingSymbols(delta);
         SlotMachine.I().drawSymbolsInPatternHit();
         PopupManager.I().draw(delta);
-
+        levelUpWindow.draw(delta);
 
         Pencil.I().draw(batch, delta, true);
-        float crosshairWidth = 0.75f;
-        float crosshairHeight = 0.75f;
+        float crosshairWidth = 0.5f;
+        float crosshairHeight = 0.5f;
 //        batch.setColor(new Color(1.0f, 0.08f, 0.05f, 1.0f));
         batch.draw(Assets.I().get(AssetKey.CROSSHAIR),
             mouse.x - crosshairWidth / 2f,

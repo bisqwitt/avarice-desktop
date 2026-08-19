@@ -187,7 +187,7 @@ public class SlotMachine {
         }
     }
 
-    private void update(float delta) {
+    public void update(float delta) {
         for (int c = 0; c < colCount; c++) {
             reels.get(c).update(delta);
         }
@@ -208,8 +208,6 @@ public class SlotMachine {
 
     public void draw(float delta) {
         SpriteBatch batch = GameContext.I().batch;
-        // update reel motion
-        update(delta);
 
         Rectangle area = getBounds(); // world-space
         area.setX(area.x - 0.3f);

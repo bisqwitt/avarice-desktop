@@ -41,14 +41,12 @@ public class BouncingSymbolManager {
     }
 
     public void drawFallingSymbols(float delta) {
-        updateFallingSymbols(delta);
-
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.draw();
         }
     }
 
-    private void updateFallingSymbols(float delta) {
+    public void updateFallingSymbols(float delta) {
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.update(delta);
         }

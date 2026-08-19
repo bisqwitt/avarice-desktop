@@ -1,6 +1,8 @@
 package com.avaricious.components;
 
-import com.avaricious.components.texts.LevelUpText;
+import com.avaricious.components.slot.SlotMachineResultRunner;
+import com.avaricious.components.slot.Symbol;
+import com.avaricious.components.texts.*;
 import com.avaricious.utility.*;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -9,13 +11,14 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class LevelUpWindow {
 
     private final TextureRegion background =
-        Assets.I().get(AssetKey.BLACK_PIXEL);
+        Assets.I().get(AssetKey.CHARCOAL_PIXEL);
 
     private final LevelUpText title = new LevelUpText();
 
@@ -26,15 +29,17 @@ public class LevelUpWindow {
     private boolean pressReleased = false;
 
     public void show() {
-//        showing = true;
-//        pressReleased = false;
-//
-//        generateChoices();
+        showing = true;
+        pressReleased = false;
+        SlotMachineResultRunner.I().getScheduler().pause();
+
+        generateChoices();
     }
 
     public void hide() {
         showing = false;
         choices.clear();
+        SlotMachineResultRunner.I().getScheduler().resume();
     }
 
     private void generateChoices() {
@@ -43,46 +48,39 @@ public class LevelUpWindow {
         List<LevelUpChoice> possibleChoices = new ArrayList<>();
 
         possibleChoices.add(new LevelUpChoice(
-            "More Lemons",
-            "Increase Lemon spawn chance",
-            () -> {
-                // example
-                // Symbol.increaseSpawnChance(Symbol.LEMON, 5);
-            }
+            new LemonValueText(),
+            new SymbolDescriptionText(Symbol.LEMON),
+            () -> SymbolValues.I().increaseValue(Symbol.LEMON)
         ));
-
         possibleChoices.add(new LevelUpChoice(
-            "Faster Reels",
-            "Increase slot machine speed",
-            () -> {
-                // Automations.I()
-                //     .getSlotMachineSpeed()
-                //     .upgrade();
-            }
+            new CherryValueText(),
+            new SymbolDescriptionText(Symbol.CHERRY),
+            () -> SymbolValues.I().increaseValue(Symbol.CHERRY)
         ));
-
         possibleChoices.add(new LevelUpChoice(
-            "More Damage",
-            "Increase all symbol values",
-            () -> {
-                // SymbolValues.I().increaseAll();
-            }
+            new CloverValueText(),
+            new SymbolDescriptionText(Symbol.CLOVER),
+            () -> SymbolValues.I().increaseValue(Symbol.CLOVER)
         ));
-
         possibleChoices.add(new LevelUpChoice(
-            "More Spins",
-            "Gain additional spins",
-            () -> {
-                // SpinManager.I().addSpins(1);
-            }
+            new BellValueText(),
+            new SymbolDescriptionText(Symbol.BELL),
+            () -> SymbolValues.I().increaseValue(Symbol.BELL)
         ));
-
         possibleChoices.add(new LevelUpChoice(
-            "Lucky Seven",
-            "Increase Seven spawn chance",
-            () -> {
-                // Symbol.increaseSpawnChance(Symbol.SEVEN, 3);
-            }
+            new IronValueText(),
+            new SymbolDescriptionText(Symbol.IRON),
+            () -> SymbolValues.I().increaseValue(Symbol.IRON)
+        ));
+        possibleChoices.add(new LevelUpChoice(
+            new DiamondValueText(),
+            new SymbolDescriptionText(Symbol.DIAMOND),
+            () -> SymbolValues.I().increaseValue(Symbol.DIAMOND)
+        ));
+        possibleChoices.add(new LevelUpChoice(
+            new SevenValueText(),
+            new SymbolDescriptionText(Symbol.SEVEN),
+            () -> SymbolValues.I().increaseValue(Symbol.SEVEN)
         ));
 
         Collections.shuffle(possibleChoices);

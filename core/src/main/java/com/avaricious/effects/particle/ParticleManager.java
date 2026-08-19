@@ -28,21 +28,13 @@ public class ParticleManager {
 
     private final Map<ParticleEffect, ZIndex> particleEffects = new HashMap<>();
 
-    /*
-     * Touch trail
-     */
-    private ParticleEffect touchTrail;
-    private ZIndex touchTrailLayer;
+    public void update(float delta) {
+        Seq.of(particleEffects.keySet()).forEach(particle -> particle.update(delta));
+    }
 
     public void draw(SpriteBatch batch, float delta) {
-
-        /*
-         * Normal particle effects
-         */
         for (Map.Entry<ParticleEffect, ZIndex> entry : particleEffects.entrySet()) {
             ParticleEffect particleEffect = entry.getKey();
-
-            particleEffect.update(delta);
 
             Pencil.I().addDrawing(
                 new RunnableDrawing(
@@ -66,32 +58,6 @@ public class ParticleManager {
         for (ParticleEffect particleEffect : dump) {
             particleEffects.remove(particleEffect);
             particleEffect.dispose();
-        }
-
-        /*
-         * Touch trail
-         */
-        if (touchTrail != null) {
-            touchTrail.update(delta);
-
-            Pencil.I().addDrawing(
-                new RunnableDrawing(
-                    () -> {
-                        if (touchTrail != null) touchTrail.draw(batch);
-                    },
-                    touchTrailLayer
-                )
-            );
-
-            /*
-             * If it was stopped and all remaining particles
-             * have disappeared, clean it up.
-             */
-            if (touchTrail.isComplete()) {
-                touchTrail.dispose();
-                touchTrail = null;
-                touchTrailLayer = null;
-            }
         }
     }
 
@@ -156,79 +122,5 @@ public class ParticleManager {
             particle,
             layer
         );
-    }
-
-    /*
-     * Starts a continuous particle trail.
-     *
-     * x/y are already actual world coordinates,
-     * so there is NO SlotMachine.CELL_W offset here.
-     */
-    public void startTrail(
-        float x,
-        float y,
-        ParticleType type,
-        float scale,
-        ZIndex layer
-    ) {
-
-        /*
-         * Remove an old trail if one somehow still exists.
-         */
-        if (touchTrail != null) {
-            touchTrail.dispose();
-        }
-
-        touchTrail = new ParticleEffect();
-
-        touchTrail.load(
-            type.getFile(),
-            Gdx.files.internal("particles/pngs")
-        );
-
-        touchTrail.scaleEffect(scale);
-//        Seq.of(touchTrail.getEmitters())
-//            .forEach(emitter -> emitter.getEmission().setHigh(75));
-
-        touchTrail.setPosition(x, y);
-
-        /*
-         * Important:
-         * start() makes all emitters start emitting.
-         */
-        touchTrail.start();
-
-        touchTrailLayer = layer;
-    }
-
-    /*
-     * Moves the emitter while already-created particles
-     * remain behind at their previous positions.
-     */
-    public void moveTrail(float x, float y) {
-        if (touchTrail == null) {
-            return;
-        }
-
-        touchTrail.setPosition(x, y);
-    }
-
-    /*
-     * Stop generating new particles.
-     *
-     * Existing particles continue to live/fade naturally.
-     */
-    public void stopTrail() {
-        if (touchTrail == null) {
-            return;
-        }
-
-        for (ParticleEmitter emitter : touchTrail.getEmitters()) {
-            emitter.allowCompletion();
-        }
-    }
-
-    public boolean isTrailActive() {
-        return touchTrail != null;
     }
 }

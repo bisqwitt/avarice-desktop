@@ -31,7 +31,7 @@ public class CloverValueText extends FabledText {
                     Assets.I().get(AssetKey.V_SHADOW),
                     Assets.I().get(AssetKey.E_SHADOW),
                     Assets.I().get(AssetKey.R_SHADOW)
-                ), new Vector2(1.25f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(0f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             ),
             new FabledWord(
                 Arrays.asList(
@@ -47,9 +47,10 @@ public class CloverValueText extends FabledText {
                     Assets.I().get(AssetKey.L_SHADOW),
                     Assets.I().get(AssetKey.U_SHADOW),
                     Assets.I().get(AssetKey.E_SHADOW)
-                ), new Vector2(3.4f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(2.15f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             )
         );
+        setFloatEffects(0.02f, 1f);
     }
 
 }

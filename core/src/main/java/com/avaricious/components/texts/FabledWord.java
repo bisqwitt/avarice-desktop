@@ -54,7 +54,7 @@ public class FabledWord {
 
         for (int i = 0; i < letterTextures.size(); i++) {
             TextureRegion letter = letterTextures.get(i);
-            float x = lettersX.get(i);
+            float x = startingPos.x + lettersX.get(i);
             float y = startingPos.y + floatEffects.get(i).getValue();
             float width = letter.getRegionWidth() / sizeRatio;
             float height = letter.getRegionHeight() / sizeRatio;
@@ -73,11 +73,17 @@ public class FabledWord {
     }
 
     private void calcLetterX() {
-        lettersX.add(startingPos.x);
+        lettersX.add(0f);
+
         for (int i = 1; i < letterTextures.size(); i++) {
             TextureRegion letterBefore = letterTextures.get(i - 1);
             float letterBeforeWidth = letterBefore.getRegionWidth() / sizeRatio;
-            float x = lettersX.get(i - 1) + letterBeforeWidth + spacing;
+
+            float x =
+                lettersX.get(i - 1)
+                    + letterBeforeWidth
+                    + spacing;
+
             lettersX.add(x);
         }
     }

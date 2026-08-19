@@ -27,6 +27,7 @@ public class SlotMachineResultRunner {
         return instance == null ? instance = new SlotMachineResultRunner() : instance;
     }
 
+    private TaskScheduler scheduler;
     private final SlotMachine slotMachine = SlotMachine.I();
     private float defaultDelay = 0.4f;
 
@@ -46,7 +47,7 @@ public class SlotMachineResultRunner {
             return;
         }
 
-        TaskScheduler scheduler = new TaskScheduler(defaultDelay);
+        scheduler = new TaskScheduler(defaultDelay);
         scheduler.schedule(() -> slotMachine.setRunningResults(true), 0f);
 
         for (PatternMatch patternMatch : matches) {
@@ -173,5 +174,9 @@ public class SlotMachineResultRunner {
 
     public void setDefaultDelay(float defaultDelay) {
         this.defaultDelay = defaultDelay;
+    }
+
+    public TaskScheduler getScheduler() {
+        return scheduler;
     }
 }

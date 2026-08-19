@@ -22,6 +22,10 @@ public class FabledText {
         Seq.of(words).forEach(word -> word.getStartingPos().y = y);
     }
 
+    public void setX(float x) {
+        Seq.of(words).forEach(word -> word.getStartingPos().x += x);
+    }
+
     protected void setWords(FabledWord... newWords) {
         words.clear();
         words.addAll(Arrays.asList(newWords));

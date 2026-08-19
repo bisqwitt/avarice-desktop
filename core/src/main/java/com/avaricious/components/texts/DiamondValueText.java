@@ -33,7 +33,7 @@ public class DiamondValueText extends FabledText {
                     Assets.I().get(AssetKey.O_SHADOW),
                     Assets.I().get(AssetKey.N_SHADOW),
                     Assets.I().get(AssetKey.D_SHADOW)
-                ), new Vector2(1.25f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(0f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             ),
             new FabledWord(
                 Arrays.asList(
@@ -49,9 +49,10 @@ public class DiamondValueText extends FabledText {
                     Assets.I().get(AssetKey.L_SHADOW),
                     Assets.I().get(AssetKey.U_SHADOW),
                     Assets.I().get(AssetKey.E_SHADOW)
-                ), new Vector2(4f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(2.75f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             )
         );
+        setFloatEffects(0.02f, 1f);
     }
 
 }

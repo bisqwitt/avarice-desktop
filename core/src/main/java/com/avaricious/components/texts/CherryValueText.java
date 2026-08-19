@@ -31,7 +31,7 @@ public class CherryValueText extends FabledText {
                     Assets.I().get(AssetKey.R_SHADOW),
                     Assets.I().get(AssetKey.R_SHADOW),
                     Assets.I().get(AssetKey.Y_SHADOW)
-                ), new Vector2(1.25f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(0f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             ),
             new FabledWord(
                 Arrays.asList(
@@ -47,9 +47,10 @@ public class CherryValueText extends FabledText {
                     Assets.I().get(AssetKey.L_SHADOW),
                     Assets.I().get(AssetKey.U_SHADOW),
                     Assets.I().get(AssetKey.E_SHADOW)
-                ), new Vector2(3.6f, 0f), SIZE_RATIO, SPACING, Z_INDEX
+                ), new Vector2(2.35f, 0f), SIZE_RATIO, SPACING, Z_INDEX
             )
         );
+        setFloatEffects(0.02f, 1f);
     }
 
 }
