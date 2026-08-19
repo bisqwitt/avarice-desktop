@@ -39,7 +39,7 @@ public class SymbolValues {
 
     public void increaseValue(Symbol symbol) {
         int oldValue = symbolValueMap.get(symbol);
-        symbolValueMap.put(symbol, oldValue + 1);
+        symbolValueMap.put(symbol, oldValue + 10);
         symbolValueChangeSupport.firePropertyChange(symbol.toString(), oldValue, (int) symbolValueMap.get(symbol));
         increasePrice(symbol);
     }
