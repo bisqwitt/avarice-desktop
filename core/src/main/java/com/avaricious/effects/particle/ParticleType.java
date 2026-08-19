@@ -8,7 +8,7 @@ public enum ParticleType {
     TRAIL(Gdx.files.internal("particles/purple-trail.p")),
     BLUE(Gdx.files.internal("particles/blue-pixel-particle.p")),
     RED(Gdx.files.internal("particles/red-pixel-particle.p")),
-    XP(Gdx.files.internal("particles/xp-particle.p")),
+    COMP_CHIP(Gdx.files.internal("particles/xp-particle.p")),
     WHITE(Gdx.files.internal("particles/white-pixel-particle.p"));
 
     private final FileHandle file;

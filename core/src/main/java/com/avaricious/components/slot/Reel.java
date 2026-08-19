@@ -255,6 +255,39 @@ public class Reel {
         strip.set(mod(idx, strip.size()), symbol);
     }
 
+    /**
+     * Moves a symbol into a visible row by swapping with an off-screen
+     * copy. This keeps the reel's symbol distribution unchanged when
+     * the spin pity system nudges an empty result into a match.
+     */
+    public void placeSymbolAtRowPreservingStrip(int row, Symbol symbol) {
+        int targetIndex = mod((int) Math.floor(pos + row), strip.size());
+
+        if (strip.get(targetIndex) == symbol) return;
+
+        for (int candidateIndex = 0; candidateIndex < strip.size(); candidateIndex++) {
+            if (strip.get(candidateIndex) != symbol || isVisibleIndex(candidateIndex)) {
+                continue;
+            }
+
+            Symbol replaced = strip.get(targetIndex);
+            strip.set(targetIndex, symbol);
+            strip.set(candidateIndex, replaced);
+            return;
+        }
+
+        /* Defensive fallback for a custom strip with no off-screen copy. */
+        strip.set(targetIndex, symbol);
+    }
+
+    private boolean isVisibleIndex(int index) {
+        for (int row = 0; row < visibleRows; row++) {
+            int visibleIndex = mod((int) Math.floor(pos + row), strip.size());
+            if (visibleIndex == index) return true;
+        }
+        return false;
+    }
+
     private static int mod(int x, int m) {
         int r = x % m;
         return (r < 0) ? (r + m) : r;

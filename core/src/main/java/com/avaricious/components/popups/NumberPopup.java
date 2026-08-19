@@ -44,6 +44,9 @@ public class NumberPopup implements IPopup {
     // One timer reused for the current phase (0..phaseDuration)
     private float timeInPhase = 0f;
 
+    /* Total age lets specialized reward popups define unique motion. */
+    protected float animationAge = 0f;
+
     private final boolean asPercentage;
 
     private Runnable onFinished;
@@ -93,6 +96,7 @@ public class NumberPopup implements IPopup {
     private void restart() {
         phase = Phase.PULSE;
         timeInPhase = 0f;
+        animationAge = 0f;
     }
 
     @Override
@@ -103,6 +107,7 @@ public class NumberPopup implements IPopup {
     @Override
     public void update(float delta) {
         if (phase == Phase.FINISHED) return;
+        animationAge += delta;
         pulseEffect.update(delta);
 
         timeInPhase += delta;
@@ -144,12 +149,13 @@ public class NumberPopup implements IPopup {
 
         if (alpha <= 0f || scale <= 0f) return;
 
+        float xOffset = getRenderXOffset();
         float yOffset = getPulseYOffset();
 
         // Use alpha for main draw color
         Pencil.I().addDrawing(new TextureDrawing(
             number < 0 ? minusTexture : plusTexture,
-            bounds.x - numberOffset, bounds.y + yOffset, bounds.width, bounds.height,
+            bounds.x - numberOffset + xOffset, bounds.y + yOffset, bounds.width, bounds.height,
             scale, rotation, zIndex, new Color(color.r, color.g, color.b, alpha)
         ));
 
@@ -157,7 +163,7 @@ public class NumberPopup implements IPopup {
             int index = i;
             Pencil.I().addDrawing(new TextureDrawing(
                 digitalNumberTextures.get(index),
-                bounds.x + (numberOffset * index), bounds.y + yOffset, bounds.width, bounds.height,
+                bounds.x + (numberOffset * index) + xOffset, bounds.y + yOffset, bounds.width, bounds.height,
                 scale, rotation, zIndex, new Color(color.r, color.g, color.b, alpha)
             ));
         }
@@ -165,7 +171,7 @@ public class NumberPopup implements IPopup {
         if (asPercentage) {
             Pencil.I().addDrawing(new TextureDrawing(
                 percentageTexture,
-                bounds.x + 0.4f, bounds.y + yOffset, 8 / 20f, 13 / 20f,
+                bounds.x + 0.4f + xOffset, bounds.y + yOffset, 8 / 20f, 13 / 20f,
                 scale, rotation, zIndex
             ));
         }
@@ -178,6 +184,10 @@ public class NumberPopup implements IPopup {
         // Up-kick early, settle back
         float kick = (float) Math.sin(Math.PI * t) * 0.06f; // tune (world units)
         return kick;
+    }
+
+    protected float getRenderXOffset() {
+        return 0f;
     }
 
     protected float getAlpha() {
@@ -212,5 +222,9 @@ public class NumberPopup implements IPopup {
     public NumberPopup setZIndex(ZIndex zIndex) {
         this.zIndex = zIndex;
         return this;
+    }
+
+    public Color getColor() {
+        return color;
     }
 }

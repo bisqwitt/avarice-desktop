@@ -2,6 +2,7 @@ package com.avaricious.components.slot;
 
 import com.avaricious.components.slot.pattern.PatternFinder;
 import com.avaricious.components.slot.pattern.PatternMatch;
+import com.avaricious.utility.SeededRandomizer;
 import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
@@ -20,6 +21,11 @@ public class SlotMachineMatchFinder {
     private final int cols;
     private final int rows;
 
+    private static final float EMPTY_RESULT_RESCUE_CHANCE = 0.65f;
+    private static final int MAX_CONSECUTIVE_EMPTY_SPINS = 1;
+
+    private int consecutiveEmptySpins = 0;
+
     private SlotMachineMatchFinder() {
         this.cols = SlotMachine.colCount;
         this.rows = SlotMachine.rowCount;
@@ -28,6 +34,55 @@ public class SlotMachineMatchFinder {
     public List<PatternMatch> findMatches() {
         Symbol[][] symbolMap = getCurrentSymbolMap();
         List<PatternMatch> matches = PatternFinder.findMatches(symbolMap);
+
+        sortMatches(matches);
+        return matches;
+    }
+
+    /**
+     * Spin-only matching with a short dry-streak guard. Natural matches
+     * are untouched. An empty board has a 65% chance to be nudged into
+     * a horizontal three-match, and a second empty spin is always rescued.
+     */
+    public List<PatternMatch> findMatchesAfterSpin() {
+        Symbol[][] symbolMap = getCurrentSymbolMap();
+        List<PatternMatch> matches = PatternFinder.findMatches(symbolMap);
+
+        if (!matches.isEmpty()) {
+            consecutiveEmptySpins = 0;
+            sortMatches(matches);
+            return matches;
+        }
+
+        boolean rescueResult =
+            consecutiveEmptySpins >= MAX_CONSECUTIVE_EMPTY_SPINS ||
+                SeededRandomizer.get().nextFloat() < EMPTY_RESULT_RESCUE_CHANCE;
+
+        if (!rescueResult) {
+            consecutiveEmptySpins++;
+            return matches;
+        }
+
+        createHorizontalMatch(symbolMap);
+        consecutiveEmptySpins = 0;
+
+        matches = PatternFinder.findMatches(getCurrentSymbolMap());
+        sortMatches(matches);
+        return matches;
+    }
+
+    private void createHorizontalMatch(Symbol[][] symbolMap) {
+        int row = SeededRandomizer.nextInt(0, rows - 1);
+        int startColumn = SeededRandomizer.nextInt(0, cols - 3);
+        Symbol target = symbolMap[startColumn][row];
+
+        List<Reel> reels = SlotMachine.I().getReels();
+        for (int column = startColumn; column < startColumn + 3; column++) {
+            reels.get(column).placeSymbolAtRowPreservingStrip(row, target);
+        }
+    }
+
+    private void sortMatches(List<PatternMatch> matches) {
 
         Collections.sort(matches, new Comparator<PatternMatch>() {
             @Override
@@ -40,7 +95,6 @@ public class SlotMachineMatchFinder {
                 return 0;
             }
         });
-        return matches;
     }
 
     public PatternMatch findSymbol(Symbol targetSymbol) {

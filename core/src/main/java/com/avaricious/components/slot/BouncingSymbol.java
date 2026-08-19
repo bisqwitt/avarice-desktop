@@ -1,18 +1,19 @@
 package com.avaricious.components.slot;
 
+import com.avaricious.audio.AudioManager;
+import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
-import com.avaricious.components.XpBar;
 import com.avaricious.components.popups.PopupManager;
-import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.components.popups.SpadePopup;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
@@ -20,9 +21,12 @@ import com.badlogic.gdx.math.Vector2;
 
 public class BouncingSymbol {
 
+    private static final int COMP_CHIP_REWARD = 1;
+
     private final Symbol symbol;
     private final TextureRegion texture;
     private final TextureRegion whiteTexture;
+    private final TextureRegion shadowTexture;
 
     private final PulseEffect pulseEffect = new PulseEffect();
 
@@ -36,6 +40,11 @@ public class BouncingSymbol {
     private float rotationVelocity;
 
     private float scale = 1f;
+    private float spawnAge = 0f;
+    private float impactFlash = 0f;
+    private float hoverAmount = 0f;
+    private float collisionCooldown = 0f;
+    private boolean hovered = false;
 
     /*
      * Lifetime before the symbol counts as missed.
@@ -78,18 +87,23 @@ public class BouncingSymbol {
     private final float wobbleStrength;
 
     public BouncingSymbol(Symbol symbol, float x, float y) {
+        this(symbol, x, y, 1f);
+    }
+
+    public BouncingSymbol(Symbol symbol, float x, float y, float launchPower) {
         this.symbol = symbol;
         this.texture = Assets.I().getSymbol(symbol);
         this.whiteTexture = Assets.I().get(symbol.whiteKey());
+        this.shadowTexture = Assets.I().get(symbol.shadowKey());
 
         this.x = x;
         this.y = y;
 
         /*
          * Launch in a random direction.
-         */
+        */
         float angle = MathUtils.random(0f, MathUtils.PI2);
-        float speed = MathUtils.random(6f, 12f);
+        float speed = MathUtils.random(6f, 12f) * launchPower;
 
         velocityX = MathUtils.cos(angle) * speed;
         velocityY = MathUtils.sin(angle) * speed;
@@ -109,11 +123,22 @@ public class BouncingSymbol {
         /*
          * Bouncing symbol pulse settings.
          */
-        pulseEffect.setStrength(4f);
+        pulseEffect.setStrength(0.8f);
         pulseEffect.setSpeed(0.125f);
+
+        scale = 0.2f;
     }
 
     public void update(float delta) {
+
+        spawnAge += delta;
+        collisionCooldown = Math.max(0f, collisionCooldown - delta);
+        impactFlash = Math.max(0f, impactFlash - delta * 5.5f);
+        hoverAmount = MathUtils.lerp(
+            hoverAmount,
+            hovered && !claimed ? 1f : 0f,
+            Math.min(1f, delta * 12f)
+        );
 
         /*
          * The symbol continues moving while it is available.
@@ -136,6 +161,7 @@ public class BouncingSymbol {
                 miss();
             }
 
+            updateScale();
             return;
         }
 
@@ -196,11 +222,13 @@ public class BouncingSymbol {
         boolean wasTouching
     ) {
 
-        if (!touching || !getHitbox().contains(mouse) || claimed) {
+        hovered = !claimed && getHitbox().contains(mouse);
+
+        if (!touching || !hovered || claimed) {
             return false;
         }
 
-        pulseEffect.pulse();
+        pulseEffect.pulse(1.65f);
 
         disappearTime = 0f;
         claimed = true;
@@ -208,25 +236,32 @@ public class BouncingSymbol {
         ParticleManager.I().create(
             x,
             y,
+            ParticleType.COMP_CHIP,
+            0.035f,
+            90f,
+            ZIndex.SYMBOL_HIT_PARTICLES
+        );
+
+        ParticleManager.I().create(
+            x,
+            y,
             ParticleType.WHITE,
-            0.02f,
-            50f,
-            ZIndex.SLOT_MACHINE
+            0.018f,
+            42f,
+            ZIndex.SLOT_MACHINE_FOREGROUND
         );
 
-        PopupManager.I().spawnNumber(
-            SymbolValues.I().getValue(symbol),
+        PopupManager.I().spawnSpade(new SpadePopup(
             Assets.I().getSymbolColor(symbol),
-            x + getWidth(),
-            y + getHeight(),
-            false
-        );
+            getCenterX() + 0.75f,
+            getCenterY() + 0.5f
+        ));
 
-        ScoreDisplay.I().addToScore(SymbolValues.I().getValue(symbol));
+        CompChipBar.I().addChips(COMP_CHIP_REWARD);
 
-        XpBar.I().addXp(1);
-
-         ScreenShake.I().addTrauma(0.05f);
+        AudioManager.I().playCollect(COMP_CHIP_REWARD);
+        ScreenShake.I().addTrauma(0.10f);
+        impactFlash = 1f;
 
         return true;
     }
@@ -290,6 +325,7 @@ public class BouncingSymbol {
          * LEFT WALL
          */
         if (left < screenLeft) {
+            float impactSpeed = Math.abs(velocityX);
             float overlap = screenLeft - left;
 
             x += overlap;
@@ -299,12 +335,15 @@ public class BouncingSymbol {
 
             rotationVelocity +=
                 MathUtils.random(-90f, 90f);
+
+            triggerImpact(impactSpeed);
         }
 
         /*
          * RIGHT WALL
          */
         if (right > screenRight) {
+            float impactSpeed = Math.abs(velocityX);
             float overlap = right - screenRight;
 
             x -= overlap;
@@ -314,6 +353,8 @@ public class BouncingSymbol {
 
             rotationVelocity +=
                 MathUtils.random(-90f, 90f);
+
+            triggerImpact(impactSpeed);
         }
     }
 
@@ -341,6 +382,7 @@ public class BouncingSymbol {
          * BOTTOM WALL
          */
         if (bottom < screenBottom) {
+            float impactSpeed = Math.abs(velocityY);
             float overlap = screenBottom - bottom;
 
             y += overlap;
@@ -350,12 +392,15 @@ public class BouncingSymbol {
 
             rotationVelocity +=
                 MathUtils.random(-90f, 90f);
+
+            triggerImpact(impactSpeed);
         }
 
         /*
          * TOP WALL
          */
         if (top > screenTop) {
+            float impactSpeed = Math.abs(velocityY);
             float overlap = top - screenTop;
 
             y -= overlap;
@@ -365,6 +410,8 @@ public class BouncingSymbol {
 
             rotationVelocity +=
                 MathUtils.random(-90f, 90f);
+
+            triggerImpact(impactSpeed);
         }
     }
 
@@ -372,17 +419,49 @@ public class BouncingSymbol {
      * Only called after the symbol has been claimed.
      */
     private void updateScale() {
+        if (!claimed) {
+            float entrance = MathUtils.clamp(spawnAge / 0.20f, 0f, 1f);
+            float entranceOvershoot =
+                1f + MathUtils.sin(entrance * MathUtils.PI) * 0.24f;
+            float urgency = getUrgency();
+            float urgencyPulse = MathUtils.sin(spawnAge * 22f) * 0.06f * urgency;
+
+            scale = entrance * entranceOvershoot
+                * (1f + hoverAmount * 0.16f + impactFlash * 0.15f + urgencyPulse);
+            return;
+        }
+
         float progress = MathUtils.clamp(
             disappearTime / DISAPPEAR_DURATION,
             0f,
             1f
         );
 
-        scale = MathUtils.lerp(
-            1f,
-            0f,
-            progress
-        );
+        if (progress < 0.18f) {
+            scale = MathUtils.lerp(1f, 1.55f, progress / 0.18f);
+        } else {
+            float collapse = (progress - 0.18f) / 0.82f;
+            scale = MathUtils.lerp(1.55f, 0f, collapse * collapse);
+        }
+    }
+
+    public void triggerImpact(float force) {
+        if (claimed || collisionCooldown > 0f || force < 2.2f) return;
+
+        collisionCooldown = 0.085f;
+        impactFlash = Math.min(1f, 0.35f + force / 14f);
+        pulseEffect.pulse(MathUtils.clamp(force / 16f, 0.28f, 0.62f));
+
+        if (force > 5f) {
+            ParticleManager.I().create(
+                x,
+                y,
+                ParticleType.WHITE,
+                0.008f,
+                MathUtils.clamp(force * 1.5f, 8f, 22f),
+                ZIndex.SLOT_MACHINE_FOREGROUND
+            );
+        }
     }
 
     private float randomBounce() {
@@ -442,6 +521,44 @@ public class BouncingSymbol {
         float finalRotation =
             rotation + pulseEffect.getRotation();
 
+        float speed = (float) Math.sqrt(
+            velocityX * velocityX + velocityY * velocityY
+        );
+        float urgency = getUrgency();
+
+        /* Motion echoes make fast launches legible without extra textures. */
+        float trailAlpha = MathUtils.clamp(speed / 14f, 0f, 1f) * 0.18f;
+        for (int i = 2; i >= 1; i--) {
+            float trailOffset = i * 0.028f;
+            Pencil.I().addDrawing(
+                new TextureDrawing(
+                    whiteTexture,
+                    drawX - velocityX * trailOffset,
+                    drawY - velocityY * trailOffset,
+                    width,
+                    height,
+                    1f - i * 0.08f,
+                    finalRotation - rotationVelocity * trailOffset,
+                    ZIndex.SLOT_MACHINE,
+                    new Color(1f, 1f, 1f, trailAlpha / i)
+                )
+            );
+        }
+
+        Pencil.I().addDrawing(
+            new TextureDrawing(
+                shadowTexture,
+                drawX,
+                drawY - 0.08f,
+                width,
+                height,
+                1f,
+                finalRotation,
+                ZIndex.SLOT_MACHINE,
+                Assets.I().shadowColor()
+            )
+        );
+
         /*
          * White silhouette / glow.
          */
@@ -454,7 +571,13 @@ public class BouncingSymbol {
                 glowHeight,
                 0.35f,
                 finalRotation,
-                ZIndex.SLOT_MACHINE
+                ZIndex.SLOT_MACHINE,
+                new Color(
+                    1f,
+                    0.92f + 0.08f * urgency,
+                    0.72f + 0.28f * (1f - urgency),
+                    0.10f + hoverAmount * 0.18f + urgency * 0.16f
+                )
             )
         );
 
@@ -473,6 +596,33 @@ public class BouncingSymbol {
                 ZIndex.SLOT_MACHINE
             )
         );
+
+        if (impactFlash > 0f || claimed) {
+            float claimFlash = claimed
+                ? Math.max(0f, 1f - disappearTime / 0.16f)
+                : 0f;
+            float flash = Math.max(impactFlash, claimFlash);
+
+            Pencil.I().addDrawing(
+                new TextureDrawing(
+                    whiteTexture,
+                    drawX,
+                    drawY,
+                    width,
+                    height,
+                    1f + flash * 0.22f,
+                    finalRotation,
+                    ZIndex.SLOT_MACHINE_FOREGROUND,
+                    new Color(1f, 1f, 1f, flash * 0.82f)
+                )
+            );
+        }
+    }
+
+    private float getUrgency() {
+        float value = MathUtils.clamp(lifetime / MAX_LIFETIME, 0f, 1f);
+        value = MathUtils.clamp((value - 0.58f) / 0.42f, 0f, 1f);
+        return value * value * (3f - 2f * value);
     }
 
     public boolean isFinished() {

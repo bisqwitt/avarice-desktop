@@ -1,6 +1,10 @@
 package com.avaricious.components.slot;
 
+import com.avaricious.audio.AudioManager;
+import com.avaricious.components.ScreenShake;
 import com.avaricious.effects.TextureEcho;
+import com.avaricious.effects.particle.ParticleManager;
+import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
@@ -57,6 +61,14 @@ public class SlotMachine {
     private int spinningReels = 0;
     private boolean stale = true;
 
+    /*
+     * A short white silhouette on each reel stop turns the mechanical
+     * settle into a readable five-beat reward cadence.
+     */
+    private final float[] reelStopFlash = new float[colCount];
+    private final float[] reelStartFlash = new float[colCount];
+    private final float[][] symbolWhiteFlash = new float[colCount][rowCount];
+
     private boolean shiftingSymbol = false;
     private DragableBody draggingBody = null;
     private Vector2 draggingBodyGridPos = null;
@@ -99,7 +111,9 @@ public class SlotMachine {
         }
 
         for (int c = 0; c < colCount; c++) {
+            final int reelIndex = c;
             reels.add(new Reel(rowCount, () -> {
+                onReelStopped(reelIndex);
                 spinningReels--;
                 if (spinningReels == 0 && onLastReelFinished != null) onLastReelFinished.run();
             }));
@@ -190,6 +204,15 @@ public class SlotMachine {
     public void update(float delta) {
         for (int c = 0; c < colCount; c++) {
             reels.get(c).update(delta);
+            reelStopFlash[c] = Math.max(0f, reelStopFlash[c] - delta * 4.8f);
+            reelStartFlash[c] = Math.max(0f, reelStartFlash[c] - delta * 6.5f);
+
+            for (int row = 0; row < rowCount; row++) {
+                symbolWhiteFlash[c][row] = Math.max(
+                    0f,
+                    symbolWhiteFlash[c][row] - delta * 5.8f
+                );
+            }
         }
 
         for (int i = 0; i < grid.length; i++) {
@@ -302,11 +325,47 @@ public class SlotMachine {
             renderPos.x, renderPos.y, drawW, drawH,
             scale, rotation, finalZIndex, new Color(1f, 1f, 1f, alpha)
         ));
+
+        if (isInGrid) {
+            int column = (int) gridPos.x;
+            int row = (int) gridPos.y;
+            float stopFlash = reelStopFlash[column];
+            float startFlash = reelStartFlash[column];
+            float symbolFlash = symbolWhiteFlash[column][row];
+            float flash = Math.max(
+                symbolFlash,
+                Math.max(stopFlash, startFlash * 0.42f)
+            );
+
+            if (flash > 0f) {
+                float flashScale = scale * (
+                    1f + Math.max(stopFlash, symbolFlash) * 0.24f
+                );
+                float flashAlpha = Math.min(alpha, flash * flash * 0.88f);
+
+                Pencil.I().addDrawing(new TextureDrawing(
+                    Assets.I().get(symbol.whiteKey()),
+                    renderPos.x, renderPos.y, drawW, drawH,
+                    flashScale, rotation, finalZIndex,
+                    new Color(1f, 1f, 1f, flashAlpha)
+                ));
+            }
+        }
     }
 
     public void spin() {
         spinningReels = colCount;
         stale = false;
+
+        Arrays.fill(reelStopFlash, 0f);
+        Arrays.fill(reelStartFlash, 0f);
+
+        for (float[] columnFlashes : symbolWhiteFlash) {
+            Arrays.fill(columnFlashes, 0f);
+        }
+
+        AudioManager.I().playSpinStart();
+        ScreenShake.I().addTrauma(0.075f);
 
         float startSpeed = 16f;
 
@@ -318,6 +377,7 @@ public class SlotMachine {
             Timer.schedule(new Timer.Task() {
                 @Override
                 public void run() {
+                    onReelStarted(col);
                     reels.get(col).start(startSpeed + MathUtils.random(-0.7f, 0.7f)); // tiny per-reel variation
                 }
             }, startDelay);
@@ -329,6 +389,94 @@ public class SlotMachine {
                 }
             }, 1f + stopDelay);
         }
+    }
+
+    private void onReelStarted(int column) {
+        reelStartFlash[column] = 1f;
+
+        for (int row = 0; row < rowCount; row++) {
+            grid[column][row].pulse(0.28f + column * 0.025f);
+        }
+
+        float x = originX + column * (CELL_W + spacingX);
+        float y = originY + 2f * (CELL_H + spacingY);
+
+        ParticleManager.I().create(
+            x, y, ParticleType.WHITE, 0.012f, 12f,
+            ZIndex.SYMBOL_HIT_PARTICLES
+        );
+    }
+
+    private void onReelStopped(int column) {
+        boolean finalReel = column == colCount - 1;
+        reelStopFlash[column] = 1f;
+
+        for (int row = 0; row < rowCount; row++) {
+            Body body = grid[column][row];
+            body.pulse(0.56f + column * 0.07f);
+
+            ParticleManager.I().create(
+                body.getPos().x,
+                body.getPos().y,
+                finalReel ? ParticleType.RAINBOW : ParticleType.WHITE,
+                finalReel ? 0.021f : 0.012f,
+                finalReel ? 28f : 13f,
+                ZIndex.SYMBOL_HIT_PARTICLES
+            );
+        }
+
+        ScreenShake.I().addTrauma(0.055f + column * 0.018f);
+        AudioManager.I().playReelStop(column, finalReel);
+    }
+
+    public void flashSymbol(Body target, float strength) {
+        for (int column = 0; column < colCount; column++) {
+            for (int row = 0; row < rowCount; row++) {
+                if (grid[column][row] == target) {
+                    symbolWhiteFlash[column][row] = Math.max(
+                        symbolWhiteFlash[column][row],
+                        MathUtils.clamp(strength, 0f, 1f)
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * A soft consolation wave for an empty spin. The rows scan from
+     * top to bottom, with a tiny alternating horizontal stagger so the
+     * flash reads as motion rather than one full-screen blink.
+     */
+    public void playEmptySpinSweep(Runnable onComplete) {
+        final float rowDelay = 0.085f;
+        final float columnDelay = 0.014f;
+
+        for (int row = 0; row < rowCount; row++) {
+            final int targetRow = row;
+
+            for (int step = 0; step < colCount; step++) {
+                final int targetColumn = row % 2 == 0
+                    ? step
+                    : colCount - 1 - step;
+                float delay = row * rowDelay + step * columnDelay;
+
+                Timer.schedule(new Timer.Task() {
+                    @Override
+                    public void run() {
+                        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
+                        grid[targetColumn][targetRow].pulse(0.18f);
+                    }
+                }, delay);
+            }
+        }
+
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                if (onComplete != null) onComplete.run();
+            }
+        }, rowCount * rowDelay + colCount * columnDelay + 0.12f);
     }
 
     public void shiftSymbol() {

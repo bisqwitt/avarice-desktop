@@ -1,6 +1,9 @@
 package com.avaricious.components.slot;
 
+import com.avaricious.effects.particle.ParticleManager;
+import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.Seq;
+import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 
@@ -21,8 +24,26 @@ public class BouncingSymbolManager {
     }
 
     public void createFallingSymbol(Symbol symbol, float x, float y) {
+        createFallingSymbol(symbol, x, y, 1f);
+    }
+
+    public void createFallingSymbol(
+        Symbol symbol,
+        float x,
+        float y,
+        float launchPower
+    ) {
         bouncingSymbols.add(
-            new BouncingSymbol(symbol, x, y)
+            new BouncingSymbol(symbol, x, y, launchPower)
+        );
+
+        ParticleManager.I().create(
+            x,
+            y,
+            ParticleType.RAINBOW,
+            0.012f * launchPower,
+            16f * launchPower,
+            ZIndex.SYMBOL_HIT_PARTICLES
         );
     }
 
@@ -231,6 +252,10 @@ public class BouncingSymbolManager {
         b.addRotationVelocity(
             MathUtils.random(-25f, 25f)
         );
+
+        float impactForce = Math.abs(velocityAlongNormal);
+        a.triggerImpact(impactForce);
+        b.triggerImpact(impactForce);
     }
 
     /*
@@ -493,6 +518,10 @@ public class BouncingSymbolManager {
 
         symbol.addRotationVelocity(
             MathUtils.random(-35f, 35f)
+        );
+
+        symbol.triggerImpact(
+            Math.abs(velocityAlongNormal)
         );
     }
 }

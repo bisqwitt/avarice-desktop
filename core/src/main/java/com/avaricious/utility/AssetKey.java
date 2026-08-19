@@ -417,7 +417,8 @@ public enum AssetKey {
     CROSSHAIR2("crosshair2"),
     RED_CROSS("red-cross"),
     EXCLAMATION("exclamation"),
-    EXCLAMATION_SHADOW("exclamation-shadow");
+    EXCLAMATION_SHADOW("exclamation-shadow"),
+    SPADE("spade"),;
 
     private final String path;
 

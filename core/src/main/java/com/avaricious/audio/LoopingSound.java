@@ -27,7 +27,7 @@ public class LoopingSound {
         if (active) return;
         active = true;
 
-//        start.play(volume, pitch, 0f);
+        start.play(volume, pitch, 0f);
 
         loopId = loop.play(volume, pitch, 0f);
         loop.setLooping(loopId, true);

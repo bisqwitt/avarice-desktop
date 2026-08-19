@@ -173,7 +173,7 @@ public class SlotScreen extends ScreenAdapter {
 
         SlotMachine.I().setOnLastReelFinished(
             () -> SlotMachineResultRunner.I().runResult(
-                SlotMachineMatchFinder.I().findMatches()
+                SlotMachineMatchFinder.I().findMatchesAfterSpin()
             )
         );
 
@@ -210,46 +210,46 @@ public class SlotScreen extends ScreenAdapter {
 
                     buttonBoard.setVisible(true);
 
-                    Automations.I().getAutoSpin().activate();
+//                    Automations.I().getAutoSpin().activate();
 
 
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
-
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
-
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
-
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
-
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
-
-                    Automations.I()
-                        .getAutoSpinCapacity()
-                        .upgrade();
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
+//
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
+//
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
+//
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
+//
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
+//
+//                    Automations.I()
+//                        .getAutoSpinCapacity()
+//                        .upgrade();
 
 
                     Automations.I()
                         .getSlotMachineSpeed()
                         .upgrade();
 
-                    Automations.I()
-                        .getSlotMachineSpeed()
-                        .upgrade();
+//                    Automations.I()
+//                        .getSlotMachineSpeed()
+//                        .upgrade();
 
 
 //                    Automations.I().getSlotMachineSpeed().upgrade();
 //                    shop.show();
-//                    XpBar.I().addXp(10);
+//                    CompChipBar.I().addChips(10);
                 }
 
             },
@@ -471,7 +471,7 @@ public class SlotScreen extends ScreenAdapter {
 //        );
 
 
-        XpBar.I().draw();
+        CompChipBar.I().draw(delta);
 
         shop.draw(delta);
 

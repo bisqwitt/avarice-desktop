@@ -5,14 +5,18 @@ import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.popups.PopupManager;
+import com.avaricious.components.popups.NumberPopup;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.pattern.PatternMatch;
 import com.avaricious.effects.EffectManager;
 import com.avaricious.effects.TextureEcho;
+import com.avaricious.effects.particle.ParticleManager;
+import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.screens.ScreenManager;
 import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.SymbolValues;
+import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.Rectangle;
 
 import java.util.ArrayList;
@@ -40,14 +44,19 @@ public class SlotMachineResultRunner {
 
     public void runResult(List<PatternMatch> matches) {
         if (matches.isEmpty()) {
+            AudioManager.I().stopPayout();
 //            buttonBoard.setVisible(true);
-            slotMachine.setStale(true);
-            if (Automations.I().getAutoSpin().isActive())
-                ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+            slotMachine.playEmptySpinSweep(() -> {
+                slotMachine.setStale(true);
+                if (Automations.I().getAutoSpin().isActive()) {
+                    ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+                }
+            });
             return;
         }
 
         scheduler = new TaskScheduler(defaultDelay);
+        scheduler.schedule(AudioManager.I()::startPayout, 0f);
         scheduler.schedule(() -> slotMachine.setRunningResults(true), 0f);
 
         for (PatternMatch patternMatch : matches) {
@@ -66,6 +75,7 @@ public class SlotMachineResultRunner {
                 PopupManager.I().releaseHoldingNumbers();
 
                 for (Body body : slots) {
+                    slotMachine.flashSymbol(body, 1f);
                     body.pulse(1.2f);
 
                     EffectManager.create(Assets.I().getSymbol(patternMatch.getSymbol()),
@@ -75,10 +85,23 @@ public class SlotMachineResultRunner {
                     BouncingSymbolManager.I().createFallingSymbol(
                         patternMatch.getSymbol(),
                         body.getPos().x,
-                        body.getPos().y
+                        body.getPos().y,
+                        1.18f
                     );
                 }
-                ScreenShake.I().addTrauma(0.3f);
+
+                ParticleManager.I().create(
+                    middleBody.getPos().x,
+                    middleBody.getPos().y,
+                    ParticleType.RAINBOW,
+                    0.045f,
+                    80f + slots.size() * 5f,
+                    ZIndex.SYMBOL_HIT_PARTICLES
+                );
+
+                ScreenShake.I().addTrauma(
+                    0.31f + Math.min(0.12f, slots.size() * 0.012f)
+                );
 
                 int multi = slots.size() * 10;
 
@@ -102,6 +125,7 @@ public class SlotMachineResultRunner {
         }
 
         scheduler.schedule(() -> {
+            AudioManager.I().stopPayout();
             slotMachine.setRunningResults(false);
             slotMachine.setStale(true);
             EffectManager.endStreak();
@@ -136,14 +160,24 @@ public class SlotMachineResultRunner {
             scheduler.schedule(() -> {
                 slotScreen.addSymbolsHitLastSpin();
 
+                slotMachine.flashSymbol(body, 1f);
                 body.pulse(1.75f);
-                ScreenShake.I().addTrauma(0.2f);
+                ScreenShake.I().addTrauma(
+                    0.18f + Math.min(0.10f, EffectManager.streak * 0.025f)
+                );
 
                 int points = SymbolValues.I().getValue(match.getSymbol());
 
-//                PopupManager.I().spawnNumber(points, Assets.I().blue(),
-//                    body.getPos().x + 1.5f, body.getPos().y + 1f, true);
-//                ScoreDisplay.I().addToScore(points);
+                PopupManager.I().spawnNumber(new NumberPopup(
+                    points,
+                    Assets.I().getSymbolColor(match.getSymbol()),
+                    body.getPos().x + SlotMachine.CELL_W * 0.72f + 0.2f,
+                    body.getPos().y + SlotMachine.CELL_H * 0.62f + 0.2f,
+                    false,
+                    false
+                ));
+
+                ScoreDisplay.I().addToScore(points);
 
                 EffectManager.create(Assets.I().getSymbol(match.getSymbol()),
                     new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
