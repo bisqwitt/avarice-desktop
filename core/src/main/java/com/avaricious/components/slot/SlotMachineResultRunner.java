@@ -31,9 +31,17 @@ public class SlotMachineResultRunner {
         return instance == null ? instance = new SlotMachineResultRunner() : instance;
     }
 
+    private static final float DEFAULT_RESULT_STEP_DELAY = 0.40f;
+    private static final float MIN_RESULT_STEP_DELAY = 0.16f;
+    private static final float RESULT_SPEED_STEP = 0.05f;
+    private static final float ANTICIPATION_DELAY = 0.30f;
+    private static final float PATTERN_FOCUS_HOLD = 0.16f;
+    private static final float FIRST_REVEAL_DELAY =
+        ANTICIPATION_DELAY + PATTERN_FOCUS_HOLD;
+
     private TaskScheduler scheduler;
     private final SlotMachine slotMachine = SlotMachine.I();
-    private float defaultDelay = 0.4f;
+    private float resultStepDelay = DEFAULT_RESULT_STEP_DELAY;
 
     private SlotMachineResultRunner() {
     }
@@ -44,30 +52,41 @@ public class SlotMachineResultRunner {
 
     public void runResult(List<PatternMatch> matches) {
         if (matches.isEmpty()) {
-            AudioManager.I().stopPayout();
-//            buttonBoard.setVisible(true);
-            slotMachine.playEmptySpinSweep(() -> {
-                slotMachine.setStale(true);
-                if (Automations.I().getAutoSpin().isActive()) {
-                    ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
-                }
-            });
+            scheduler = new TaskScheduler(resultStepDelay);
+            scheduler.schedule(() -> {
+                AudioManager.I().stopPayout();
+//                buttonBoard.setVisible(true);
+                slotMachine.playEmptySpinSweep(() -> {
+                    slotMachine.setStale(true);
+                    if (Automations.I().getAutoSpin().isActive()) {
+                        ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+                    }
+                });
+            }, 0f);
+            scheduler.runTasks(FIRST_REVEAL_DELAY);
             return;
         }
 
-        scheduler = new TaskScheduler(defaultDelay);
+        scheduler = new TaskScheduler(resultStepDelay);
         scheduler.schedule(AudioManager.I()::startPayout, 0f);
         scheduler.schedule(() -> slotMachine.setRunningResults(true), 0f);
 
-        for (PatternMatch patternMatch : matches) {
+        for (int matchIndex = 0; matchIndex < matches.size(); matchIndex++) {
+            PatternMatch patternMatch = matches.get(matchIndex);
             List<Body> slots = new ArrayList<>(patternMatch.getSlots());
             Body middleBody = slots.get(slots.size() / 2 - (slots.size() % 2 == 0 ? 1 : 0));
 
-            scheduler.scheduleNoDelay(() -> {
+            Runnable focusPattern = () -> {
                 for (Body body : slots) {
                     body.beginPatternHit();
                 }
-            });
+            };
+
+            if (matchIndex == 0) {
+                scheduler.schedule(focusPattern, PATTERN_FOCUS_HOLD);
+            } else {
+                scheduler.scheduleNoDelay(focusPattern);
+            }
 
             triggerSeparateSlots(matches, patternMatch, slots, scheduler);
 
@@ -137,7 +156,7 @@ public class SlotMachineResultRunner {
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         });
 
-        scheduler.runTasks();
+        scheduler.runTasks(ANTICIPATION_DELAY);
     }
 
     private int nextCard = 3;
@@ -202,15 +221,14 @@ public class SlotMachineResultRunner {
         }
     }
 
-    public float getDefaultDelay() {
-        return defaultDelay;
-    }
-
-    public void setDefaultDelay(float defaultDelay) {
-        this.defaultDelay = defaultDelay;
-    }
-
     public TaskScheduler getScheduler() {
         return scheduler;
+    }
+
+    public void increaseRevealSpeed() {
+        resultStepDelay = Math.max(
+            MIN_RESULT_STEP_DELAY,
+            resultStepDelay - RESULT_SPEED_STEP
+        );
     }
 }

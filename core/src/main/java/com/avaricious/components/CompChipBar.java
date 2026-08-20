@@ -58,6 +58,7 @@ public class CompChipBar {
         shine = Math.max(0f, shine - delta * 2.5f);
 
         float pulseWave = MathUtils.sin((1f - gainPulse) * MathUtils.PI);
+        float gainGlow = gainPulse > 0f ? pulseWave * pulseWave : 0f;
         float renderHeight = HEIGHT * (
             1f + pulseWave * 0.65f + levelUpPulse * 0.55f
         );
@@ -74,9 +75,12 @@ public class CompChipBar {
         ));
 
         float rainbow = (MathUtils.sin(time * 3.5f) + 1f) * 0.5f;
+        float baseRed = MathUtils.lerp(0.52f, 0.84f, rainbow);
+        float baseGreen = MathUtils.lerp(0.28f, 0.48f, 1f - rainbow);
+        float glowMix = gainGlow * 0.82f;
         Color chipBarColor = new Color(
-            MathUtils.lerp(0.52f, 0.84f, rainbow),
-            MathUtils.lerp(0.28f, 0.48f, 1f - rainbow),
+            MathUtils.lerp(baseRed, 1f, glowMix),
+            MathUtils.lerp(baseGreen, 1f, glowMix),
             1f,
             1f
         );

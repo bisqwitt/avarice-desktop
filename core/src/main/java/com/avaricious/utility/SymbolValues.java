@@ -17,9 +17,11 @@ public class SymbolValues {
 
     private final Map<Symbol, Integer> symbolValueMap = new HashMap<>();
     private final Map<Symbol, Integer> symbolPriceMap = new HashMap<>();
+    private final Map<Symbol, Integer> symbolExtraCollectibleSpawnChance = new HashMap<>();
 
     private final PropertyChangeSupport symbolValueChangeSupport = new PropertyChangeSupport(this);
     private final PropertyChangeSupport symbolPriceChangeSupport = new PropertyChangeSupport(this);
+    private final PropertyChangeSupport symbolExtraCollectibleSpawnChanceChangeSupport = new PropertyChangeSupport(this);
 
     private SymbolValues() {
         symbolValueMap.put(Symbol.LEMON, 2);
@@ -31,6 +33,7 @@ public class SymbolValues {
         symbolValueMap.put(Symbol.SEVEN, 7);
 
         Seq.of(Symbol.values()).forEach(symbol -> symbolPriceMap.put(symbol, 50));
+        Seq.of(Symbol.values()).forEach(symbol -> symbolExtraCollectibleSpawnChance.put(symbol, 0));
     }
 
     public int getValue(Symbol symbol) {
@@ -54,12 +57,27 @@ public class SymbolValues {
         symbolPriceChangeSupport.firePropertyChange(symbol.toString(), oldPrice, (int) symbolPriceMap.get(symbol));
     }
 
+    public int getExtraCollectibleSpawnChance(Symbol symbol) {
+        return symbolExtraCollectibleSpawnChance.get(symbol);
+    }
+
+    public void increaseExtraCollectibleSpawnChance(Symbol symbol) {
+        int oldChance = symbolExtraCollectibleSpawnChance.get(symbol);
+        symbolExtraCollectibleSpawnChance.put(symbol, oldChance + 10);
+        symbolExtraCollectibleSpawnChanceChangeSupport.firePropertyChange(symbol.toString(), oldChance, (int) symbolPriceMap.get(symbol));
+
+    }
+
     public void addValueChangeListener(PropertyChangeListener listener) {
         symbolValueChangeSupport.addPropertyChangeListener(listener);
     }
 
     public void addPriceChangeListener(PropertyChangeListener listener) {
         symbolPriceChangeSupport.addPropertyChangeListener(listener);
+    }
+
+    public void addExtraCollectibleSpawnChanceChangeListener(PropertyChangeListener listener) {
+        symbolExtraCollectibleSpawnChanceChangeSupport.addPropertyChangeListener(listener);
     }
 
 }

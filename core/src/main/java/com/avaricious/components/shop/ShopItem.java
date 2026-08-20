@@ -8,7 +8,7 @@ import com.avaricious.components.buttons.DisablableButton;
 import com.avaricious.components.buttons.UpgradeSymbolButton;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.FabledText;
-import com.avaricious.components.texts.SymbolDescriptionText;
+import com.avaricious.components.texts.SymbolValueDescription;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.Pencil;
@@ -47,7 +47,7 @@ public class ShopItem {
     }
 
     public ShopItem(FabledText title, Symbol symbol) {
-        this(title, new SymbolDescriptionText(symbol),
+        this(title, new SymbolValueDescription(symbol),
             SymbolValues.I().getPrice(symbol),
             new UpgradeSymbolButton(symbol));
 

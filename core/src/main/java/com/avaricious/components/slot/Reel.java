@@ -139,11 +139,6 @@ public class Reel {
                 settleVel += a * dt;
                 pos += settleVel * dt;
 
-                if (Math.abs(pos - settleTargetPos) < 0.02f && Math.abs(settleVel) < 0.25f && !spinFinishedNotified) {
-                    onSpinFinished.run();
-                    spinFinishedNotified = true;
-                }
-
                 // finish when close enough
                 if (Math.abs(pos - settleTargetPos) < 0.0015f && Math.abs(settleVel) < 0.03f) {
                     pos = settleTargetPos;
@@ -151,6 +146,11 @@ public class Reel {
                     settleVel = 0f;
                     stopRequested = false;
                     phase = Phase.IDLE;
+
+                    if (!spinFinishedNotified) {
+                        spinFinishedNotified = true;
+                        onSpinFinished.run();
+                    }
                 }
                 break;
             }

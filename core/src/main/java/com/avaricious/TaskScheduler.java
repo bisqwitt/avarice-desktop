@@ -32,7 +32,11 @@ public class TaskScheduler {
     }
 
     public void runTasks() {
-        float delay = defaultDelay;
+        runTasks(defaultDelay);
+    }
+
+    public void runTasks(float initialDelay) {
+        float delay = Math.max(0f, initialDelay);
 
         for (ScheduledTask task : tasks) {
             timer.scheduleTask(create(task.runnable), delay);

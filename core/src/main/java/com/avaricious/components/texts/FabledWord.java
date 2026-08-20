@@ -121,6 +121,6 @@ public class FabledWord {
         float lastLetterX = lettersX.get(lastIndex);
         float lastLetterWidth = lastLetter.getRegionWidth() / sizeRatio;
 
-        return (lastLetterX + lastLetterWidth) - startingPos.x;
+        return lastLetterX + lastLetterWidth;
     }
 }

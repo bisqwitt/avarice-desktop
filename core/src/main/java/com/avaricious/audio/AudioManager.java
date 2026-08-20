@@ -56,6 +56,10 @@ public class AudioManager {
         playOneShot(0.52f, 5f + pitchStep);
     }
 
+    public void playMiss() {
+        playOneShot(0.24f, -12f);
+    }
+
     public void playHover() {
         playOneShot(0.16f, 9f);
     }

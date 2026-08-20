@@ -38,8 +38,6 @@ public class LevelUpChoice {
      * -------------------------------------------------
      */
 
-    private final Symbol symbol;
-
     private final FabledText title;
     private final FabledText description;
 
@@ -57,11 +55,11 @@ public class LevelUpChoice {
             AssetKey.WHITE_PIXEL
         );
 
-    private final TextureRegion symbolTexture;
+    private final TextureRegion texture;
 
-    private final TextureRegion symbolShadowTexture;
+    private final TextureRegion shadowTexture;
 
-    private final TextureRegion symbolWhiteTexture;
+    private final TextureRegion whiteTexture;
 
     /*
      * Entry animation.
@@ -111,25 +109,23 @@ public class LevelUpChoice {
         FabledText description,
         Runnable upgrade
     ) {
-        this.symbol = symbol;
+        this(title, description, upgrade, Assets.I().getSymbol(symbol), Assets.I().get(symbol.shadowKey()), Assets.I().get(symbol.whiteKey()));
+    }
 
+    public LevelUpChoice(
+        FabledText title,
+        FabledText description,
+        Runnable upgrade,
+        TextureRegion texture,
+        TextureRegion shadowTexture,
+        TextureRegion whiteTexture
+    ) {
         this.title = title;
         this.description = description;
-
         this.upgrade = upgrade;
-
-        symbolTexture =
-            Assets.I().getSymbol(symbol);
-
-        symbolShadowTexture =
-            Assets.I().get(
-                symbol.shadowKey()
-            );
-
-        symbolWhiteTexture =
-            Assets.I().get(
-                symbol.whiteKey()
-            );
+        this.texture = texture;
+        this.shadowTexture = shadowTexture;
+        this.whiteTexture = whiteTexture;
     }
 
     public void setBounds(
@@ -690,7 +686,7 @@ public class LevelUpChoice {
          */
         Pencil.I().addDrawing(
             new TextureDrawing(
-                symbolShadowTexture,
+                shadowTexture,
                 symbolX,
                 symbolY - 0.08f,
                 symbolSize,
@@ -717,7 +713,7 @@ public class LevelUpChoice {
          */
         Pencil.I().addDrawing(
             new TextureDrawing(
-                symbolTexture,
+                texture,
                 symbolX,
                 symbolY,
                 symbolSize,
@@ -754,7 +750,7 @@ public class LevelUpChoice {
 
             Pencil.I().addDrawing(
                 new TextureDrawing(
-                    symbolWhiteTexture,
+                    whiteTexture,
                     renderCenterX -
                         flashSize / 2f,
                     symbolCenterY -
@@ -896,10 +892,6 @@ public class LevelUpChoice {
 
         return bounds.y +
             bounds.height / 2f;
-    }
-
-    public Symbol getSymbol() {
-        return symbol;
     }
 
     private static float moveTowards(

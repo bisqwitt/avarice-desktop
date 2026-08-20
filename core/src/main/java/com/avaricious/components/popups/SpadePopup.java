@@ -24,13 +24,21 @@ public class SpadePopup implements IPopup {
     private final Color color;
     private final float startX;
     private final float startY;
+    private final Runnable onArrival;
 
     private float age = 0f;
+    private boolean arrived = false;
 
-    public SpadePopup(Color symbolColor, float startX, float startY) {
+    public SpadePopup(
+        Color symbolColor,
+        float startX,
+        float startY,
+        Runnable onArrival
+    ) {
         this.color = new Color(symbolColor);
         this.startX = startX;
         this.startY = startY;
+        this.onArrival = onArrival;
 
         pulseEffect.setStrength(1.25f);
         pulseEffect.setSpeed(0.065f);
@@ -41,6 +49,11 @@ public class SpadePopup implements IPopup {
     public void update(float delta) {
         age += delta;
         pulseEffect.update(delta);
+
+        if (!arrived && age >= FLIGHT_DELAY + FLIGHT_DURATION) {
+            arrived = true;
+            onArrival.run();
+        }
     }
 
     @Override

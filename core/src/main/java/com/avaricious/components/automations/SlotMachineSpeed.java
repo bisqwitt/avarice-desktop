@@ -16,7 +16,7 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
         SlotMachine slotMachine = SlotMachine.I();
         Seq.of(slotMachine.getReels()).forEach(reel -> reel.setSpeed(reel.getSpeed() + 2));
         slotMachine.setReelStopStagger(slotMachine.getReelStopStagger() * 0.5f);
-        SlotMachineResultRunner.I().setDefaultDelay(SlotMachineResultRunner.I().getDefaultDelay() - 0.05f);
+        SlotMachineResultRunner.I().increaseRevealSpeed();
     }
 
     @Override

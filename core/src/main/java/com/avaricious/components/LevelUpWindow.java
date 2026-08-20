@@ -167,7 +167,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.LEMON,
                 new LemonValueText(),
-                new SymbolDescriptionText(Symbol.LEMON),
+                new SymbolValueDescription(Symbol.LEMON),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.LEMON)
             )
@@ -177,7 +177,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.CHERRY,
                 new CherryValueText(),
-                new SymbolDescriptionText(Symbol.CHERRY),
+                new SymbolValueDescription(Symbol.CHERRY),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.CHERRY)
             )
@@ -187,7 +187,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.CLOVER,
                 new CloverValueText(),
-                new SymbolDescriptionText(Symbol.CLOVER),
+                new SymbolValueDescription(Symbol.CLOVER),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.CLOVER)
             )
@@ -197,7 +197,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.BELL,
                 new BellValueText(),
-                new SymbolDescriptionText(Symbol.BELL),
+                new SymbolValueDescription(Symbol.BELL),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.BELL)
             )
@@ -207,7 +207,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.IRON,
                 new IronValueText(),
-                new SymbolDescriptionText(Symbol.IRON),
+                new SymbolValueDescription(Symbol.IRON),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.IRON)
             )
@@ -217,7 +217,7 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.DIAMOND,
                 new DiamondValueText(),
-                new SymbolDescriptionText(Symbol.DIAMOND),
+                new SymbolValueDescription(Symbol.DIAMOND),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.DIAMOND)
             )
@@ -227,12 +227,22 @@ public class LevelUpWindow {
             new LevelUpChoice(
                 Symbol.SEVEN,
                 new SevenValueText(),
-                new SymbolDescriptionText(Symbol.SEVEN),
+                new SymbolValueDescription(Symbol.SEVEN),
                 () -> SymbolValues.I()
                     .increaseValue(Symbol.SEVEN)
             )
         );
 
+        Seq.of(Symbol.values()).forEach(symbol -> {
+            possibleChoices.add(
+                new LevelUpChoice(
+                    symbol,
+                    new ExtraLemonCollectibleChanceText(),
+                    new ExtraCollectibleChanceDescription(symbol),
+                    () -> SymbolValues.I().increaseExtraCollectibleSpawnChance(symbol)
+                )
+            );
+        });
         Collections.shuffle(possibleChoices);
 
         int amount =
@@ -577,7 +587,7 @@ public class LevelUpWindow {
             )
         );
 
-        drawEnergyRays();
+//        drawEnergyRays();
 
         /*
          * Very fast full-screen white hit.

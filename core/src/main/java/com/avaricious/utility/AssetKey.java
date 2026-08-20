@@ -41,6 +41,7 @@ public enum AssetKey {
     PROGRESS_BAR_LIT("ProgressBarLit"),
     PROGRESS_BAR_UNLIT("ProgressBarUnlit"),
     PERCENTAGE_SYMBOL("percentage"),
+    PERCENTAGE_SYMBOL_SHADOW("percentage-shadow"),
     TOOLTIP_BOX_S("TooltipBox-S"),
     TOOLTIP_BOX_M("TooltipBox-M"),
     TOOLTIP_BOX_L("TooltipBox-L"),
@@ -418,7 +419,11 @@ public enum AssetKey {
     RED_CROSS("red-cross"),
     EXCLAMATION("exclamation"),
     EXCLAMATION_SHADOW("exclamation-shadow"),
-    SPADE("spade"),;
+    SPADE("spade"),
+    W("w"),
+    W_SHADOW("w-shadow"),
+    X("x"),
+    X_SHADOW("x-shadow");
 
     private final String path;
 
