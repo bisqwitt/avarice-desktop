@@ -107,6 +107,8 @@ public class SlotMachineResultRunner {
                         body.getPos().y,
                         1.18f
                     );
+
+
                 }
 
                 ParticleManager.I().create(
@@ -202,7 +204,7 @@ public class SlotMachineResultRunner {
                     new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
                     TextureEcho.Type.SLOT);
 
-                BouncingSymbolManager.I().createFallingSymbol(
+                BouncingSymbolManager.I().createSymbolDrop(
                     match.getSymbol(),
                     body.getPos().x,
                     body.getPos().y

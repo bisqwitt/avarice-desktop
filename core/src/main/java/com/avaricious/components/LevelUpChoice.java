@@ -75,6 +75,10 @@ public class LevelUpChoice {
 
     private float hoverAmount = 0f;
 
+    private boolean lightened = false;
+
+    private float lightenAmount = 0f;
+
     /*
      * Selection.
      */
@@ -167,6 +171,20 @@ public class LevelUpChoice {
         this.hovered = hovered;
     }
 
+    public void setLightened(
+        boolean lightened
+    ) {
+        if (
+            selected ||
+                dismissed
+        ) {
+            this.lightened = false;
+            return;
+        }
+
+        this.lightened = lightened;
+    }
+
     public boolean contains(
         Vector2 position
     ) {
@@ -199,6 +217,7 @@ public class LevelUpChoice {
         selected = true;
         dismissed = false;
         hovered = false;
+        lightened = false;
 
         selectionTimer = 0f;
 
@@ -224,6 +243,7 @@ public class LevelUpChoice {
 
         dismissed = true;
         hovered = false;
+        lightened = false;
 
         selectionTimer = 0f;
 
@@ -316,6 +336,18 @@ public class LevelUpChoice {
             moveTowards(
                 hoverAmount,
                 hoverTarget,
+                delta * 8f
+            );
+
+        float lightenTarget =
+            lightened
+                ? 1f
+                : 0f;
+
+        lightenAmount =
+            moveTowards(
+                lightenAmount,
+                lightenTarget,
                 delta * 8f
             );
 
@@ -582,6 +614,13 @@ public class LevelUpChoice {
         float backgroundAlpha =
             MathUtils.lerp(
                 0.50f,
+                0.32f,
+                lightenAmount
+            );
+
+        backgroundAlpha =
+            MathUtils.lerp(
+                backgroundAlpha,
                 0.68f,
                 hoverAmount
             );
@@ -792,6 +831,35 @@ public class LevelUpChoice {
         if (drawText) {
             title.draw(delta);
             description.draw(delta);
+        }
+
+        /*
+         * Draw this after the image and text on a higher
+         * layer so the entire non-hovered choice receives
+         * the same light lift, not just its background.
+         */
+        if (lightenAmount > 0.001f) {
+            Pencil.I().addDrawing(
+                new TextureDrawing(
+                    whitePixel,
+                    renderX,
+                    renderY,
+                    renderWidth,
+                    renderHeight,
+                    1f,
+                    renderRotation,
+                    ZIndex.SHOP_CARD_TOUCHING,
+                    new Color(
+                        1f,
+                        1f,
+                        1f,
+                        lightenAmount *
+                            (1f - hoverAmount) *
+                            0.075f *
+                            renderAlpha
+                    )
+                )
+            );
         }
     }
 

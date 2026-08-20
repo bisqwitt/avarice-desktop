@@ -63,8 +63,9 @@ public class SymbolValues {
 
     public void increaseExtraCollectibleSpawnChance(Symbol symbol) {
         int oldChance = symbolExtraCollectibleSpawnChance.get(symbol);
-        symbolExtraCollectibleSpawnChance.put(symbol, oldChance + 10);
-        symbolExtraCollectibleSpawnChanceChangeSupport.firePropertyChange(symbol.toString(), oldChance, (int) symbolPriceMap.get(symbol));
+        int newChance = oldChance + 10;
+        symbolExtraCollectibleSpawnChance.put(symbol, newChance);
+        symbolExtraCollectibleSpawnChanceChangeSupport.firePropertyChange(symbol.toString(), oldChance, newChance);
 
     }
 

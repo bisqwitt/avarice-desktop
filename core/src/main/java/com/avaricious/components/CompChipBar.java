@@ -32,7 +32,8 @@ public class CompChipBar {
 
     private int level = 1;
     private int chips = 0;
-    private int chipsRequired = 30;
+    private int chipsRequiredFirstLevel = 15;
+    private int chipsRequired = chipsRequiredFirstLevel;
 
     private float displayedProgress = 0f;
     private float gainPulse = 0f;
@@ -180,7 +181,7 @@ public class CompChipBar {
     }
 
     private int calculateChipsRequired(int level) {
-        return 50 + (level - 1) * 5;
+        return chipsRequiredFirstLevel + (level - 1) * 5;
     }
 
     public int getLevel() {

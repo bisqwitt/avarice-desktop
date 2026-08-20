@@ -2,7 +2,9 @@ package com.avaricious.components.slot;
 
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
+import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -25,6 +27,24 @@ public class BouncingSymbolManager {
 
     public void createFallingSymbol(Symbol symbol, float x, float y) {
         createFallingSymbol(symbol, x, y, 1f);
+    }
+
+    public void createSymbolDrop(Symbol symbol, float x, float y) {
+        createFallingSymbol(symbol, x, y);
+
+        int extraSpawnChance =
+            SymbolValues.I().getExtraCollectibleSpawnChance(symbol);
+
+        if (extraSpawnChance <= 0) {
+            return;
+        }
+
+        if (
+            extraSpawnChance >= 100 ||
+                SeededRandomizer.get().nextFloat() * 100f < extraSpawnChance
+        ) {
+            createFallingSymbol(symbol, x, y);
+        }
     }
 
     public void createFallingSymbol(

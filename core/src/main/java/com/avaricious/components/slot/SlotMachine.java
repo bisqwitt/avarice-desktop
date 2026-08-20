@@ -69,6 +69,9 @@ public class SlotMachine {
     private final float[] reelStartFlash = new float[colCount];
     private final float[][] symbolWhiteFlash = new float[colCount][rowCount];
 
+    private static final float EMPTY_SPIN_SWEEP_STEP_DELAY = 0.017f;
+    private static final float EMPTY_SPIN_SWEEP_COMPLETION_DELAY = 0.20f;
+
     private boolean shiftingSymbol = false;
     private DragableBody draggingBody = null;
     private Vector2 draggingBodyGridPos = null;
@@ -449,34 +452,43 @@ public class SlotMachine {
      * flash reads as motion rather than one full-screen blink.
      */
     public void playEmptySpinSweep(Runnable onComplete) {
-        final float rowDelay = 0.085f;
-        final float columnDelay = 0.014f;
+        playEmptySpinSweepStep(0, onComplete);
+    }
 
-        for (int row = 0; row < rowCount; row++) {
-            final int targetRow = row;
+    private void playEmptySpinSweepStep(
+        int sweepStep,
+        Runnable onComplete
+    ) {
+        int totalSteps = rowCount * colCount;
 
-            for (int step = 0; step < colCount; step++) {
-                final int targetColumn = row % 2 == 0
-                    ? step
-                    : colCount - 1 - step;
-                float delay = row * rowDelay + step * columnDelay;
-
-                Timer.schedule(new Timer.Task() {
-                    @Override
-                    public void run() {
-                        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
-                        grid[targetColumn][targetRow].pulse(0.18f);
-                    }
-                }, delay);
-            }
+        if (sweepStep >= totalSteps) {
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    if (onComplete != null) onComplete.run();
+                }
+            }, EMPTY_SPIN_SWEEP_COMPLETION_DELAY);
+            return;
         }
+
+        int targetRow = sweepStep / colCount;
+        int stepInRow = sweepStep % colCount;
+        int targetColumn = targetRow % 2 == 0
+            ? stepInRow
+            : colCount - 1 - stepInRow;
+
+        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
+        grid[targetColumn][targetRow].pulse(0.18f);
 
         Timer.schedule(new Timer.Task() {
             @Override
             public void run() {
-                if (onComplete != null) onComplete.run();
+                playEmptySpinSweepStep(
+                    sweepStep + 1,
+                    onComplete
+                );
             }
-        }, rowCount * rowDelay + colCount * columnDelay + 0.12f);
+        }, EMPTY_SPIN_SWEEP_STEP_DELAY);
     }
 
     public void shiftSymbol() {

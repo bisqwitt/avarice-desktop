@@ -11,7 +11,7 @@ import java.util.List;
  * - inertia start
  * - cruise jitter
  * - ease-out stop
- * - snap + overshoot settle
+ * - snap into an aligned settle
  * <p>
  * Units:
  * pos and vel are in "symbols", not pixels.
@@ -35,6 +35,8 @@ public class Reel {
     private float stopDecel = 90f;         // symbols/sec^2
     private float settleSpring = 180f;     // snap strength
     private float settleDamp = 28f;        // damping for settle
+    private static final float SETTLE_POSITION_EPSILON = 0.006f;
+    private static final float SETTLE_VELOCITY_EPSILON = 0.10f;
 
     // Noise / “alive” feeling
     private float cruiseJitterAmp = 0.35f; // +/- vel jitter
@@ -106,51 +108,63 @@ public class Reel {
                 // We'll decelerate based on remaining distance.
                 float remaining = stopTargetPos - pos;
 
-                // Ensure remaining is positive; if not, we've passed it—push target forward by one strip loop
-                if (remaining < 0f) {
-//                    stopTargetPos += stripLen;
-                    remaining = stopTargetPos - pos;
+                // Never reverse back to a target that was crossed in one frame.
+                if (remaining <= 0f) {
+                    finishStop();
+                    break;
                 }
 
                 // Compute "needed stopping speed" v = sqrt(2*a*d)  (classic kinematics)
                 float desiredVel = (float) Math.sqrt(Math.max(0f, 2f * stopDecel * remaining));
-                desiredVel = Math.min(desiredVel, cruiseVel * 1.2f);
+                desiredVel = Math.min(desiredVel, vel);
 
                 // Bring current vel down toward desiredVel
                 vel = approach(vel, desiredVel, stopDecel * dt);
                 pos += vel * dt;
 
+                float remainingAfterMove = stopTargetPos - pos;
+
+                if (remainingAfterMove <= 0f) {
+                    finishStop();
+                    break;
+                }
+
                 // When close, switch to settle spring.
-                if (remaining < 0.65f && vel < 6.5f) {
-                    // Settle to exact target with a slight overshoot
+                if (remainingAfterMove < 0.65f && vel < 6.5f) {
+                    // Keep only enough velocity to approach the target
+                    // without carrying the reel through it.
                     settleTargetPos = stopTargetPos;
-                    settleVel = vel;
+                    float maximumSettleVelocity =
+                        (float) Math.sqrt(settleSpring) *
+                            remainingAfterMove;
+                    settleVel = Math.min(vel, maximumSettleVelocity);
                     phase = Phase.SETTLING;
                 }
                 break;
             }
 
             case SETTLING: {
-                // Damped spring to settleTargetPos with a tiny overshoot.
-                // This gives the "premium snap" without a hard step.
+                // Critically damped-looking settle that is clamped at the
+                // aligned target so it never dips below and corrects back.
                 float x = pos - settleTargetPos; // displacement
                 float a = -settleSpring * x - settleDamp * settleVel;
 
                 settleVel += a * dt;
-                pos += settleVel * dt;
+                float nextPos = pos + settleVel * dt;
+
+                if (nextPos >= settleTargetPos) {
+                    finishStop();
+                    break;
+                }
+
+                pos = nextPos;
 
                 // finish when close enough
-                if (Math.abs(pos - settleTargetPos) < 0.0015f && Math.abs(settleVel) < 0.03f) {
-                    pos = settleTargetPos;
-                    vel = 0f;
-                    settleVel = 0f;
-                    stopRequested = false;
-                    phase = Phase.IDLE;
-
-                    if (!spinFinishedNotified) {
-                        spinFinishedNotified = true;
-                        onSpinFinished.run();
-                    }
+                if (
+                    Math.abs(pos - settleTargetPos) < SETTLE_POSITION_EPSILON &&
+                        Math.abs(settleVel) < SETTLE_VELOCITY_EPSILON
+                ) {
+                    finishStop();
                 }
                 break;
             }
@@ -182,31 +196,43 @@ public class Reel {
         // center row index in visible window: if rows=3 -> center=1
         int centerRow = visibleRows / 2;
 
-        // Current center "absolute symbol coordinate"
-        // If pos increases downward, then the visible row r is at (pos + r).
-        float currentCenter = pos + centerRow;
+        // Leave enough distance for the current velocity to decelerate
+        // before choosing the next aligned symbol boundary.
+        float stoppingDistance =
+            vel * vel / (2f * stopDecel);
+        float minimumDistance = Math.max(
+            extraSpinsMin * strip.size(),
+            stoppingDistance + 0.25f
+        );
+        float minimumCenter =
+            pos + minimumDistance + centerRow;
+        float targetCenter =
+            (float) Math.ceil(minimumCenter - 1e-6f);
+        stopTargetPos = targetCenter - centerRow;
 
-        // We want center to land exactly on an integer boundary.
-        // Compute next integer >= currentCenter
-        float nextInteger = (float) Math.ceil(currentCenter - 1e-6f);
-
-        // Ensure at least extraSpinsMin full strip loops before stopping
-        // Convert integer boundary into absolute pos target:
-        // stopTargetPos + centerRow = nextInteger + k*stripLen
-        // => stopTargetPos = (nextInteger - centerRow) + k*stripLen
-        float baseTarget = nextInteger - centerRow;
-
-        float minTarget = pos + (extraSpinsMin * strip.size());
-        float k = (float) Math.ceil((minTarget - baseTarget) / strip.size());
-        stopTargetPos = baseTarget + k * strip.size();
-
-        // Optionally add a small fractional “overshoot” feel by letting settle handle it
-        // (do NOT offset stopTargetPos; keep it exact for alignment).
         if (phase == Phase.IDLE) {
             // if stopped and request stop, just settle immediately
             settleTargetPos = stopTargetPos;
             settleVel = 0f;
             phase = Phase.SETTLING;
+        } else if (
+            phase == Phase.STARTING ||
+                phase == Phase.CRUISING
+        ) {
+            phase = Phase.STOPPING;
+        }
+    }
+
+    private void finishStop() {
+        pos = stopTargetPos;
+        vel = 0f;
+        settleVel = 0f;
+        stopRequested = false;
+        phase = Phase.IDLE;
+
+        if (!spinFinishedNotified) {
+            spinFinishedNotified = true;
+            onSpinFinished.run();
         }
     }
 

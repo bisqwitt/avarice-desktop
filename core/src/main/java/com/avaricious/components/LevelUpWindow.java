@@ -243,6 +243,24 @@ public class LevelUpWindow {
                 )
             );
         });
+
+        if (
+            CollectibleValues.I().getExtraSpadeSpawnChance() <
+                CollectibleValues.MAX_EXTRA_SPADE_SPAWN_CHANCE
+        ) {
+            TextureRegion spade = Assets.I().get(AssetKey.SPADE);
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new ExtraSpadeChanceText(),
+                    new ExtraSpadeChanceDescription(),
+                    () -> CollectibleValues.I().increaseExtraSpadeSpawnChance(),
+                    spade,
+                    spade,
+                    spade
+                )
+            );
+        }
+
         Collections.shuffle(possibleChoices);
 
         int amount =
@@ -308,10 +326,25 @@ public class LevelUpWindow {
          * Hover is still handled even when there is
          * currently no mouse click.
          */
+        LevelUpChoice hoveredChoice = null;
+
+        if (!selecting) {
+            for (LevelUpChoice choice : choices) {
+                if (choice.contains(mouse)) {
+                    hoveredChoice = choice;
+                    break;
+                }
+            }
+        }
+
         for (LevelUpChoice choice : choices) {
-            choice.setHovered(
-                !selecting &&
-                    choice.contains(mouse)
+            boolean hovered =
+                choice == hoveredChoice;
+
+            choice.setHovered(hovered);
+            choice.setLightened(
+                hoveredChoice != null &&
+                    !hovered
             );
         }
 
