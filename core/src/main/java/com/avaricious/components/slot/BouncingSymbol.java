@@ -3,8 +3,8 @@ package com.avaricious.components.slot;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
+import com.avaricious.components.popups.LostSymbolPopup;
 import com.avaricious.components.popups.PopupManager;
-//import com.avaricious.components.popups.LostSymbolPopup;
 import com.avaricious.components.popups.SpadePopup;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.effects.particle.ParticleManager;
@@ -284,14 +284,14 @@ public class BouncingSymbol {
     }
 
     private void miss() {
-//        PopupManager.I().spawnLostSymbol(new LostSymbolPopup(
-//            symbol,
-//            getCenterX(),
-//            getCenterY(),
-//            getWidth(),
-//            getHeight(),
-//            rotation + pulseEffect.getRotation()
-//        ));
+        PopupManager.I().spawnLostSymbol(new LostSymbolPopup(
+            symbol,
+            getCenterX(),
+            getCenterY(),
+            getWidth(),
+            getHeight(),
+            rotation + pulseEffect.getRotation()
+        ));
 
         AudioManager.I().playMiss();
         ScreenShake.I().addTrauma(0.055f);

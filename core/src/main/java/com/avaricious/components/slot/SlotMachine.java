@@ -50,6 +50,9 @@ public class SlotMachine {
 
     private float reelStartStagger = 0.1f;
     private float reelStopStagger = 0.5f;
+    private float spinHoldDuration = 1f;
+    private float emptySpinSweepTimeScale = 1f;
+    private boolean instantSpin = false;
 
     private final List<Reel> reels = new ArrayList<>();
     private final DragableBody[][] grid = new DragableBody[colCount][rowCount];
@@ -390,6 +393,13 @@ public class SlotMachine {
         AudioManager.I().playSpinStart();
         ScreenShake.I().addTrauma(0.075f);
 
+        if (instantSpin) {
+            for (int c = 0; c < colCount; c++) {
+                reels.get(c).landImmediately(currentSpinResult.column(c));
+            }
+            return;
+        }
+
         for (int c = 0; c < colCount; c++) {
             final int col = c;
             float startDelay = c * reelStartStagger;
@@ -408,7 +418,7 @@ public class SlotMachine {
                 public void run() {
                     reels.get(col).stopOn(currentSpinResult.column(col));
                 }
-            }, 1f + stopDelay);
+            }, spinHoldDuration + stopDelay);
         }
     }
 
@@ -471,6 +481,29 @@ public class SlotMachine {
         boolean finalReel = column == colCount - 1;
         reelStopFlash[column] = 1f;
 
+        if (instantSpin) {
+            for (int row = 0; row < rowCount; row++) {
+                grid[column][row].pulse(0.38f);
+            }
+
+            if (finalReel) {
+                for (int targetColumn = 0; targetColumn < colCount; targetColumn++) {
+                    Body middleBody = grid[targetColumn][rowCount / 2];
+                    ParticleManager.I().create(
+                        middleBody.getPos().x,
+                        middleBody.getPos().y,
+                        ParticleType.WHITE,
+                        0.014f,
+                        16f,
+                        ZIndex.SYMBOL_HIT_PARTICLES
+                    );
+                }
+                ScreenShake.I().addTrauma(0.11f);
+                AudioManager.I().playReelStop(column, true);
+            }
+            return;
+        }
+
         for (int row = 0; row < rowCount; row++) {
             Body body = grid[column][row];
             body.pulse(0.56f + column * 0.07f);
@@ -509,6 +542,10 @@ public class SlotMachine {
      * flash reads as motion rather than one full-screen blink.
      */
     public void playEmptySpinSweep(Runnable onComplete) {
+        if (emptySpinSweepTimeScale <= 0f) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
         playEmptySpinSweepStep(0, onComplete);
     }
 
@@ -524,7 +561,7 @@ public class SlotMachine {
                 public void run() {
                     if (onComplete != null) onComplete.run();
                 }
-            }, EMPTY_SPIN_SWEEP_COMPLETION_DELAY);
+            }, EMPTY_SPIN_SWEEP_COMPLETION_DELAY * emptySpinSweepTimeScale);
             return;
         }
 
@@ -545,7 +582,7 @@ public class SlotMachine {
                     onComplete
                 );
             }
-        }, EMPTY_SPIN_SWEEP_STEP_DELAY);
+        }, EMPTY_SPIN_SWEEP_STEP_DELAY * emptySpinSweepTimeScale);
     }
 
     public void shiftSymbol() {
@@ -675,6 +712,31 @@ public class SlotMachine {
 
     public void clearSpinResultManipulators() {
         spinResultManipulators.clear();
+    }
+
+    public void setLuckBonus(float bonusChance) {
+        spinResultPolicy.setRescueChanceBonus(bonusChance);
+    }
+
+    public void setSpeedProfile(
+        float reelSpeed,
+        float reelStartStagger,
+        float spinHoldDuration,
+        float reelStopStagger,
+        float reelStopDuration,
+        float emptySpinSweepTimeScale,
+        boolean instantSpin
+    ) {
+        this.reelStartStagger = Math.max(0f, reelStartStagger);
+        this.spinHoldDuration = Math.max(0f, spinHoldDuration);
+        this.reelStopStagger = Math.max(0f, reelStopStagger);
+        this.emptySpinSweepTimeScale = Math.max(0f, emptySpinSweepTimeScale);
+        this.instantSpin = instantSpin;
+
+        for (Reel reel : reels) {
+            reel.setSpeed(reelSpeed);
+            reel.setStopDuration(reelStopDuration);
+        }
     }
 
     public void setOnLastReelFinished(Runnable onLastReelFinished) {

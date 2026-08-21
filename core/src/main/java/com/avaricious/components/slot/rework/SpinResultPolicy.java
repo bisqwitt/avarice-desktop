@@ -16,6 +16,7 @@ public class SpinResultPolicy {
     private static final int NEAR_MISS_ATTEMPTS = 32;
 
     private int consecutiveEmptySpins;
+    private float rescueChanceBonus;
 
     public SpinResult adjust(SpinResult generatedResult) {
         SpinResult result = generatedResult.copy();
@@ -23,7 +24,7 @@ public class SpinResultPolicy {
 
         boolean rescueResult =
             consecutiveEmptySpins >= MAX_CONSECUTIVE_EMPTY_SPINS ||
-                SeededRandomizer.get().nextFloat() < EMPTY_RESULT_RESCUE_CHANCE;
+                SeededRandomizer.get().nextFloat() < getRescueChance();
 
         if (rescueResult) {
             createHorizontalMatch(result);
@@ -98,5 +99,16 @@ public class SpinResultPolicy {
 
     private boolean hasMatch(SpinResult result) {
         return !PatternFinder.findMatches(result.symbols()).isEmpty();
+    }
+
+    public void setRescueChanceBonus(float rescueChanceBonus) {
+        this.rescueChanceBonus = Math.max(
+            0f,
+            Math.min(1f - EMPTY_RESULT_RESCUE_CHANCE, rescueChanceBonus)
+        );
+    }
+
+    public float getRescueChance() {
+        return EMPTY_RESULT_RESCUE_CHANCE + rescueChanceBonus;
     }
 }

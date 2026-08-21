@@ -48,6 +48,21 @@ public class ExtraCollectibleChanceDescription extends FabledText {
         String propertyName
     ) {
 
+        this(
+            currentChance,
+            () -> currentChance.getAsInt() + 10,
+            addChangeListener,
+            propertyName
+        );
+    }
+
+    protected ExtraCollectibleChanceDescription(
+        IntSupplier currentChance,
+        IntSupplier nextChance,
+        Consumer<PropertyChangeListener> addChangeListener,
+        String propertyName
+    ) {
+
         addChangeListener.accept(evt -> {
             if (evt.getPropertyName().equals(propertyName)) {
 
@@ -56,7 +71,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
 
                 updateDescription(
                     currentValue,
-                    currentValue + 10
+                    nextChance.getAsInt()
                 );
             }
         });
@@ -66,7 +81,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
 
         updateDescription(
             currentValue,
-            currentValue + 10
+            nextChance.getAsInt()
         );
     }
 

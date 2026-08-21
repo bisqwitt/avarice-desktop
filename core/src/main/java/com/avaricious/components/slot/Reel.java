@@ -17,7 +17,7 @@ public class Reel {
     private static final float START_ACCELERATION = 70f;
     private static final float CRUISE_JITTER = 0.35f;
     private static final float CRUISE_JITTER_HZ = 7f;
-    private static final float STOP_DURATION = 0.72f;
+    private static final float DEFAULT_STOP_DURATION = 0.72f;
     private static final float LANDING_CLEARANCE = 2f;
 
     private final List<Symbol> strip = new ArrayList<>();
@@ -35,6 +35,7 @@ public class Reel {
     private float stopTargetPos;
     private float stopStartVelocity;
     private float stopElapsed;
+    private float stopDuration = DEFAULT_STOP_DURATION;
     private boolean spinFinishedNotified;
 
     public Reel(int visibleRows, Runnable onSpinFinished) {
@@ -92,8 +93,8 @@ public class Reel {
      * at exactly zero on an integer symbol boundary. It cannot overshoot.
      */
     private void updateStopping(float delta) {
-        stopElapsed = Math.min(stopElapsed + delta, STOP_DURATION);
-        float progress = stopElapsed / STOP_DURATION;
+        stopElapsed = Math.min(stopElapsed + delta, stopDuration);
+        float progress = stopElapsed / stopDuration;
         float progress2 = progress * progress;
         float progress3 = progress2 * progress;
 
@@ -103,7 +104,7 @@ public class Reel {
 
         pos =
             startBasis * stopStartPos +
-                velocityBasis * STOP_DURATION * stopStartVelocity +
+                velocityBasis * stopDuration * stopStartVelocity +
                 targetBasis * stopTargetPos;
 
         float startDerivative = 6f * progress2 - 6f * progress;
@@ -112,11 +113,11 @@ public class Reel {
 
         vel = (
             startDerivative * stopStartPos +
-                velocityDerivative * STOP_DURATION * stopStartVelocity +
+                velocityDerivative * stopDuration * stopStartVelocity +
                 targetDerivative * stopTargetPos
-        ) / STOP_DURATION;
+        ) / stopDuration;
 
-        if (stopElapsed >= STOP_DURATION) finishStop();
+        if (stopElapsed >= stopDuration) finishStop();
     }
 
     public void start(float cruiseSpeed) {
@@ -146,7 +147,7 @@ public class Reel {
 
         float minimumTravel = Math.max(
             visibleRows + LANDING_CLEARANCE,
-            Math.max(vel, 0f) * STOP_DURATION / 3f + 0.5f
+            Math.max(vel, 0f) * stopDuration / 3f + 0.5f
         );
         int targetBase = (int) Math.ceil(pos + minimumTravel);
         while (!landingWindowIsHidden(targetBase)) targetBase++;
@@ -163,6 +164,26 @@ public class Reel {
         stopStartVelocity = Math.max(vel, 0f);
         stopElapsed = 0f;
         phase = Phase.STOPPING;
+    }
+
+    public void landImmediately(Symbol[] landingSymbols) {
+        if (landingSymbols == null || landingSymbols.length != visibleRows) {
+            throw new IllegalArgumentException(
+                "A reel landing needs exactly " + visibleRows + " symbols"
+            );
+        }
+
+        int targetBase = (int) Math.floor(pos);
+        for (int row = 0; row < visibleRows; row++) {
+            if (landingSymbols[row] == null) {
+                throw new IllegalArgumentException("Landing symbols cannot be null");
+            }
+            strip.set(indexAt(targetBase, row), landingSymbols[row]);
+        }
+
+        spinFinishedNotified = false;
+        stopTargetPos = targetBase;
+        finishStop();
     }
 
     private boolean landingWindowIsHidden(int targetBase) {
@@ -300,6 +321,10 @@ public class Reel {
 
     public float getSpeed() {
         return configuredCruiseVel;
+    }
+
+    public void setStopDuration(float stopDuration) {
+        this.stopDuration = Math.max(0.01f, stopDuration);
     }
 
     public Phase getPhase() {

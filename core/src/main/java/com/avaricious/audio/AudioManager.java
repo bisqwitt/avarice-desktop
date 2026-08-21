@@ -37,6 +37,13 @@ public class AudioManager {
         playHitInternal(streak, -2f);
     }
 
+    public void playCriticalHit(float streak) {
+        if (isMuted()) return;
+
+        playHitInternal(streak, 5f);
+        scheduleOneShot(0.055f, 0.30f, 14f);
+    }
+
     public void playSpinStart() {
         playOneShot(0.28f, -7f);
     }

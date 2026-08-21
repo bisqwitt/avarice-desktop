@@ -1,6 +1,7 @@
 package com.avaricious.components;
 
 import com.avaricious.audio.AudioManager;
+import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.SlotMachineResultRunner;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.*;
@@ -163,86 +164,11 @@ public class LevelUpWindow {
         List<LevelUpChoice> possibleChoices =
             new ArrayList<>();
 
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.LEMON,
-                new LemonValueText(),
-                new SymbolValueDescription(Symbol.LEMON),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.LEMON)
-            )
-        );
+        Symbol valueSymbol = randomSymbol();
+        possibleChoices.add(createValueChoice(valueSymbol));
 
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.CHERRY,
-                new CherryValueText(),
-                new SymbolValueDescription(Symbol.CHERRY),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.CHERRY)
-            )
-        );
-
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.CLOVER,
-                new CloverValueText(),
-                new SymbolValueDescription(Symbol.CLOVER),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.CLOVER)
-            )
-        );
-
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.BELL,
-                new BellValueText(),
-                new SymbolValueDescription(Symbol.BELL),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.BELL)
-            )
-        );
-
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.IRON,
-                new IronValueText(),
-                new SymbolValueDescription(Symbol.IRON),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.IRON)
-            )
-        );
-
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.DIAMOND,
-                new DiamondValueText(),
-                new SymbolValueDescription(Symbol.DIAMOND),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.DIAMOND)
-            )
-        );
-
-        possibleChoices.add(
-            new LevelUpChoice(
-                Symbol.SEVEN,
-                new SevenValueText(),
-                new SymbolValueDescription(Symbol.SEVEN),
-                () -> SymbolValues.I()
-                    .increaseValue(Symbol.SEVEN)
-            )
-        );
-
-        Seq.of(Symbol.values()).forEach(symbol -> {
-            possibleChoices.add(
-                new LevelUpChoice(
-                    symbol,
-                    new ExtraLemonCollectibleChanceText(),
-                    new ExtraCollectibleChanceDescription(symbol),
-                    () -> SymbolValues.I().increaseExtraCollectibleSpawnChance(symbol)
-                )
-            );
-        });
+        Symbol collectibleSymbol = randomSymbol();
+        possibleChoices.add(createCollectibleChoice(collectibleSymbol));
 
         if (
             CollectibleValues.I().getExtraSpadeSpawnChance() <
@@ -261,7 +187,74 @@ public class LevelUpWindow {
             );
         }
 
-        Collections.shuffle(possibleChoices);
+        if (!Automations.I().getLuck().isMaxBonusReached()) {
+            TextureRegion luck = Assets.I().get(AssetKey.LUCK);
+            TextureRegion luckShadow = Assets.I().get(AssetKey.LUCK_SHADOW);
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new LuckText(),
+                    new LuckDescriptionText(),
+                    () -> Automations.I().getLuck().upgrade(),
+                    luck,
+                    luckShadow,
+                    luck
+                )
+            );
+        }
+
+        if (!Automations.I().getSlotMachineSpeed().isMaxSpeedReached()) {
+            TextureRegion speed = Assets.I().get(AssetKey.RETRIGGER);
+            TextureRegion speedShadow = Assets.I().get(AssetKey.RETRIGGER_SHADOW);
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new SlotMachineSpeedText(),
+                    new SlotMachineSpeedDescriptionText(),
+                    () -> Automations.I().getSlotMachineSpeed().upgrade(),
+                    speed,
+                    speedShadow,
+                    speed
+                )
+            );
+        }
+
+        if (
+            CriticalHitValues.I().getCriticalHitChance() <
+                CriticalHitValues.MAX_CRITICAL_HIT_CHANCE
+        ) {
+            TextureRegion criticalHit = Assets.I().get(AssetKey.CRITICAL_HIT);
+            TextureRegion criticalHitShadow =
+                Assets.I().get(AssetKey.CRITICAL_HIT_SHADOW);
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new CriticalHitChanceText(),
+                    new CriticalHitChanceDescription(),
+                    () -> CriticalHitValues.I().increaseCriticalHitChance(),
+                    criticalHit,
+                    criticalHitShadow,
+                    criticalHit
+                )
+            );
+        }
+
+        if (
+            CriticalHitValues.I().getCriticalHitChance() > 0 &&
+                !CriticalHitValues.I().isCriticalDamageMaxed()
+        ) {
+            TextureRegion multiplier = Assets.I().get(AssetKey.MULTI);
+            TextureRegion multiplierShadow = Assets.I().get(AssetKey.MULTI_SHADOW);
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new CriticalDamageText(),
+                    new CriticalDamageDescription(),
+                    () -> CriticalHitValues.I().increaseCriticalDamage(),
+                    multiplier,
+                    multiplierShadow,
+                    multiplier
+                )
+            );
+        }
+
+        Collections.shuffle(possibleChoices, SeededRandomizer.get());
 
         int amount =
             Math.min(3, possibleChoices.size());
@@ -287,6 +280,42 @@ public class LevelUpWindow {
         updateChoiceBounds();
     }
 
+    private Symbol randomSymbol() {
+        Symbol[] symbols = Symbol.values();
+        return symbols[SeededRandomizer.nextInt(0, symbols.length - 1)];
+    }
+
+    private LevelUpChoice createValueChoice(Symbol symbol) {
+        return new LevelUpChoice(
+            symbol,
+            createValueTitle(symbol),
+            new SymbolValueDescription(symbol),
+            () -> SymbolValues.I().increaseValue(symbol)
+        );
+    }
+
+    private FabledText createValueTitle(Symbol symbol) {
+        switch (symbol) {
+            case LEMON: return new LemonValueText();
+            case CHERRY: return new CherryValueText();
+            case CLOVER: return new CloverValueText();
+            case BELL: return new BellValueText();
+            case IRON: return new IronValueText();
+            case DIAMOND: return new DiamondValueText();
+            case SEVEN: return new SevenValueText();
+            default: throw new IllegalArgumentException("Unsupported symbol: " + symbol);
+        }
+    }
+
+    private LevelUpChoice createCollectibleChoice(Symbol symbol) {
+        return new LevelUpChoice(
+            symbol,
+            new ExtraLemonCollectibleChanceText(),
+            new ExtraCollectibleChanceDescription(symbol),
+            () -> SymbolValues.I().increaseExtraCollectibleSpawnChance(symbol)
+        );
+    }
+
     private void updateChoiceBounds() {
         float width = 4f;
         float height = 4.5f;
@@ -294,8 +323,8 @@ public class LevelUpWindow {
         float gap = 0.5f;
 
         float totalWidth =
-            width * 3f +
-                gap * 2f;
+            width * choices.size() +
+                gap * Math.max(0, choices.size() - 1);
 
         float startX =
             (WORLD_WIDTH - totalWidth) / 2f;

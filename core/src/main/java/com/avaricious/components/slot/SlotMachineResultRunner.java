@@ -15,8 +15,11 @@ import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.screens.ScreenManager;
 import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.AssetKey;
+import com.avaricious.utility.CriticalHitValues;
 import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.ZIndex;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Rectangle;
 
 import java.util.ArrayList;
@@ -32,8 +35,6 @@ public class SlotMachineResultRunner {
     }
 
     private static final float DEFAULT_RESULT_STEP_DELAY = 0.40f;
-    private static final float MIN_RESULT_STEP_DELAY = 0.16f;
-    private static final float RESULT_SPEED_STEP = 0.05f;
     private static final float ANTICIPATION_DELAY = 0.30f;
     private static final float PATTERN_FOCUS_HOLD = 0.16f;
     private static final float FIRST_REVEAL_DELAY =
@@ -42,6 +43,7 @@ public class SlotMachineResultRunner {
     private TaskScheduler scheduler;
     private final SlotMachine slotMachine = SlotMachine.I();
     private float resultStepDelay = DEFAULT_RESULT_STEP_DELAY;
+    private boolean instantResults = false;
 
     private SlotMachineResultRunner() {
     }
@@ -63,7 +65,7 @@ public class SlotMachineResultRunner {
                     }
                 });
             }, 0f);
-            scheduler.runTasks(FIRST_REVEAL_DELAY);
+            scheduler.runTasks(instantResults ? 0f : FIRST_REVEAL_DELAY);
             return;
         }
 
@@ -83,7 +85,10 @@ public class SlotMachineResultRunner {
             };
 
             if (matchIndex == 0) {
-                scheduler.schedule(focusPattern, PATTERN_FOCUS_HOLD);
+                scheduler.schedule(
+                    focusPattern,
+                    instantResults ? 0f : PATTERN_FOCUS_HOLD
+                );
             } else {
                 scheduler.scheduleNoDelay(focusPattern);
             }
@@ -158,7 +163,7 @@ public class SlotMachineResultRunner {
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         });
 
-        scheduler.runTasks(ANTICIPATION_DELAY);
+        scheduler.runTasks(instantResults ? 0f : ANTICIPATION_DELAY);
     }
 
     private int nextCard = 3;
@@ -187,11 +192,18 @@ public class SlotMachineResultRunner {
                     0.18f + Math.min(0.10f, EffectManager.streak * 0.025f)
                 );
 
-                int points = SymbolValues.I().getValue(match.getSymbol());
+                int basePoints = SymbolValues.I().getValue(match.getSymbol());
+                boolean criticalHit = CriticalHitValues.I().rollCriticalHit();
+                int points = criticalHit
+                    ? CriticalHitValues.I().applyCriticalDamage(basePoints)
+                    : basePoints;
+                Color popupColor = criticalHit
+                    ? new Color(1f, 0.22f, 0.42f, 1f)
+                    : Assets.I().getSymbolColor(match.getSymbol());
 
                 PopupManager.I().spawnNumber(new NumberPopup(
                     points,
-                    Assets.I().getSymbolColor(match.getSymbol()),
+                    popupColor,
                     body.getPos().x + SlotMachine.CELL_W * 0.72f + 0.2f,
                     body.getPos().y + SlotMachine.CELL_H * 0.62f + 0.2f,
                     false,
@@ -199,6 +211,23 @@ public class SlotMachineResultRunner {
                 ));
 
                 ScoreDisplay.I().addToScore(points);
+
+                if (criticalHit) {
+                    PopupManager.I().spawnStatisticHit(
+                        Assets.I().get(AssetKey.CRITICAL_HIT),
+                        body.getPos().x + 1f,
+                        body.getPos().y + 1.35f
+                    );
+                    ParticleManager.I().create(
+                        body.getPos().x,
+                        body.getPos().y,
+                        ParticleType.RAINBOW,
+                        0.025f,
+                        46f,
+                        ZIndex.SYMBOL_HIT_PARTICLES
+                    );
+                    ScreenShake.I().addTrauma(0.10f);
+                }
 
                 EffectManager.create(Assets.I().getSymbol(match.getSymbol()),
                     new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
@@ -210,7 +239,11 @@ public class SlotMachineResultRunner {
                     body.getPos().y
                 );
 
-                AudioManager.I().playHit(EffectManager.streak);
+                if (criticalHit) {
+                    AudioManager.I().playCriticalHit(EffectManager.streak);
+                } else {
+                    AudioManager.I().playHit(EffectManager.streak);
+                }
 
 //                Seq.of(Hand.I().getHand())
 //                    .filter(card -> card instanceof AbstractQuestCard
@@ -227,10 +260,8 @@ public class SlotMachineResultRunner {
         return scheduler;
     }
 
-    public void increaseRevealSpeed() {
-        resultStepDelay = Math.max(
-            MIN_RESULT_STEP_DELAY,
-            resultStepDelay - RESULT_SPEED_STEP
-        );
+    public void setRevealTiming(float resultStepDelay, boolean instantResults) {
+        this.resultStepDelay = Math.max(0f, resultStepDelay);
+        this.instantResults = instantResults;
     }
 }

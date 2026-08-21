@@ -14,6 +14,7 @@ public class Automations {
     private final SpinBuyerSpeed spinBuyerSpeed = new SpinBuyerSpeed();
 
     private final SlotMachineSpeed slotMachineSpeed = new SlotMachineSpeed();
+    private final Luck luck = new Luck();
 
     private final HandCapacity handCapacity = new HandCapacity();
 
@@ -38,6 +39,10 @@ public class Automations {
 
     public SlotMachineSpeed getSlotMachineSpeed() {
         return slotMachineSpeed;
+    }
+
+    public Luck getLuck() {
+        return luck;
     }
 
     public HandCapacity getHandCapacity() {

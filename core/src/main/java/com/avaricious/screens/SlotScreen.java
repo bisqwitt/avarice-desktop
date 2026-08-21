@@ -239,11 +239,6 @@ public class SlotScreen extends ScreenAdapter {
 //                        .getAutoSpinCapacity()
 //                        .upgrade();
 
-
-                    Automations.I()
-                        .getSlotMachineSpeed()
-                        .upgrade();
-
 //                    Automations.I()
 //                        .getSlotMachineSpeed()
 //                        .upgrade();

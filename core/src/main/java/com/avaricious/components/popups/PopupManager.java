@@ -23,7 +23,7 @@ public class PopupManager {
 
     private final List<NumberPopup> numberPopups = new ArrayList<>();
     private final List<SpadePopup> spadePopups = new ArrayList<>();
-//    private final List<LostSymbolPopup> lostSymbolPopups = new ArrayList<>();
+    private final List<LostSymbolPopup> lostSymbolPopups = new ArrayList<>();
     private final List<StatisticPopup> statisticPopups = new ArrayList<>();
     private final List<AbstractTextPopup> textPopups = new ArrayList<>();
 
@@ -95,9 +95,9 @@ public class PopupManager {
         spadePopups.add(spadePopup);
     }
 
-//    public void spawnLostSymbol(LostSymbolPopup lostSymbolPopup) {
-//        lostSymbolPopups.add(lostSymbolPopup);
-//    }
+    public void spawnLostSymbol(LostSymbolPopup lostSymbolPopup) {
+        lostSymbolPopups.add(lostSymbolPopup);
+    }
 
     public void spawnNumber(int number, Color color, float x, float y, boolean manualHold) {
         spawnNumber(new NumberPopup(number, color, x, y, false, manualHold));
@@ -126,7 +126,7 @@ public class PopupManager {
     public void draw(float delta) {
         drawPopups(numberPopups, delta);
         drawPopups(spadePopups, delta);
-//        drawPopups(lostSymbolPopups, delta);
+        drawPopups(lostSymbolPopups, delta);
         drawPopups(statisticPopups, delta);
         drawPopups(textPopups, delta);
         drawPopups(redCrossPopups, delta);
@@ -140,7 +140,7 @@ public class PopupManager {
     public void update(float delta) {
         Seq.of(numberPopups).forEach(popup -> popup.update(delta));
         Seq.of(spadePopups).forEach(popup -> popup.update(delta));
-//        Seq.of(lostSymbolPopups).forEach(popup -> popup.update(delta));
+        Seq.of(lostSymbolPopups).forEach(popup -> popup.update(delta));
         Seq.of(statisticPopups).forEach(popup -> popup.update(delta));
         Seq.of(textPopups).forEach(popup -> popup.update(delta));
         Seq.of(redCrossPopups).forEach(popup -> popup.update(delta));
