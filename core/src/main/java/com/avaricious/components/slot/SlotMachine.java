@@ -373,6 +373,8 @@ public class SlotMachine {
     public void spin() {
         if (spinningReels > 0) return;
 
+        resetResultPresentation();
+
         /*
          * Decide and finalize the outcome before scheduling a single frame
          * of reel movement. Animation is now only a presentation of data.
@@ -419,6 +421,16 @@ public class SlotMachine {
                     reels.get(col).stopOn(currentSpinResult.column(col));
                 }
             }, spinHoldDuration + stopDelay);
+        }
+    }
+
+    private void resetResultPresentation() {
+        runningResults = false;
+
+        for (Body[] column : grid) {
+            for (Body body : column) {
+                body.resetResultPresentation();
+            }
         }
     }
 

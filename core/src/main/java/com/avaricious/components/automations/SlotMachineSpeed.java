@@ -22,7 +22,17 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
         new SpeedProfile(150, 20f, 0.07f, 0.65f, 0.22f, 0.50f, 0.29f, 0.70f, false),
         new SpeedProfile(250, 29f, 0.04f, 0.38f, 0.12f, 0.34f, 0.18f, 0.43f, false),
         new SpeedProfile(500, 42f, 0.015f, 0.19f, 0.06f, 0.22f, 0.09f, 0.20f, false),
-        new SpeedProfile(INSTANT_SPEED_PERCENT, 42f, 0f, 0f, 0f, 0f, 0f, 0f, true)
+        new SpeedProfile(
+            INSTANT_SPEED_PERCENT,
+            42f,
+            0f,
+            0f,
+            0f,
+            0f,
+            SlotMachineResultRunner.INSTANT_RESULT_STEP_DELAY,
+            0f,
+            true
+        )
     };
 
     private final PropertyChangeSupport changeSupport =

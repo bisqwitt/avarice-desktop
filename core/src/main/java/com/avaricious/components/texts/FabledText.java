@@ -11,6 +11,8 @@ public class FabledText {
     private final List<FabledWord> words =
         new ArrayList<>();
 
+    private float renderScale = 1f;
+
     public FabledText(
         FabledWord... words
     ) {
@@ -20,11 +22,45 @@ public class FabledText {
     }
 
     public void draw(float delta) {
+        float scaleOriginX = getX();
+
         Seq.of(words)
             .forEach(
                 word ->
-                    word.draw(delta)
+                    word.draw(
+                        delta,
+                        renderScale,
+                        scaleOriginX
+                    )
             );
+    }
+
+    /**
+     * Keeps decorative texture text inside a fixed horizontal area without
+     * enlarging titles that already fit.
+     */
+    public void fitWithinWidth(float maxWidth) {
+        float naturalWidth = getNaturalWidth();
+
+        renderScale = naturalWidth <= 0f
+            ? 1f
+            : Math.min(1f, Math.max(0.01f, maxWidth / naturalWidth));
+    }
+
+    public float getNaturalWidth() {
+        if (words.isEmpty()) return 0f;
+
+        float originX = getX();
+        float rightEdge = originX;
+
+        for (FabledWord word : words) {
+            rightEdge = Math.max(
+                rightEdge,
+                word.getStartingPos().x + word.getWidth()
+            );
+        }
+
+        return rightEdge - originX;
     }
 
     /*

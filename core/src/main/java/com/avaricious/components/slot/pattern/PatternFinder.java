@@ -10,7 +10,7 @@ import java.util.List;
 public class PatternFinder {
 
     /**
-     * Finds all matches of length >= 3 in the given symbol grid.
+     * Finds all base lines of length >= 3 plus unlocked shape matches.
      * Assumes symbolMap[x][y] => x = column, y = row.
      */
     public static List<PatternMatch> findMatches(Symbol[][] symbolMap) {
@@ -68,6 +68,8 @@ public class PatternFinder {
             }
         }
 
+        matches.addAll(PatternUnlocks.I().findMatches(symbolMap));
+
         return matches;
     }
 
@@ -80,4 +82,3 @@ public class PatternFinder {
         return a == b;
     }
 }
-

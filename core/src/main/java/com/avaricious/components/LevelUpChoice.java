@@ -34,6 +34,9 @@ public class LevelUpChoice {
     private static final float DISMISS_DURATION =
         0.32f;
 
+    private static final float TITLE_HORIZONTAL_PADDING =
+        0.30f;
+
     /*
      * -------------------------------------------------
      */
@@ -60,6 +63,8 @@ public class LevelUpChoice {
     private final TextureRegion shadowTexture;
 
     private final TextureRegion whiteTexture;
+
+    private final boolean[][] patternMask;
 
     /*
      * Entry animation.
@@ -130,6 +135,22 @@ public class LevelUpChoice {
         this.texture = texture;
         this.shadowTexture = shadowTexture;
         this.whiteTexture = whiteTexture;
+        this.patternMask = null;
+    }
+
+    public LevelUpChoice(
+        FabledText title,
+        FabledText description,
+        Runnable upgrade,
+        boolean[][] patternMask
+    ) {
+        this.title = title;
+        this.description = description;
+        this.upgrade = upgrade;
+        this.texture = null;
+        this.shadowTexture = null;
+        this.whiteTexture = null;
+        this.patternMask = copyMask(patternMask);
     }
 
     public void setBounds(
@@ -143,6 +164,15 @@ public class LevelUpChoice {
                 bounds.width / 2f,
             bounds.y +
                 bounds.height / 2f
+        );
+
+        title.fitWithinWidth(
+            bounds.width -
+                TITLE_HORIZONTAL_PADDING * 2f
+        );
+        description.fitWithinWidth(
+            bounds.width -
+                TITLE_HORIZONTAL_PADDING * 2f
         );
     }
 
@@ -720,6 +750,17 @@ public class LevelUpChoice {
             symbolCenterY -
                 symbolSize / 2f;
 
+        if (patternMask != null) {
+            drawPatternIcon(
+                renderCenterX,
+                symbolCenterY,
+                symbolSize,
+                renderRotation,
+                renderAlpha,
+                selected ? symbolFlash : 0f
+            );
+        } else {
+
         /*
          * Shadow.
          */
@@ -809,6 +850,7 @@ public class LevelUpChoice {
                 )
             );
         }
+        }
 
         /*
          * -------------------------------------------------
@@ -861,6 +903,101 @@ public class LevelUpChoice {
                 )
             );
         }
+    }
+
+    private void drawPatternIcon(
+        float centerX,
+        float centerY,
+        float size,
+        float rotation,
+        float alpha,
+        float flash
+    ) {
+        int rows = patternMask.length;
+        int columns = patternMask[0].length;
+        int longestSide = Math.max(rows, columns);
+        float gap = size * 0.065f;
+        float cellSize =
+            (size - gap * (longestSide - 1)) / longestSide;
+        float gridWidth = columns * cellSize + (columns - 1) * gap;
+        float gridHeight = rows * cellSize + (rows - 1) * gap;
+        float step = cellSize + gap;
+        float cos = MathUtils.cosDeg(rotation);
+        float sin = MathUtils.sinDeg(rotation);
+
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
+                float localX =
+                    -gridWidth / 2f + cellSize / 2f + column * step;
+                float localY =
+                    gridHeight / 2f - cellSize / 2f - row * step;
+                float rotatedX = localX * cos - localY * sin;
+                float rotatedY = localX * sin + localY * cos;
+                float cellCenterX = centerX + rotatedX;
+                float cellCenterY = centerY + rotatedY;
+                boolean activeCell = patternMask[row][column];
+
+                if (activeCell) {
+                    Pencil.I().addDrawing(new TextureDrawing(
+                        whitePixel,
+                        cellCenterX - cellSize / 2f,
+                        cellCenterY - cellSize / 2f - 0.055f,
+                        cellSize,
+                        cellSize,
+                        1f,
+                        rotation,
+                        ZIndex.SHOP,
+                        new Color(0f, 0f, 0f, 0.62f * alpha)
+                    ));
+                }
+
+                Pencil.I().addDrawing(new TextureDrawing(
+                    whitePixel,
+                    cellCenterX - cellSize / 2f,
+                    cellCenterY - cellSize / 2f,
+                    cellSize,
+                    cellSize,
+                    1f,
+                    rotation,
+                    ZIndex.SHOP,
+                    activeCell
+                        ? new Color(0.88f, 0.91f, 0.88f, alpha)
+                        : new Color(0.34f, 0.36f, 0.38f, 0.24f * alpha)
+                ));
+
+                if (activeCell && flash > 0f) {
+                    Pencil.I().addDrawing(new TextureDrawing(
+                        whitePixel,
+                        cellCenterX - cellSize / 2f,
+                        cellCenterY - cellSize / 2f,
+                        cellSize,
+                        cellSize,
+                        1f + flash * 0.28f,
+                        rotation,
+                        ZIndex.SHOP,
+                        new Color(1f, 1f, 1f, flash * alpha)
+                    ));
+                }
+            }
+        }
+    }
+
+    private static boolean[][] copyMask(boolean[][] source) {
+        if (source == null || source.length == 0 || source[0].length == 0) {
+            throw new IllegalArgumentException("A pattern icon needs a mask");
+        }
+
+        int columns = source[0].length;
+        boolean[][] copy = new boolean[source.length][columns];
+
+        for (int row = 0; row < source.length; row++) {
+            if (source[row].length != columns) {
+                throw new IllegalArgumentException("Pattern masks must be rectangular");
+            }
+            System.arraycopy(source[row], 0, copy[row], 0, columns);
+        }
+
+        return copy;
     }
 
     private void drawBorder(

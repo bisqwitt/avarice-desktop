@@ -51,7 +51,7 @@ public class CriticalHitChanceText extends FabledText {
                     Assets.I().get(AssetKey.I_SHADOW),
                     Assets.I().get(AssetKey.T_SHADOW)
                 ),
-                new Vector2(3.55f, 0f),
+                new Vector2(2.5f, 0f),
                 SIZE_RATIO,
                 SPACING,
                 ZIndex.SHOP_CARD

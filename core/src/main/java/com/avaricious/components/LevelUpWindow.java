@@ -4,6 +4,8 @@ import com.avaricious.audio.AudioManager;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.SlotMachineResultRunner;
 import com.avaricious.components.slot.Symbol;
+import com.avaricious.components.slot.pattern.PatternUnlocks;
+import com.avaricious.components.slot.pattern.UnlockablePattern;
 import com.avaricious.components.texts.*;
 import com.avaricious.utility.*;
 import com.badlogic.gdx.Gdx;
@@ -213,6 +215,34 @@ public class LevelUpWindow {
                     speed,
                     speedShadow,
                     speed
+                )
+            );
+        }
+
+        List<UnlockablePattern> lockedPatterns =
+            PatternUnlocks.I().getLockedPatterns();
+        if (!lockedPatterns.isEmpty()) {
+            UnlockablePattern pattern = lockedPatterns.get(
+                SeededRandomizer.nextInt(0, lockedPatterns.size() - 1)
+            );
+            possibleChoices.add(
+                new LevelUpChoice(
+                    new GeneratedFabledText(
+                        pattern.displayName(),
+                        22f,
+                        0.05f,
+                        0.22f,
+                        ZIndex.SHOP_CARD
+                    ),
+                    new GeneratedFabledText(
+                        "UNLOCK SHAPE",
+                        27f,
+                        0.04f,
+                        0.20f,
+                        ZIndex.SHOP_CARD
+                    ),
+                    () -> PatternUnlocks.I().unlock(pattern),
+                    pattern.mask()
                 )
             );
         }

@@ -96,6 +96,16 @@ public class PulseEffect {
         pulse();
     }
 
+    public void reset() {
+        currentSegment = 0;
+        timer = 0f;
+        active = false;
+        finished = true;
+        currentScale = 1f;
+        currentRotation = 0f;
+        strength = 1f;
+    }
+
     public float getScale() {
         return currentScale;
     }

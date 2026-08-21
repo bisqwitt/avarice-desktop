@@ -15,11 +15,22 @@ public class PatternMatch {
     private final Symbol symbol;
     private final int length;
     private final List<Vector2> positions;
+    private final UnlockablePattern pattern;
 
     public PatternMatch(Symbol symbol, int length, List<Vector2> positions) {
+        this(symbol, length, positions, null);
+    }
+
+    public PatternMatch(
+        Symbol symbol,
+        int length,
+        List<Vector2> positions,
+        UnlockablePattern pattern
+    ) {
         this.symbol = symbol;
         this.length = length;
         this.positions = positions;
+        this.pattern = pattern;
     }
 
     public Symbol getSymbol() {
@@ -32,6 +43,10 @@ public class PatternMatch {
 
     public List<Vector2> getPositions() {
         return positions;
+    }
+
+    public UnlockablePattern getPattern() {
+        return pattern;
     }
 
     public List<Body> getSlots() {

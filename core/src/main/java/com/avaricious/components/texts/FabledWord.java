@@ -49,15 +49,22 @@ public class FabledWord {
     }
 
     public void draw(float delta) {
+        draw(delta, 1f, startingPos.x);
+    }
+
+    void draw(float delta, float renderScale, float scaleOriginX) {
+        renderScale = Math.max(0.01f, renderScale);
+
         Seq.of(floatEffects).forEach(effect -> effect.update(delta));
         Seq.of(swayEffects).forEach(effect -> effect.update(delta));
 
         for (int i = 0; i < letterTextures.size(); i++) {
             TextureRegion letter = letterTextures.get(i);
-            float x = startingPos.x + lettersX.get(i);
+            float x = scaleOriginX +
+                (startingPos.x - scaleOriginX + lettersX.get(i)) * renderScale;
             float y = startingPos.y + floatEffects.get(i).getValue();
-            float width = letter.getRegionWidth() / sizeRatio;
-            float height = letter.getRegionHeight() / sizeRatio;
+            float width = letter.getRegionWidth() / sizeRatio * renderScale;
+            float height = letter.getRegionHeight() / sizeRatio * renderScale;
             float rotation = swayEffects.get(i).getValue();
             Color color = this.color == null ? new Color(1f, 1f, 1f, 1f) : this.color;
 

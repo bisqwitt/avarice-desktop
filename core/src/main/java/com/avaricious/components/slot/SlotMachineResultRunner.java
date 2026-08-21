@@ -28,6 +28,9 @@ import java.util.List;
 
 public class SlotMachineResultRunner {
 
+    /** Small enough to read as instant, but long enough to cross a frame. */
+    public static final float INSTANT_RESULT_STEP_DELAY = 0.035f;
+
     private static SlotMachineResultRunner instance;
 
     public static SlotMachineResultRunner I() {
@@ -39,6 +42,7 @@ public class SlotMachineResultRunner {
     private static final float PATTERN_FOCUS_HOLD = 0.16f;
     private static final float FIRST_REVEAL_DELAY =
         ANTICIPATION_DELAY + PATTERN_FOCUS_HOLD;
+    private static final float INSTANT_REVEAL_DELAY = 0.035f;
 
     private TaskScheduler scheduler;
     private final SlotMachine slotMachine = SlotMachine.I();
@@ -65,7 +69,9 @@ public class SlotMachineResultRunner {
                     }
                 });
             }, 0f);
-            scheduler.runTasks(instantResults ? 0f : FIRST_REVEAL_DELAY);
+            scheduler.runTasks(
+                instantResults ? INSTANT_REVEAL_DELAY : FIRST_REVEAL_DELAY
+            );
             return;
         }
 
@@ -87,8 +93,16 @@ public class SlotMachineResultRunner {
             if (matchIndex == 0) {
                 scheduler.schedule(
                     focusPattern,
-                    instantResults ? 0f : PATTERN_FOCUS_HOLD
+                    instantResults
+                        ? INSTANT_RESULT_STEP_DELAY
+                        : PATTERN_FOCUS_HOLD
                 );
+            } else if (instantResults) {
+                /*
+                 * Leave one renderable beat between patterns. Otherwise the
+                 * previous cleanup and next focus happen in the same frame.
+                 */
+                scheduler.schedule(focusPattern);
             } else {
                 scheduler.scheduleNoDelay(focusPattern);
             }
@@ -163,7 +177,9 @@ public class SlotMachineResultRunner {
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         });
 
-        scheduler.runTasks(instantResults ? 0f : ANTICIPATION_DELAY);
+        scheduler.runTasks(
+            instantResults ? INSTANT_REVEAL_DELAY : ANTICIPATION_DELAY
+        );
     }
 
     private int nextCard = 3;
@@ -261,7 +277,9 @@ public class SlotMachineResultRunner {
     }
 
     public void setRevealTiming(float resultStepDelay, boolean instantResults) {
-        this.resultStepDelay = Math.max(0f, resultStepDelay);
         this.instantResults = instantResults;
+        this.resultStepDelay = instantResults
+            ? Math.max(INSTANT_RESULT_STEP_DELAY, resultStepDelay)
+            : Math.max(0f, resultStepDelay);
     }
 }

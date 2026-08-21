@@ -67,6 +67,15 @@ public class Body {
         }
     }
 
+    public void resetResultPresentation() {
+        patternHitCount = 0;
+        scale = 1f;
+        targetScale = 1f;
+        setInPatternHit(false);
+        setIdleEffectsEnabled(true);
+        pulseEffect.reset();
+    }
+
     public Vector2 getPos() {
         return pos;
     }
