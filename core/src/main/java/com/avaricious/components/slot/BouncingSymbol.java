@@ -4,14 +4,16 @@ import com.avaricious.audio.AudioManager;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.popups.PopupManager;
-import com.avaricious.components.popups.LostSymbolPopup;
+//import com.avaricious.components.popups.LostSymbolPopup;
 import com.avaricious.components.popups.SpadePopup;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
+import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.Color;
@@ -252,12 +254,18 @@ public class BouncingSymbol {
             ZIndex.SLOT_MACHINE_FOREGROUND
         );
 
-        PopupManager.I().spawnSpade(new SpadePopup(
-            Assets.I().getSymbolColor(symbol),
-            getCenterX() + 0.75f,
-            getCenterY() + 0.5f,
-            () -> CompChipBar.I().addChips(COMP_CHIP_REWARD)
-        ));
+        spawnSpade(0.75f);
+
+        int extraSpadeChance =
+            CollectibleValues.I().getExtraSpadeSpawnChance();
+
+        if (
+            extraSpadeChance >= 100 ||
+                extraSpadeChance > 0 &&
+                    SeededRandomizer.get().nextFloat() * 100f < extraSpadeChance
+        ) {
+            spawnSpade(0.45f);
+        }
 
         AudioManager.I().playCollect(COMP_CHIP_REWARD);
         ScreenShake.I().addTrauma(0.10f);
@@ -266,15 +274,24 @@ public class BouncingSymbol {
         return true;
     }
 
-    private void miss() {
-        PopupManager.I().spawnLostSymbol(new LostSymbolPopup(
-            symbol,
-            getCenterX(),
-            getCenterY(),
-            getWidth(),
-            getHeight(),
-            rotation + pulseEffect.getRotation()
+    private void spawnSpade(float xOffset) {
+        PopupManager.I().spawnSpade(new SpadePopup(
+            Assets.I().getSymbolColor(symbol),
+            getCenterX() + xOffset,
+            getCenterY() + 0.5f,
+            () -> CompChipBar.I().addChips(COMP_CHIP_REWARD)
         ));
+    }
+
+    private void miss() {
+//        PopupManager.I().spawnLostSymbol(new LostSymbolPopup(
+//            symbol,
+//            getCenterX(),
+//            getCenterY(),
+//            getWidth(),
+//            getHeight(),
+//            rotation + pulseEffect.getRotation()
+//        ));
 
         AudioManager.I().playMiss();
         ScreenShake.I().addTrauma(0.055f);

@@ -8,7 +8,7 @@ import com.badlogic.gdx.utils.Timer;
 
 public class AudioManager {
 
-    private static final float MASTER_VOLUME = 0.42f;
+    private static final float MASTER_VOLUME = 0.2f;
 
     private static AudioManager instance;
 

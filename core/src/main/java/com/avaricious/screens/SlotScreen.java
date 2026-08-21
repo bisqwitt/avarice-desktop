@@ -173,7 +173,9 @@ public class SlotScreen extends ScreenAdapter {
 
         SlotMachine.I().setOnLastReelFinished(
             () -> SlotMachineResultRunner.I().runResult(
-                SlotMachineMatchFinder.I().findMatchesAfterSpin()
+                SlotMachineMatchFinder.I().findMatches(
+                    SlotMachine.I().getCurrentSpinResult()
+                )
             )
         );
 
@@ -210,7 +212,7 @@ public class SlotScreen extends ScreenAdapter {
 
                     buttonBoard.setVisible(true);
 
-//                    Automations.I().getAutoSpin().activate();
+                    Automations.I().getAutoSpin().activate();
 
 
 //                    Automations.I()

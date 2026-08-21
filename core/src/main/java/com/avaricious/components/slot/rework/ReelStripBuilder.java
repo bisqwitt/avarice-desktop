@@ -16,7 +16,7 @@ public class ReelStripBuilder {
 
         Seq.of(Arrays.asList(Symbol.values()))
             .forEach(symbol -> {
-                for (int i = 0; i < symbol.poolCount() / 2; i++) {
+                for (int i = 0; i < symbol.poolCount(); i++) {
                     baseStrip.add(symbol);
                 }
             });

@@ -5,10 +5,14 @@ import com.avaricious.components.ScreenShake;
 import com.avaricious.effects.TextureEcho;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.components.slot.rework.ReelStripBuilder;
+import com.avaricious.components.slot.rework.SpinResult;
+import com.avaricious.components.slot.rework.SpinResultGenerator;
+import com.avaricious.components.slot.rework.SpinResultManipulator;
+import com.avaricious.components.slot.rework.SpinResultPolicy;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
@@ -23,7 +27,6 @@ import com.badlogic.gdx.utils.Timer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 public class SlotMachine {
@@ -61,6 +64,13 @@ public class SlotMachine {
     private int spinningReels = 0;
     private boolean stale = true;
 
+    private final SpinResultGenerator spinResultGenerator = new SpinResultGenerator();
+    private final SpinResultPolicy spinResultPolicy = new SpinResultPolicy();
+    private final ReelStripBuilder reelStripBuilder = new ReelStripBuilder();
+    private final List<SpinResultManipulator> spinResultManipulators = new ArrayList<>();
+    private SpinResult currentSpinResult;
+    private SpinResult nextSpinResult;
+
     /*
      * A short white silhouette on each reel stop turns the mechanical
      * settle into a readable five-beat reward cadence.
@@ -68,6 +78,9 @@ public class SlotMachine {
     private final float[] reelStopFlash = new float[colCount];
     private final float[] reelStartFlash = new float[colCount];
     private final float[][] symbolWhiteFlash = new float[colCount][rowCount];
+
+    private static final float EMPTY_SPIN_SWEEP_STEP_DELAY = 0.017f;
+    private static final float EMPTY_SPIN_SWEEP_COMPLETION_DELAY = 0.20f;
 
     private boolean shiftingSymbol = false;
     private DragableBody draggingBody = null;
@@ -113,6 +126,7 @@ public class SlotMachine {
         for (int c = 0; c < colCount; c++) {
             final int reelIndex = c;
             reels.add(new Reel(rowCount, () -> {
+                verifyReelLanding(reelIndex);
                 onReelStopped(reelIndex);
                 spinningReels--;
                 if (spinningReels == 0 && onLastReelFinished != null) onLastReelFinished.run();
@@ -128,7 +142,7 @@ public class SlotMachine {
             }
         }
 
-        Seq.of(reels).forEach(reel -> reel.setSpeed(8));
+        Seq.of(reels).forEach(reel -> reel.setSpeed(16));
     }
 
     public void handleInput(Vector2 mouse, boolean touching, boolean wasTouching, float delta) {
@@ -354,6 +368,15 @@ public class SlotMachine {
     }
 
     public void spin() {
+        if (spinningReels > 0) return;
+
+        /*
+         * Decide and finalize the outcome before scheduling a single frame
+         * of reel movement. Animation is now only a presentation of data.
+         */
+        currentSpinResult = prepareSpinResult();
+        buildStrip();
+
         spinningReels = colCount;
         stale = false;
 
@@ -367,8 +390,6 @@ public class SlotMachine {
         AudioManager.I().playSpinStart();
         ScreenShake.I().addTrauma(0.075f);
 
-        float startSpeed = 16f;
-
         for (int c = 0; c < colCount; c++) {
             final int col = c;
             float startDelay = c * reelStartStagger;
@@ -378,16 +399,55 @@ public class SlotMachine {
                 @Override
                 public void run() {
                     onReelStarted(col);
-                    reels.get(col).start(startSpeed + MathUtils.random(-0.7f, 0.7f)); // tiny per-reel variation
+                    reels.get(col).start(reels.get(col).getSpeed());
                 }
             }, startDelay);
 
             Timer.schedule(new Timer.Task() {
                 @Override
                 public void run() {
-                    reels.get(col).requestStopAlignCenter(0); // at least 2 full strip loops after stop requested
+                    reels.get(col).stopOn(currentSpinResult.column(col));
                 }
             }, 1f + stopDelay);
+        }
+    }
+
+    private SpinResult prepareSpinResult() {
+        SpinResult queuedResult = nextSpinResult;
+        SpinResult result = queuedResult == null
+            ? spinResultPolicy.adjust(spinResultGenerator.generate(colCount, rowCount))
+            : queuedResult.copy();
+
+        result.requireDimensions(colCount, rowCount);
+
+        /* A copy allows a manipulator to register/unregister itself safely. */
+        for (SpinResultManipulator manipulator : new ArrayList<>(spinResultManipulators)) {
+            manipulator.manipulate(result);
+            result.requireDimensions(colCount, rowCount);
+        }
+
+        spinResultPolicy.record(result);
+        if (queuedResult != null) nextSpinResult = null;
+
+        /* Do not let a manipulator retain a reference to the live landing. */
+        return result.copy();
+    }
+
+    private void verifyReelLanding(int column) {
+        if (currentSpinResult == null) {
+            throw new IllegalStateException("A reel stopped without a planned spin result");
+        }
+
+        Reel reel = reels.get(column);
+        for (int row = 0; row < rowCount; row++) {
+            Symbol expected = currentSpinResult.get(column, row);
+            Symbol actual = reel.symbolAtRow(row);
+            if (actual != expected) {
+                throw new IllegalStateException(
+                    "Reel " + column + " landed incorrectly at row " + row +
+                        ": expected " + expected + ", got " + actual
+                );
+            }
         }
     }
 
@@ -449,34 +509,43 @@ public class SlotMachine {
      * flash reads as motion rather than one full-screen blink.
      */
     public void playEmptySpinSweep(Runnable onComplete) {
-        final float rowDelay = 0.085f;
-        final float columnDelay = 0.014f;
+        playEmptySpinSweepStep(0, onComplete);
+    }
 
-        for (int row = 0; row < rowCount; row++) {
-            final int targetRow = row;
+    private void playEmptySpinSweepStep(
+        int sweepStep,
+        Runnable onComplete
+    ) {
+        int totalSteps = rowCount * colCount;
 
-            for (int step = 0; step < colCount; step++) {
-                final int targetColumn = row % 2 == 0
-                    ? step
-                    : colCount - 1 - step;
-                float delay = row * rowDelay + step * columnDelay;
-
-                Timer.schedule(new Timer.Task() {
-                    @Override
-                    public void run() {
-                        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
-                        grid[targetColumn][targetRow].pulse(0.18f);
-                    }
-                }, delay);
-            }
+        if (sweepStep >= totalSteps) {
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    if (onComplete != null) onComplete.run();
+                }
+            }, EMPTY_SPIN_SWEEP_COMPLETION_DELAY);
+            return;
         }
+
+        int targetRow = sweepStep / colCount;
+        int stepInRow = sweepStep % colCount;
+        int targetColumn = targetRow % 2 == 0
+            ? stepInRow
+            : colCount - 1 - stepInRow;
+
+        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
+        grid[targetColumn][targetRow].pulse(0.18f);
 
         Timer.schedule(new Timer.Task() {
             @Override
             public void run() {
-                if (onComplete != null) onComplete.run();
+                playEmptySpinSweepStep(
+                    sweepStep + 1,
+                    onComplete
+                );
             }
-        }, rowCount * rowDelay + colCount * columnDelay + 0.12f);
+        }, EMPTY_SPIN_SWEEP_STEP_DELAY);
     }
 
     public void shiftSymbol() {
@@ -512,8 +581,9 @@ public class SlotMachine {
         Reel reelB = reels.get(colB);
         Symbol symA = reelA.symbolAtRow(rowA);
         Symbol symB = reelB.symbolAtRow(rowB);
-        reelA.setSymbolAtRow(rowA, symB);   // ← musst du noch public machen (s.u.)
+        reelA.setSymbolAtRow(rowA, symB);
         reelB.setSymbolAtRow(rowB, symA);
+        currentSpinResult = new SpinResult(getSymbolMap());
     }
 
     public static Rectangle getBounds() {
@@ -526,21 +596,19 @@ public class SlotMachine {
     }
 
     public void buildStrip() {
-        List<Symbol> baseStrip = new ArrayList<>();
+        /* A weight upgrade during a spin takes effect on the next spin. */
+        if (spinningReels > 0) return;
 
-        Seq.of(Arrays.asList(Symbol.values()))
-            .forEach(symbol -> {
-                for (int i = 0; i < symbol.poolCount() / 2; i++) {
-                    baseStrip.add(symbol);
-                }
-            });
+        List<Symbol> baseStrip = reelStripBuilder.buildBaseStrip();
 
         for (Reel reel : reels) {
-            List<Symbol> reelStrip = new ArrayList<>(baseStrip);
-            Collections.shuffle(reelStrip, SeededRandomizer.get());
-            reel.setStrip(reelStrip);
+            List<Symbol> reelStrip = reelStripBuilder.buildShuffledStrip(baseStrip);
+            if (reel.stripSize() == 0) {
+                reel.setStrip(reelStrip);
+            } else {
+                reel.setStripPreservingVisible(reelStrip);
+            }
         }
-
     }
 
     private boolean isInGrid(Vector2 pos) {
@@ -567,6 +635,46 @@ public class SlotMachine {
             }
         }
         return symbolMap;
+    }
+
+    /**
+     * Returns the immutable snapshot being presented by the current spin.
+     */
+    public SpinResult getCurrentSpinResult() {
+        return currentSpinResult == null
+            ? new SpinResult(getSymbolMap())
+            : currentSpinResult.copy();
+    }
+
+    /**
+     * Forces one exact result. Built-in pity and near-miss rules are skipped,
+     * while registered manipulators still get their normal final pass.
+     */
+    public void setNextSpinResult(SpinResult result) {
+        if (result == null) throw new IllegalArgumentException("Spin result cannot be null");
+        result.requireDimensions(colCount, rowCount);
+        nextSpinResult = result.copy();
+    }
+
+    public void setNextSpinResult(Symbol[][] symbols) {
+        setNextSpinResult(new SpinResult(symbols));
+    }
+
+    public void addSpinResultManipulator(SpinResultManipulator manipulator) {
+        if (manipulator == null) {
+            throw new IllegalArgumentException("Spin-result manipulator cannot be null");
+        }
+        if (!spinResultManipulators.contains(manipulator)) {
+            spinResultManipulators.add(manipulator);
+        }
+    }
+
+    public void removeSpinResultManipulator(SpinResultManipulator manipulator) {
+        spinResultManipulators.remove(manipulator);
+    }
+
+    public void clearSpinResultManipulators() {
+        spinResultManipulators.clear();
     }
 
     public void setOnLastReelFinished(Runnable onLastReelFinished) {

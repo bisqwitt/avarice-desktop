@@ -8,9 +8,12 @@ import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 
+import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 public class ExtraCollectibleChanceDescription extends FabledText {
 
@@ -32,11 +35,24 @@ public class ExtraCollectibleChanceDescription extends FabledText {
 
     public ExtraCollectibleChanceDescription(Symbol symbol) {
 
-        SymbolValues.I().addValueChangeListener(evt -> {
-            if (evt.getPropertyName().equals(symbol.toString())) {
+        this(
+            () -> SymbolValues.I().getExtraCollectibleSpawnChance(symbol),
+            SymbolValues.I()::addExtraCollectibleSpawnChanceChangeListener,
+            symbol.toString()
+        );
+    }
+
+    protected ExtraCollectibleChanceDescription(
+        IntSupplier currentChance,
+        Consumer<PropertyChangeListener> addChangeListener,
+        String propertyName
+    ) {
+
+        addChangeListener.accept(evt -> {
+            if (evt.getPropertyName().equals(propertyName)) {
 
                 int currentValue =
-                    SymbolValues.I().getExtraCollectibleSpawnChance(symbol);
+                    currentChance.getAsInt();
 
                 updateDescription(
                     currentValue,
@@ -46,7 +62,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
         });
 
         int currentValue =
-            SymbolValues.I().getExtraCollectibleSpawnChance(symbol);
+            currentChance.getAsInt();
 
         updateDescription(
             currentValue,
