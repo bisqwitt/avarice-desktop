@@ -7,7 +7,7 @@ public class SpinBuyerAutomation extends AbstractAutomation {
     }
 
     @Override
-    public int price() {
-        return 2000;
+    public float price() {
+        return 2_000f;
     }
 }

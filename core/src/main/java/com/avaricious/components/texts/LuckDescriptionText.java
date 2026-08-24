@@ -36,10 +36,13 @@ public class LuckDescriptionText extends FabledText {
         float y = getWords().isEmpty()
             ? 14f
             : getWords().get(0).getStartingPos().y;
+        float x = getWords().isEmpty()
+            ? 1.25f
+            : getWords().get(0).getStartingPos().x;
 
         FabledWord currentWord = createPercentageWord(
             currentValue,
-            new Vector2(1.25f, y)
+            new Vector2(x, y)
         );
 
         float arrowX = currentWord.getStartingPos().x

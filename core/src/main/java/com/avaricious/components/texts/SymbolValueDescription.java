@@ -3,6 +3,7 @@ package com.avaricious.components.texts;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.EconomyScaling;
 import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -25,27 +26,27 @@ public class SymbolValueDescription extends FabledText {
     public SymbolValueDescription(Symbol symbol) {
         SymbolValues.I().addValueChangeListener(evt -> {
             if (evt.getPropertyName().equals(symbol.toString())) {
-                int newValue = (int) evt.getNewValue();
+                float newValue = ((Number) evt.getNewValue()).floatValue();
 
                 updateDescription(
                     newValue,
-                    newValue + 10
+                    SymbolValues.I().getNextValue(symbol)
                 );
             }
         });
 
-        int currentValue =
+        float currentValue =
             SymbolValues.I().getValue(symbol);
 
         updateDescription(
             currentValue,
-            currentValue + 10
+            SymbolValues.I().getNextValue(symbol)
         );
     }
 
     public void updateDescription(
-        int currentValue,
-        int nextValue
+        float currentValue,
+        float nextValue
     ) {
         FabledWord currentWord =
             createNumberWord(
@@ -100,7 +101,7 @@ public class SymbolValueDescription extends FabledText {
     }
 
     private FabledWord createNumberWord(
-        int value,
+        float value,
         Vector2 position
     ) {
         List<TextureRegion> textures =
@@ -109,15 +110,8 @@ public class SymbolValueDescription extends FabledText {
         List<TextureRegion> shadows =
             new ArrayList<>();
 
-        addNumber(
-            textures,
-            value
-        );
-
-        addNumberShadows(
-            shadows,
-            value
-        );
+        addNumber(textures, value, false);
+        addNumber(shadows, value, true);
 
         return new FabledWord(
             textures,
@@ -131,43 +125,32 @@ public class SymbolValueDescription extends FabledText {
 
     private void addNumber(
         List<TextureRegion> textures,
-        int number
+        float number,
+        boolean shadow
     ) {
-        String value =
-            String.valueOf(number);
-
+        String value = EconomyScaling.compact(number);
         for (int i = 0; i < value.length(); i++) {
-            int digit =
-                Character.getNumericValue(
-                    value.charAt(i)
-                );
-
-            textures.add(
-                Assets.I().getDigitalNumber(
-                    digit
-                )
-            );
+            char character = value.charAt(i);
+            if (Character.isDigit(character)) {
+                int digit = Character.getNumericValue(character);
+                textures.add(shadow
+                    ? Assets.I().getDigitalNumberShadow(digit)
+                    : Assets.I().getDigitalNumber(digit));
+                continue;
+            }
+            textures.add(Assets.I().get(numberAsset(character, shadow)));
         }
     }
 
-    private void addNumberShadows(
-        List<TextureRegion> textures,
-        int number
-    ) {
-        String value =
-            String.valueOf(number);
-
-        for (int i = 0; i < value.length(); i++) {
-            int digit =
-                Character.getNumericValue(
-                    value.charAt(i)
-                );
-
-            textures.add(
-                Assets.I().getDigitalNumberShadow(
-                    digit
-                )
-            );
+    private AssetKey numberAsset(char character, boolean shadow) {
+        switch (character) {
+            case '.': return AssetKey.DOT_SYMBOL;
+            case 'k': return shadow ? AssetKey.K_SHADOW : AssetKey.K;
+            case 'm': return shadow ? AssetKey.M_SHADOW : AssetKey.M;
+            case 'b': return shadow ? AssetKey.B_SHADOW : AssetKey.B;
+            case 't': return shadow ? AssetKey.T_SHADOW : AssetKey.T;
+            case 'q': return shadow ? AssetKey.Q_SHADOW : AssetKey.Q;
+            default: throw new IllegalArgumentException("Unsupported compact number symbol");
         }
     }
 }

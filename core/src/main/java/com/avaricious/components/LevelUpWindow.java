@@ -1,9 +1,7 @@
 package com.avaricious.components;
 
 import com.avaricious.audio.AudioManager;
-import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.SlotMachineResultRunner;
-import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.slot.pattern.PatternUnlocks;
 import com.avaricious.components.slot.pattern.UnlockablePattern;
 import com.avaricious.components.texts.*;
@@ -166,11 +164,12 @@ public class LevelUpWindow {
         List<LevelUpChoice> possibleChoices =
             new ArrayList<>();
 
-        Symbol valueSymbol = randomSymbol();
-        possibleChoices.add(createValueChoice(valueSymbol));
-
-        Symbol collectibleSymbol = randomSymbol();
-        possibleChoices.add(createCollectibleChoice(collectibleSymbol));
+        if (
+            CollectibleValues.I().getExtraCollectibleSpawnChance() <
+                CollectibleValues.MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE
+        ) {
+            possibleChoices.add(createCollectibleChoice());
+        }
 
         if (
             CollectibleValues.I().getExtraSpadeSpawnChance() <
@@ -189,32 +188,25 @@ public class LevelUpWindow {
             );
         }
 
-        if (!Automations.I().getLuck().isMaxBonusReached()) {
-            TextureRegion luck = Assets.I().get(AssetKey.LUCK);
-            TextureRegion luckShadow = Assets.I().get(AssetKey.LUCK_SHADOW);
+        if (
+            CollectibleValues.I().getCashChipSpawnChance() <
+                CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE
+        ) {
+            TextureRegion cashChip = Assets.I().get(AssetKey.POKER_CHIP);
             possibleChoices.add(
                 new LevelUpChoice(
-                    new LuckText(),
-                    new LuckDescriptionText(),
-                    () -> Automations.I().getLuck().upgrade(),
-                    luck,
-                    luckShadow,
-                    luck
-                )
-            );
-        }
-
-        if (!Automations.I().getSlotMachineSpeed().isMaxSpeedReached()) {
-            TextureRegion speed = Assets.I().get(AssetKey.RETRIGGER);
-            TextureRegion speedShadow = Assets.I().get(AssetKey.RETRIGGER_SHADOW);
-            possibleChoices.add(
-                new LevelUpChoice(
-                    new SlotMachineSpeedText(),
-                    new SlotMachineSpeedDescriptionText(),
-                    () -> Automations.I().getSlotMachineSpeed().upgrade(),
-                    speed,
-                    speedShadow,
-                    speed
+                    new GeneratedFabledText(
+                        "CASH CHIP DROP",
+                        22f,
+                        0.05f,
+                        0.22f,
+                        ZIndex.SHOP_CARD
+                    ),
+                    new CashChipChanceDescription(),
+                    CollectibleValues.I()::increaseCashChipSpawnChance,
+                    cashChip,
+                    Assets.I().get(AssetKey.POKER_CHIP_SHADOW),
+                    cashChip
                 )
             );
         }
@@ -310,39 +302,15 @@ public class LevelUpWindow {
         updateChoiceBounds();
     }
 
-    private Symbol randomSymbol() {
-        Symbol[] symbols = Symbol.values();
-        return symbols[SeededRandomizer.nextInt(0, symbols.length - 1)];
-    }
-
-    private LevelUpChoice createValueChoice(Symbol symbol) {
+    private LevelUpChoice createCollectibleChoice() {
+        TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
         return new LevelUpChoice(
-            symbol,
-            createValueTitle(symbol),
-            new SymbolValueDescription(symbol),
-            () -> SymbolValues.I().increaseValue(symbol)
-        );
-    }
-
-    private FabledText createValueTitle(Symbol symbol) {
-        switch (symbol) {
-            case LEMON: return new LemonValueText();
-            case CHERRY: return new CherryValueText();
-            case CLOVER: return new CloverValueText();
-            case BELL: return new BellValueText();
-            case IRON: return new IronValueText();
-            case DIAMOND: return new DiamondValueText();
-            case SEVEN: return new SevenValueText();
-            default: throw new IllegalArgumentException("Unsupported symbol: " + symbol);
-        }
-    }
-
-    private LevelUpChoice createCollectibleChoice(Symbol symbol) {
-        return new LevelUpChoice(
-            symbol,
             new ExtraLemonCollectibleChanceText(),
-            new ExtraCollectibleChanceDescription(symbol),
-            () -> SymbolValues.I().increaseExtraCollectibleSpawnChance(symbol)
+            new ExtraCollectibleChanceDescription(),
+            CollectibleValues.I()::increaseExtraCollectibleSpawnChance,
+            retrigger,
+            Assets.I().get(AssetKey.RETRIGGER_SHADOW),
+            retrigger
         );
     }
 

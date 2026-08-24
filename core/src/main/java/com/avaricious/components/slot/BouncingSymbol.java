@@ -3,6 +3,7 @@ package com.avaricious.components.slot;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
+import com.avaricious.components.automations.Automations;
 import com.avaricious.components.popups.LostSymbolPopup;
 import com.avaricious.components.popups.PopupManager;
 import com.avaricious.components.popups.SpadePopup;
@@ -12,8 +13,10 @@ import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.GameContext;
+import com.avaricious.utility.EconomyScaling;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SeededRandomizer;
+import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.Color;
@@ -267,6 +270,8 @@ public class BouncingSymbol {
             spawnSpade(0.45f);
         }
 
+        trySpawnCashChip();
+
         AudioManager.I().playCollect(COMP_CHIP_REWARD);
         ScreenShake.I().addTrauma(0.10f);
         impactFlash = 1f;
@@ -274,12 +279,33 @@ public class BouncingSymbol {
         return true;
     }
 
+    private void trySpawnCashChip() {
+        int chance = CollectibleValues.I().getCashChipSpawnChance();
+        if (chance <= 0 ||
+            chance < 100 && SeededRandomizer.get().nextFloat() * 100f >= chance) {
+            return;
+        }
+
+        float reward = Math.max(
+            25f,
+            EconomyScaling.roundPrice(SymbolValues.I().getValue(symbol) * 5f)
+        );
+        BouncingSymbolManager.I().createCashChip(
+            reward,
+            getCenterX(),
+            getCenterY()
+        );
+    }
+
     private void spawnSpade(float xOffset) {
         PopupManager.I().spawnSpade(new SpadePopup(
             Assets.I().getSymbolColor(symbol),
             getCenterX() + xOffset,
             getCenterY() + 0.5f,
-            () -> CompChipBar.I().addChips(COMP_CHIP_REWARD)
+            () -> CompChipBar.I().addChips(
+                COMP_CHIP_REWARD *
+                    Automations.I().getXpMultiplier().getMultiplier()
+            )
         ));
     }
 

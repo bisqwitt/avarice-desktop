@@ -24,6 +24,8 @@ public class CompChipBar {
     private static final float Y = 8.82f;
     private static final float WIDTH = 16f;
     private static final float HEIGHT = 0.18f;
+    private static final float FIRST_LEVEL_REQUIREMENT = 12f;
+    private static final float LEVEL_REQUIREMENT_GROWTH = 1.27f;
 
     private static final Color BACKGROUND_COLOR =
         new Color(0.12f, 0.12f, 0.15f, 1f);
@@ -32,8 +34,7 @@ public class CompChipBar {
 
     private int level = 1;
     private int chips = 0;
-    private int chipsRequiredFirstLevel = 15;
-    private int chipsRequired = chipsRequiredFirstLevel;
+    private int chipsRequired = calculateChipsRequired(level);
 
     private float displayedProgress = 0f;
     private float gainPulse = 0f;
@@ -181,7 +182,14 @@ public class CompChipBar {
     }
 
     private int calculateChipsRequired(int level) {
-        return chipsRequiredFirstLevel + (level - 1) * 5;
+        double rawRequirement = FIRST_LEVEL_REQUIREMENT
+            * Math.pow(LEVEL_REQUIREMENT_GROWTH, Math.max(0, level - 1));
+        double roundingStep = rawRequirement < 50d
+            ? 1d : rawRequirement < 1_000d ? 5d : 50d;
+        return (int) Math.min(
+            Integer.MAX_VALUE,
+            Math.ceil(rawRequirement / roundingStep) * roundingStep
+        );
     }
 
     public int getLevel() {

@@ -1,6 +1,8 @@
 package com.avaricious.components.shop;
 
 import com.avaricious.CreditNumber;
+import com.avaricious.audio.AudioManager;
+import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.AbstractAutomation;
 import com.avaricious.components.automations.AbstractAutomationUpgrade;
 import com.avaricious.components.buttons.BuyAutomationButton;
@@ -16,7 +18,9 @@ import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 
 public class ShopItem {
@@ -27,6 +31,11 @@ public class ShopItem {
     private final FabledText description;
     private final CreditNumber price;
     private final DisablableButton buyButton;
+    private TextureRegion icon;
+    private Rectangle cardBounds;
+    private boolean compact;
+    private float purchaseFeedbackTimer;
+    private boolean majorPurchaseFeedback;
 
     private float y;
 
@@ -36,13 +45,29 @@ public class ShopItem {
             new BuyAutomationButton(automation));
     }
 
+    public ShopItem(FabledText title, FabledText description, AbstractAutomation automation,
+                    TextureRegion icon, int key) {
+        this(title, description, automation.price(), new BuyAutomationButton(automation, key));
+        this.icon = icon;
+        ((BuyAutomationButton) buyButton).setOnPurchased(() -> beginPurchaseFeedback(true));
+    }
+
+    public ShopItem(FabledText title, FabledText description, AbstractAutomationUpgrade upgrade,
+                    TextureRegion icon, int key) {
+        this(title, description, upgrade.price(), new BuyAutomationButton(upgrade, key));
+        this.icon = icon;
+        upgrade.addPriceChangeListener(evt ->
+            updatePrice(((Number) evt.getNewValue()).floatValue()));
+        ((BuyAutomationButton) buyButton).setOnPurchased(() -> beginPurchaseFeedback(true));
+    }
+
     public ShopItem(FabledText title, FabledText description, AbstractAutomationUpgrade automationUpgrade) {
         this(title, description,
             automationUpgrade.price(),
             new BuyAutomationButton(automationUpgrade));
 
         automationUpgrade.addPriceChangeListener(evt -> {
-            updatePrice((int) evt.getNewValue());
+            updatePrice(((Number) evt.getNewValue()).floatValue());
         });
     }
 
@@ -53,11 +78,22 @@ public class ShopItem {
 
         SymbolValues.I().addPriceChangeListener(evt -> {
             if (evt.getPropertyName().equals(symbol.toString()))
-                updatePrice((int) evt.getNewValue());
+                updatePrice(((Number) evt.getNewValue()).floatValue());
         });
     }
 
-    private ShopItem(FabledText title, FabledText description, int initialPrice, DisablableButton buyButton) {
+    public ShopItem(FabledText title, Symbol symbol, TextureRegion icon, int key) {
+        this(title, new SymbolValueDescription(symbol), SymbolValues.I().getPrice(symbol),
+            new UpgradeSymbolButton(symbol, key));
+        this.icon = icon;
+        SymbolValues.I().addPriceChangeListener(evt -> {
+            if (evt.getPropertyName().equals(symbol.toString()))
+                updatePrice(((Number) evt.getNewValue()).floatValue());
+        });
+        ((UpgradeSymbolButton) buyButton).setOnPurchased(() -> beginPurchaseFeedback(false));
+    }
+
+    private ShopItem(FabledText title, FabledText description, float initialPrice, DisablableButton buyButton) {
         this.title = title;
         this.description = description;
         this.price = new CreditNumber(initialPrice,
@@ -67,22 +103,145 @@ public class ShopItem {
     }
 
     public void draw(float delta) {
+        if (purchaseFeedbackTimer > 0f) {
+            purchaseFeedbackTimer = Math.max(0f, purchaseFeedbackTimer - delta);
+        }
+        if (cardBounds != null) {
+            Pencil.I().addDrawing(new TextureDrawing(
+                background, cardBounds.x + 0.10f, cardBounds.y - 0.12f,
+                cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD, Assets.I().shadowColor()
+            ));
+            Pencil.I().addDrawing(new TextureDrawing(
+                Assets.I().get(AssetKey.DARK_SLATE_PIXEL), cardBounds.x, cardBounds.y,
+                cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD,
+                buyButton.disabled() ? new Color(0.62f, 0.62f, 0.62f, 1f) : Color.WHITE
+            ));
+            Pencil.I().addDrawing(new TextureDrawing(
+                Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL), cardBounds.x,
+                cardBounds.y + cardBounds.height - 0.12f, cardBounds.width, 0.12f, ZIndex.SHOP_CARD
+            ));
+            if (icon != null) {
+                float iconSize = compact ? 0.72f : 0.82f;
+                Pencil.I().addDrawing(new TextureDrawing(
+                    icon,
+                    cardBounds.x + (compact ? 0.28f : 0.45f),
+                    cardBounds.y + (compact ? 0.72f : 0.28f),
+                    iconSize, iconSize, ZIndex.SHOP_CARD
+                ));
+            }
+        } else {
         Pencil.I().addDrawing(new TextureDrawing(
             background, 0.75f, y, 7.5f, getHeight(), ZIndex.SHOP_CARD, Assets.I().shadowColor()
         ));
+        }
 
         title.draw(delta);
         if (description != null) description.draw(delta);
         price.draw(delta);
 
-        if (buyButton.disabled()) Pencil.I().addDrawing(new TextureDrawing(
+        if (cardBounds == null && buyButton.disabled()) Pencil.I().addDrawing(new TextureDrawing(
             background, 0.75f, y, 7.5f, getHeight(), ZIndex.SHOP_CARD, Assets.I().shadowColor()
         ));
         buyButton.draw(delta);
+        drawPurchaseFeedback();
+    }
+
+    private void beginPurchaseFeedback(boolean major) {
+        majorPurchaseFeedback = major;
+        purchaseFeedbackTimer = major ? 0.68f : 0.44f;
+        AudioManager.I().playShopPurchase(major);
+        ScreenShake.I().addTrauma(major ? 0.20f : 0.085f);
+    }
+
+    private void drawPurchaseFeedback() {
+        if (purchaseFeedbackTimer <= 0f || cardBounds == null) return;
+
+        float duration = majorPurchaseFeedback ? 0.68f : 0.44f;
+        float progress = 1f - purchaseFeedbackTimer / duration;
+        float remaining = 1f - progress;
+        float flashAlpha = remaining * remaining * (majorPurchaseFeedback ? 0.16f : 0.09f);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            Assets.I().get(AssetKey.WHITE_PIXEL), cardBounds.x, cardBounds.y,
+            cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD_TOUCHING,
+            new Color(1f, 1f, 1f, flashAlpha)
+        ));
+
+        if (icon != null) {
+            float baseSize = compact ? 0.72f : 0.82f;
+            float punch = 1f + MathUtils.sin(progress * MathUtils.PI) *
+                (majorPurchaseFeedback ? 0.38f : 0.20f);
+            float size = baseSize * punch;
+            float baseX = cardBounds.x + (compact ? 0.28f : 0.45f);
+            float baseY = cardBounds.y + (compact ? 0.72f : 0.28f);
+            Pencil.I().addDrawing(new TextureDrawing(
+                icon,
+                baseX + (baseSize - size) / 2f,
+                baseY + (baseSize - size) / 2f,
+                size, size, ZIndex.SHOP_CARD_TOUCHING,
+                new Color(1f, 1f, 1f, Math.min(1f, remaining * 1.4f))
+            ));
+        }
+
+        int particleCount = majorPurchaseFeedback ? 18 : 9;
+        float radius = MathUtils.lerp(0.12f, majorPurchaseFeedback ? 1.55f : 0.85f, progress);
+        float centerX = cardBounds.x + cardBounds.width * 0.5f;
+        float centerY = cardBounds.y + cardBounds.height * 0.5f;
+        for (int index = 0; index < particleCount; index++) {
+            float angle = index * MathUtils.PI2 / particleCount + progress * 0.45f;
+            float size = (majorPurchaseFeedback ? 0.11f : 0.075f) * (0.35f + remaining);
+            Color color = index % 3 == 0
+                ? new Color(1f, 0.76f, 0.20f, remaining)
+                : new Color(1f, 1f, 1f, remaining * 0.9f);
+            Pencil.I().addDrawing(new TextureDrawing(
+                Assets.I().get(AssetKey.WHITE_PIXEL),
+                centerX + MathUtils.cos(angle) * radius - size / 2f,
+                centerY + MathUtils.sin(angle) * radius - size / 2f,
+                size, size, ZIndex.SHOP_CARD_TOUCHING, color
+            ));
+        }
+    }
+
+    public void setBounds(Rectangle bounds) {
+        compact = false;
+        cardBounds = new Rectangle(bounds);
+        y = bounds.y;
+        title.setAbsoluteX(bounds.x + 0.40f);
+        title.setY(bounds.y + bounds.height - 0.78f);
+        title.fitWithinWidth(bounds.width - 0.80f);
+        if (description != null) {
+            description.setAbsoluteX(bounds.x + 1.48f);
+            description.setY(bounds.y + 0.83f);
+            description.fitWithinWidth(2.15f);
+        }
+        price.getFirstDigitBounds().set(bounds.x + 1.48f, bounds.y + 0.18f, 7 / 24f, 11 / 24f);
+        buyButton.getBounds().set(bounds.x + bounds.width - 2.35f, bounds.y + 0.14f, 2.00f, 25 / 35f);
+    }
+
+    public void setCompactBounds(Rectangle bounds) {
+        compact = true;
+        cardBounds = new Rectangle(bounds);
+        y = bounds.y;
+        title.setAbsoluteX(bounds.x + 0.25f);
+        title.setY(bounds.y + bounds.height - 0.68f);
+        title.fitWithinWidth(bounds.width - 0.5f);
+        if (description != null) {
+            description.setAbsoluteX(bounds.x + 1.10f);
+            description.setY(bounds.y + 0.92f);
+            description.fitWithinWidth(bounds.width - 1.35f);
+        }
+        price.setCompactThreshold(1_000f);
+        price.setDigitSpacing(0.20f);
+        price.getFirstDigitBounds().set(bounds.x + 0.16f, bounds.y + 0.20f, 0.20f, 11 / 35f);
+        buyButton.getBounds().set(bounds.x + bounds.width - 1.72f, bounds.y + 0.13f, 1.47f, 25 / 38f);
     }
 
     public void handleInput(Vector2 mouse, boolean touching, boolean touched) {
         buyButton.handleInput(mouse, touching, touched);
+    }
+
+    public boolean intersects(Rectangle area) {
+        return cardBounds != null && cardBounds.overlaps(area);
     }
 
     public float getHeight() {
@@ -97,7 +256,7 @@ public class ShopItem {
         buyButton.getBounds().setY(y + 0.3f);
     }
 
-    private void updatePrice(int newPrice) {
+    private void updatePrice(float newPrice) {
         price.setValue(newPrice);
     }
 

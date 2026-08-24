@@ -1,9 +1,8 @@
 package com.avaricious.components.texts;
 
-import com.avaricious.components.slot.Symbol;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.SymbolValues;
+import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
@@ -33,12 +32,17 @@ public class ExtraCollectibleChanceDescription extends FabledText {
      */
     private static final float ARROW_GAP = 0.15f;
 
-    public ExtraCollectibleChanceDescription(Symbol symbol) {
+    public ExtraCollectibleChanceDescription() {
 
         this(
-            () -> SymbolValues.I().getExtraCollectibleSpawnChance(symbol),
-            SymbolValues.I()::addExtraCollectibleSpawnChanceChangeListener,
-            symbol.toString()
+            CollectibleValues.I()::getExtraCollectibleSpawnChance,
+            () -> Math.min(
+                CollectibleValues.MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE,
+                CollectibleValues.I().getExtraCollectibleSpawnChance()
+                    + CollectibleValues.EXTRA_COLLECTIBLE_CHANCE_STEP
+            ),
+            CollectibleValues.I()::addExtraCollectibleSpawnChanceChangeListener,
+            CollectibleValues.EXTRA_COLLECTIBLE_SPAWN_CHANCE
         );
     }
 

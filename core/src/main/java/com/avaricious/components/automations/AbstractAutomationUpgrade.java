@@ -2,17 +2,24 @@ package com.avaricious.components.automations;
 
 import com.avaricious.DevTools;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.utility.EconomyScaling;
 
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
 public abstract class AbstractAutomationUpgrade extends AbstractAutomation {
 
-    private int price;
+    private float price;
+    private final float priceGrowth;
     private final PropertyChangeSupport priceChangeSupport = new PropertyChangeSupport(this);
 
-    public AbstractAutomationUpgrade(int initialPrice) {
+    public AbstractAutomationUpgrade(float initialPrice) {
+        this(initialPrice, 3f);
+    }
+
+    public AbstractAutomationUpgrade(float initialPrice, float priceGrowth) {
         price = initialPrice;
+        this.priceGrowth = priceGrowth;
     }
 
     @Override
@@ -31,17 +38,22 @@ public abstract class AbstractAutomationUpgrade extends AbstractAutomation {
     @Override
     public boolean isBuyable() {
         return (ScoreDisplay.I().getScoreNumber() >= price()
-            || DevTools.unlimitedMoney()) && isActive() && !isMaxed();
+            || DevTools.unlimitedMoney()
+            || DevTools.freeShopPurchases()) && isActive() && !isMaxed();
     }
 
     private void updatePrice() {
-        int oldPrice = price;
-        price = (int) Math.ceil(price * 1.5);
+        float oldPrice = price;
+        price = nextPrice(price);
         priceChangeSupport.firePropertyChange("price", oldPrice, price);
     }
 
+    protected float nextPrice(float currentPrice) {
+        return EconomyScaling.roundPrice(currentPrice * priceGrowth);
+    }
+
     @Override
-    public int price() {
+    public float price() {
         return price;
     }
 

@@ -67,18 +67,22 @@ public class ButtonBoard {
             new Rectangle(BOARD_X + 0.2f, BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.ENTER);
 
         spinButton = spinAgainButton;
+        TicketPressSystem.I().init(() -> spinButton.getBounds());
         return this;
     }
 
     public void handleInput(Vector2 mouse, boolean leftClickPressed, boolean leftClickWasPressed) {
+//        TicketPressSystem.I().handleInput(mouse, leftClickPressed, leftClickWasPressed);
         spinButton.handleInput(mouse, leftClickPressed, leftClickWasPressed);
 //        drawCardButton.handleInput(mouse, leftClickPressed, leftClickWasPressed);
     }
 
     public void draw(float delta) {
         updateMovement(delta);
+//        TicketPressSystem.I().update(delta);
 
         spinButton.draw(delta);
+//        TicketPressSystem.I().draw(delta);
 //        drawCardButton.draw(delta);
     }
 
@@ -122,6 +126,7 @@ public class ButtonBoard {
         spinAgainButton.setVisibleAnimated(visible);
         buySpinButton.setVisibleAnimated(visible);
         drawCardButton.setVisibleAnimated(visible);
+        TicketPressSystem.I().setVisible(visible);
     }
 
     public boolean isVisible() {

@@ -77,6 +77,23 @@ public class AudioManager {
         scheduleOneShot(0.14f, 0.52f, 19f);
     }
 
+    public void playShopPurchase(boolean major) {
+        if (major) {
+            playOneShot(0.82f, 2f);
+            scheduleOneShot(0.06f, 0.72f, 9f);
+            scheduleOneShot(0.13f, 0.62f, 16f);
+        } else {
+            playOneShot(0.58f, 5f);
+            scheduleOneShot(0.07f, 0.42f, 10f);
+        }
+    }
+
+    public void playTicketLoaded(int multiplier) {
+        float tierPitch = Math.min(12f, 3f + multiplier * 0.9f);
+        playOneShot(0.52f, tierPitch);
+        scheduleOneShot(0.055f, 0.36f, tierPitch + 7f);
+    }
+
     public void playLevelUp() {
         playOneShot(0.72f, 0f);
         scheduleOneShot(0.07f, 0.62f, 4f);

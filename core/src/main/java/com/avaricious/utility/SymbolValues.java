@@ -15,58 +15,58 @@ public class SymbolValues {
         return instance == null ? instance = new SymbolValues() : instance;
     }
 
-    private final Map<Symbol, Integer> symbolValueMap = new HashMap<>();
-    private final Map<Symbol, Integer> symbolPriceMap = new HashMap<>();
-    private final Map<Symbol, Integer> symbolExtraCollectibleSpawnChance = new HashMap<>();
+    private static final float VALUE_MULTIPLIER = 2f;
+    private static final float PRICE_MULTIPLIER = 2.18f;
+
+    private final Map<Symbol, Float> symbolValueMap = new HashMap<>();
+    private final Map<Symbol, Float> symbolPriceMap = new HashMap<>();
 
     private final PropertyChangeSupport symbolValueChangeSupport = new PropertyChangeSupport(this);
     private final PropertyChangeSupport symbolPriceChangeSupport = new PropertyChangeSupport(this);
-    private final PropertyChangeSupport symbolExtraCollectibleSpawnChanceChangeSupport = new PropertyChangeSupport(this);
 
     private SymbolValues() {
-        symbolValueMap.put(Symbol.LEMON, 2);
-        symbolValueMap.put(Symbol.CHERRY, 2);
-        symbolValueMap.put(Symbol.CLOVER, 3);
-        symbolValueMap.put(Symbol.BELL, 3);
-        symbolValueMap.put(Symbol.IRON, 5);
-        symbolValueMap.put(Symbol.DIAMOND, 5);
-        symbolValueMap.put(Symbol.SEVEN, 7);
+        symbolValueMap.put(Symbol.LEMON, 2f);
+        symbolValueMap.put(Symbol.CHERRY, 2f);
+        symbolValueMap.put(Symbol.CLOVER, 3f);
+        symbolValueMap.put(Symbol.BELL, 3f);
+        symbolValueMap.put(Symbol.IRON, 5f);
+        symbolValueMap.put(Symbol.DIAMOND, 5f);
+        symbolValueMap.put(Symbol.SEVEN, 7f);
 
-        Seq.of(Symbol.values()).forEach(symbol -> symbolPriceMap.put(symbol, 50));
-        Seq.of(Symbol.values()).forEach(symbol -> symbolExtraCollectibleSpawnChance.put(symbol, 0));
+        symbolPriceMap.put(Symbol.LEMON, 75f);
+        symbolPriceMap.put(Symbol.CHERRY, 75f);
+        symbolPriceMap.put(Symbol.CLOVER, 100f);
+        symbolPriceMap.put(Symbol.BELL, 100f);
+        symbolPriceMap.put(Symbol.IRON, 150f);
+        symbolPriceMap.put(Symbol.DIAMOND, 150f);
+        symbolPriceMap.put(Symbol.SEVEN, 250f);
     }
 
-    public int getValue(Symbol symbol) {
+    public float getValue(Symbol symbol) {
         return symbolValueMap.get(symbol);
     }
 
     public void increaseValue(Symbol symbol) {
-        int oldValue = symbolValueMap.get(symbol);
-        symbolValueMap.put(symbol, oldValue + 10);
-        symbolValueChangeSupport.firePropertyChange(symbol.toString(), oldValue, (int) symbolValueMap.get(symbol));
+        float oldValue = symbolValueMap.get(symbol);
+        float newValue = oldValue * VALUE_MULTIPLIER;
+        symbolValueMap.put(symbol, newValue);
+        symbolValueChangeSupport.firePropertyChange(symbol.toString(), oldValue, newValue);
         increasePrice(symbol);
     }
 
-    public int getPrice(Symbol symbol) {
+    public float getNextValue(Symbol symbol) {
+        return symbolValueMap.get(symbol) * VALUE_MULTIPLIER;
+    }
+
+    public float getPrice(Symbol symbol) {
         return symbolPriceMap.get(symbol);
     }
 
     private void increasePrice(Symbol symbol) {
-        int oldPrice = symbolPriceMap.get(symbol);
-        symbolPriceMap.put(symbol, (int) Math.ceil(oldPrice * 1.5));
-        symbolPriceChangeSupport.firePropertyChange(symbol.toString(), oldPrice, (int) symbolPriceMap.get(symbol));
-    }
-
-    public int getExtraCollectibleSpawnChance(Symbol symbol) {
-        return symbolExtraCollectibleSpawnChance.get(symbol);
-    }
-
-    public void increaseExtraCollectibleSpawnChance(Symbol symbol) {
-        int oldChance = symbolExtraCollectibleSpawnChance.get(symbol);
-        int newChance = oldChance + 10;
-        symbolExtraCollectibleSpawnChance.put(symbol, newChance);
-        symbolExtraCollectibleSpawnChanceChangeSupport.firePropertyChange(symbol.toString(), oldChance, newChance);
-
+        float oldPrice = symbolPriceMap.get(symbol);
+        float newPrice = EconomyScaling.roundPrice(oldPrice * PRICE_MULTIPLIER);
+        symbolPriceMap.put(symbol, newPrice);
+        symbolPriceChangeSupport.firePropertyChange(symbol.toString(), oldPrice, newPrice);
     }
 
     public void addValueChangeListener(PropertyChangeListener listener) {
@@ -75,10 +75,6 @@ public class SymbolValues {
 
     public void addPriceChangeListener(PropertyChangeListener listener) {
         symbolPriceChangeSupport.addPropertyChangeListener(listener);
-    }
-
-    public void addExtraCollectibleSpawnChanceChangeListener(PropertyChangeListener listener) {
-        symbolExtraCollectibleSpawnChanceChangeSupport.addPropertyChangeListener(listener);
     }
 
 }

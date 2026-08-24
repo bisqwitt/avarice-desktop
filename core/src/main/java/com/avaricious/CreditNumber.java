@@ -15,20 +15,19 @@ public class CreditNumber extends DigitalNumber {
     private final TextureRegion dollarSymbol = Assets.I().get(AssetKey.DOLLAR_SYMBOL);
     private final TextureRegion dollarSymbolShadow = Assets.I().get(AssetKey.DOLLAR_SYMBOL_SHADOW);
 
-    public CreditNumber(int initialScore, Rectangle rectangle, float offset) {
+    public CreditNumber(float initialScore, Rectangle rectangle, float offset) {
         super(initialScore, Assets.I().yellow(), rectangle, offset);
     }
 
     @Override
     public void draw(float delta) {
-        super.draw(delta);
         draw(delta, getScale(), getRotation());
     }
 
     @Override
     public void draw(float delta, float scale, float rotation) {
         super.draw(delta, scale, rotation);
-        float x = firstDigitBounds.x + (numberTextures.size() * offset) + 0.05f;
+        float x = firstDigitBounds.x + super.getWidth() + 0.05f;
         float y = calcNumberY();
 
         Pencil.I().addDrawing(new TextureDrawing(

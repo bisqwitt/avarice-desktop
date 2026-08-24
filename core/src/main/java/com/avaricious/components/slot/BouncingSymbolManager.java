@@ -2,9 +2,9 @@ package com.avaricious.components.slot;
 
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
-import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
@@ -21,6 +21,7 @@ public class BouncingSymbolManager {
     }
 
     private final List<BouncingSymbol> bouncingSymbols = new ArrayList<>();
+    private final List<CashChipCollectible> cashChips = new ArrayList<>();
 
     private BouncingSymbolManager() {
     }
@@ -33,7 +34,7 @@ public class BouncingSymbolManager {
         createFallingSymbol(symbol, x, y);
 
         int extraSpawnChance =
-            SymbolValues.I().getExtraCollectibleSpawnChance(symbol);
+            CollectibleValues.I().getExtraCollectibleSpawnChance();
 
         if (extraSpawnChance <= 0) {
             return;
@@ -67,6 +68,19 @@ public class BouncingSymbolManager {
         );
     }
 
+    public void createCashChip(float reward, float x, float y) {
+        cashChips.add(new CashChipCollectible(reward, x, y));
+
+        ParticleManager.I().create(
+            x,
+            y,
+            ParticleType.COMP_CHIP,
+            0.025f,
+            55f,
+            ZIndex.SYMBOL_HIT_PARTICLES
+        );
+    }
+
     public void handleInput(
         Vector2 mouse,
         boolean touching,
@@ -79,17 +93,26 @@ public class BouncingSymbolManager {
                 wasTouching
             );
         }
+        for (CashChipCollectible cashChip : cashChips) {
+            cashChip.handleInput(mouse, touching);
+        }
     }
 
     public void drawFallingSymbols(float delta) {
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.draw();
         }
+        for (CashChipCollectible cashChip : cashChips) {
+            cashChip.draw();
+        }
     }
 
     public void updateFallingSymbols(float delta) {
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.update(delta);
+        }
+        for (CashChipCollectible cashChip : cashChips) {
+            cashChip.update(delta);
         }
 
         /*
@@ -106,6 +129,11 @@ public class BouncingSymbolManager {
         for (int i = bouncingSymbols.size() - 1; i >= 0; i--) {
             if (bouncingSymbols.get(i).isFinished()) {
                 bouncingSymbols.remove(i);
+            }
+        }
+        for (int i = cashChips.size() - 1; i >= 0; i--) {
+            if (cashChips.get(i).isFinished()) {
+                cashChips.remove(i);
             }
         }
     }

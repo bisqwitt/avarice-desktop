@@ -3,6 +3,7 @@ package com.avaricious.components.slot;
 import com.avaricious.TaskScheduler;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ScreenShake;
+import com.avaricious.components.TicketPressSystem;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.popups.PopupManager;
 import com.avaricious.components.popups.NumberPopup;
@@ -169,6 +170,7 @@ public class SlotMachineResultRunner {
             slotMachine.setRunningResults(false);
             slotMachine.setStale(true);
             EffectManager.endStreak();
+            TicketPressSystem.I().finishSpin();
             if (ScoreDisplay.I().reachedRoundGoal())
                 ScreenManager.I().getScreen(SlotScreen.class).onRoundEnd();
 //            buttonBoard.setVisible(true);
@@ -208,11 +210,12 @@ public class SlotMachineResultRunner {
                     0.18f + Math.min(0.10f, EffectManager.streak * 0.025f)
                 );
 
-                int basePoints = SymbolValues.I().getValue(match.getSymbol());
+                float basePoints = SymbolValues.I().getValue(match.getSymbol());
                 boolean criticalHit = CriticalHitValues.I().rollCriticalHit();
-                int points = criticalHit
+                float points = criticalHit
                     ? CriticalHitValues.I().applyCriticalDamage(basePoints)
                     : basePoints;
+                points = TicketPressSystem.I().applyPayoutMultiplier(points);
                 Color popupColor = criticalHit
                     ? new Color(1f, 0.22f, 0.42f, 1f)
                     : Assets.I().getSymbolColor(match.getSymbol());

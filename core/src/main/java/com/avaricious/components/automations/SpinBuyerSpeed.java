@@ -17,7 +17,7 @@ public class SpinBuyerSpeed extends AbstractAutomationUpgrade {
     }
 
     @Override
-    public int price() {
-        return 0;
+    public float price() {
+        return 0f;
     }
 }

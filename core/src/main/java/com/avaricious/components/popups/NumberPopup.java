@@ -3,6 +3,7 @@ package com.avaricious.components.popups;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.EconomyScaling;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
@@ -27,7 +28,7 @@ public class NumberPopup implements IPopup {
     private final TextureRegion minusTexture = Assets.I().get(AssetKey.MINUS_SYMBOL);
     private final TextureRegion percentageTexture = Assets.I().get(AssetKey.PERCENTAGE_SYMBOL);
 
-    private final int number;
+    private float number;
 
     protected final Rectangle bounds;
     private final Color color;
@@ -54,11 +55,11 @@ public class NumberPopup implements IPopup {
     protected PulseEffect pulseEffect = new PulseEffect();
     protected ZIndex zIndex = ZIndex.POPUP_DEFAULT;
 
-    public NumberPopup(int number, Color color, float x, float y, boolean asPercentage, boolean manualHold) {
+    public NumberPopup(float number, Color color, float x, float y, boolean asPercentage, boolean manualHold) {
         this(number, color, new Rectangle(x, y, defaultWidth, defaultHeight), asPercentage, manualHold);
     }
 
-    public NumberPopup(int number, Color color, Rectangle bounds, boolean asPercentage, boolean manualHold) {
+    public NumberPopup(float number, Color color, Rectangle bounds, boolean asPercentage, boolean manualHold) {
         this.number = number;
         this.color = color;
         this.asPercentage = asPercentage;
@@ -88,7 +89,8 @@ public class NumberPopup implements IPopup {
         return manualHold;
     }
 
-    public void transform(int newValue) {
+    public void transform(float newValue) {
+        number = newValue;
         setDigitalNumberTextures(newValue);
         restart();
     }
@@ -171,7 +173,8 @@ public class NumberPopup implements IPopup {
         if (asPercentage) {
             Pencil.I().addDrawing(new TextureDrawing(
                 percentageTexture,
-                bounds.x + 0.4f + xOffset, bounds.y + yOffset, 8 / 20f, 13 / 20f,
+                bounds.x + numberOffset * digitalNumberTextures.size() + xOffset,
+                bounds.y + yOffset, 8 / 20f, 13 / 20f,
                 scale, rotation, zIndex
             ));
         }
@@ -204,14 +207,33 @@ public class NumberPopup implements IPopup {
         return Math.max(0f, Math.min(1f, v));
     }
 
-    private void setDigitalNumberTextures(int number) {
+    private void setDigitalNumberTextures(float number) {
         digitalNumberTextures.clear();
         digitalNumberShadowTextures.clear(); // IMPORTANT: keep lists in sync
 
-        for (char c : String.valueOf(number).toCharArray()) {
-            int digit = c - '0';
-            digitalNumberTextures.add(Assets.I().getDigitalNumber(digit));
+        String displayValue = asPercentage
+            ? Long.toString((long) Math.floor(Math.abs(number)))
+            : EconomyScaling.compact(number);
+        for (char character : displayValue.toCharArray()) {
+            if (Character.isDigit(character)) {
+                int digit = Character.getNumericValue(character);
+                digitalNumberTextures.add(Assets.I().getDigitalNumber(digit));
+            } else {
+                digitalNumberTextures.add(Assets.I().get(numberAsset(character)));
+            }
 //            digitalNumberShadowTextures.add(new TextureRegion(Assets.I().getDigitalNumberShadow(digit)));
+        }
+    }
+
+    private AssetKey numberAsset(char character) {
+        switch (character) {
+            case '.': return AssetKey.DOT_SYMBOL;
+            case 'k': return AssetKey.K;
+            case 'm': return AssetKey.M;
+            case 'b': return AssetKey.B;
+            case 't': return AssetKey.T;
+            case 'q': return AssetKey.Q;
+            default: throw new IllegalArgumentException("Unsupported compact number symbol");
         }
     }
 

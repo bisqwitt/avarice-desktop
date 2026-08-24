@@ -26,6 +26,8 @@ import com.avaricious.utility.*;
 import com.avaricious.utility.runData.RunDataFileManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
@@ -72,6 +74,13 @@ public class SlotScreen extends ScreenAdapter {
     private boolean leftClickWasPressed = false;
 
     private int symbolsHitLastSpin = 0;
+
+    private final InputProcessor shopScrollInput = new InputAdapter() {
+        @Override
+        public boolean scrolled(float amountX, float amountY) {
+            return shop.scrollAutomations(amountY);
+        }
+    };
 
 
     // ============================================================
@@ -127,6 +136,8 @@ public class SlotScreen extends ScreenAdapter {
         this.app = app;
 
         Pencil.I().setBatch(app.getBatch());
+
+        Gdx.input.setInputProcessor(shopScrollInput);
 
 
         // ------------------------------------------------------------
@@ -195,71 +206,19 @@ public class SlotScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-
         RunManager.I().newRun();
-
-
-//        if (RunManager.I().getRoundsManager().getCurrentRound() == 1)
-
+        TicketPressSystem.I().reset();
         drawStartingHand();
-
 
         Timer.schedule(
             new Timer.Task() {
-
                 @Override
                 public void run() {
-
                     buttonBoard.setVisible(true);
-
-                    Automations.I().getAutoSpin().activate();
-
-
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-//
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-//
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-//
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-//
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-//
-//                    Automations.I()
-//                        .getAutoSpinCapacity()
-//                        .upgrade();
-
-//                    Automations.I()
-//                        .getSlotMachineSpeed()
-//                        .upgrade();
-
-
-//                    Automations.I().getSlotMachineSpeed().upgrade();
-//                    shop.show();
-//                    CompChipBar.I().addChips(10);
                 }
-
             },
             1
         );
-
-
-//        Timer.schedule(new Timer.Task() {
-//            @Override
-//            public void run() {
-//                onSpinButtonPressed();
-//            }
-//        }, 1.5f);
     }
 
 
@@ -892,6 +851,8 @@ public class SlotScreen extends ScreenAdapter {
 
         SlotMachine.I().setAlpha(1f);
 
+        TicketPressSystem.I().beginSpin();
+
         SlotMachine.I().spin();
 
 
@@ -908,16 +869,7 @@ public class SlotScreen extends ScreenAdapter {
         }
 
 
-        if (
-            !Automations.I()
-                .getAutoSpin()
-                .isActive()
-        ) {
-
-            ScoreDisplay.I()
-                .removeFromScore(50);
-
-        } else {
+        if (Automations.I().getAutoSpin().isActive()) {
 
             AutoSpinDisplay.I()
                 .removeSpin();
@@ -931,28 +883,15 @@ public class SlotScreen extends ScreenAdapter {
 
     public void onRoundEnd() {
 
-//        if (
-//            NetworkController.I()
-//                .getSocketClient()
-//                .isConnected()
-//        ) {
-//            NetworkController.I()
-//                .match()
-//                .sendRoundEnded();
-//        } else {
-//            onBothPlayersEndedRound();
-//        }
     }
 
 
     public void onBothPlayersEndedRound() {
-
         PlayerScores playerScores =
             PlayerScores.I();
 
         PlayerHealths playerHealths =
             PlayerHealths.I();
-
 
         if (
             playerScores.getPlayerScore() >
@@ -1118,6 +1057,10 @@ public class SlotScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+
+        if (Gdx.input.getInputProcessor() == shopScrollInput) {
+            Gdx.input.setInputProcessor(null);
+        }
 
         /*
          * This texture is created by SlotScreen itself,

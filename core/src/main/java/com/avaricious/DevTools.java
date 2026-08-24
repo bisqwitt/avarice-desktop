@@ -3,6 +3,7 @@ package com.avaricious;
 public class DevTools {
 
     private static final boolean active = true;
+    private static boolean freeShopPurchases = false;
 
     public static boolean audioMuted() {
         return active && false;
@@ -17,7 +18,17 @@ public class DevTools {
     }
 
     public static boolean unlimitedMoney() {
-        return active && true;
+        return active && false;
+    }
+
+    public static boolean freeShopPurchases() {
+        return active && freeShopPurchases;
+    }
+
+    public static boolean toggleFreeShopPurchases() {
+        if (!active) return false;
+        freeShopPurchases = !freeShopPurchases;
+        return freeShopPurchases;
     }
 
     public static boolean showMouseLocation() {

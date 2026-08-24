@@ -15,6 +15,7 @@ public class Automations {
 
     private final SlotMachineSpeed slotMachineSpeed = new SlotMachineSpeed();
     private final Luck luck = new Luck();
+    private final XpMultiplier xpMultiplier = new XpMultiplier();
 
     private final HandCapacity handCapacity = new HandCapacity();
 
@@ -43,6 +44,10 @@ public class Automations {
 
     public Luck getLuck() {
         return luck;
+    }
+
+    public XpMultiplier getXpMultiplier() {
+        return xpMultiplier;
     }
 
     public HandCapacity getHandCapacity() {

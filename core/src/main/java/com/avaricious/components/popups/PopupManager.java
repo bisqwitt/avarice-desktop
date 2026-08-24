@@ -99,7 +99,7 @@ public class PopupManager {
         lostSymbolPopups.add(lostSymbolPopup);
     }
 
-    public void spawnNumber(int number, Color color, float x, float y, boolean manualHold) {
+    public void spawnNumber(float number, Color color, float x, float y, boolean manualHold) {
         spawnNumber(new NumberPopup(number, color, x, y, false, manualHold));
     }
 

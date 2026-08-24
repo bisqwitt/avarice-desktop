@@ -10,21 +10,35 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
 
     public static final String SPEED_TIER = "speedTier";
     public static final int INSTANT_SPEED_PERCENT = 0;
+    private static final float[] UPGRADE_PRICES = {
+        2_500f,
+        10_000f,
+        40_000f,
+        175_000f,
+        800_000f,
+        4_000_000f,
+        25_000_000f,
+        175_000_000f,
+        2_000_000_000f
+    };
 
     /*
-     * Approximate last-reel completion times:
-     * 3.66s -> 2.38s -> 1.40s -> 0.73s -> instant.
-     * Each purchase removes more waiting than the one before it, while every
-     * animated tier still leaves enough time for the reel stops to read.
+     * Frequent early speed wins keep the machine feeling responsive while the
+     * later tiers preserve Instant as the long-term cathartic endpoint.
      */
     private static final SpeedProfile[] PROFILES = {
         new SpeedProfile(100, 14f, 0.10f, 1.00f, 0.36f, 0.72f, 0.40f, 1.00f, false),
-        new SpeedProfile(150, 20f, 0.07f, 0.65f, 0.22f, 0.50f, 0.29f, 0.70f, false),
-        new SpeedProfile(250, 29f, 0.04f, 0.38f, 0.12f, 0.34f, 0.18f, 0.43f, false),
-        new SpeedProfile(500, 42f, 0.015f, 0.19f, 0.06f, 0.22f, 0.09f, 0.20f, false),
+        new SpeedProfile(125, 17f, 0.085f, 0.82f, 0.30f, 0.62f, 0.35f, 0.86f, false),
+        new SpeedProfile(160, 20.5f, 0.070f, 0.66f, 0.24f, 0.53f, 0.30f, 0.72f, false),
+        new SpeedProfile(210, 24.5f, 0.055f, 0.52f, 0.19f, 0.45f, 0.25f, 0.59f, false),
+        new SpeedProfile(280, 29f, 0.042f, 0.40f, 0.145f, 0.37f, 0.20f, 0.47f, false),
+        new SpeedProfile(375, 35f, 0.030f, 0.30f, 0.105f, 0.30f, 0.155f, 0.36f, false),
+        new SpeedProfile(500, 42f, 0.020f, 0.22f, 0.075f, 0.24f, 0.115f, 0.27f, false),
+        new SpeedProfile(700, 50f, 0.012f, 0.15f, 0.050f, 0.19f, 0.080f, 0.19f, false),
+        new SpeedProfile(1000, 60f, 0.007f, 0.10f, 0.030f, 0.15f, 0.055f, 0.12f, false),
         new SpeedProfile(
             INSTANT_SPEED_PERCENT,
-            42f,
+            60f,
             0f,
             0f,
             0f,
@@ -41,9 +55,14 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
     private int tier = 0;
 
     public SlotMachineSpeed() {
-        super(300);
+        super(UPGRADE_PRICES[0]);
         activate();
         applyProfile();
+    }
+
+    @Override
+    protected float nextPrice(float currentPrice) {
+        return UPGRADE_PRICES[Math.min(tier, UPGRADE_PRICES.length - 1)];
     }
 
     @Override

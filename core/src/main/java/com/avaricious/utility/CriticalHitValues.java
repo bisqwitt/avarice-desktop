@@ -72,8 +72,8 @@ public class CriticalHitValues {
         );
     }
 
-    public int applyCriticalDamage(int basePoints) {
-        return Math.round(basePoints * criticalDamagePercent / 100f);
+    public float applyCriticalDamage(float basePoints) {
+        return basePoints * criticalDamagePercent / 100f;
     }
 
     public boolean isCriticalDamageMaxed() {

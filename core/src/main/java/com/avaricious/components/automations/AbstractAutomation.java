@@ -14,7 +14,7 @@ public abstract class AbstractAutomation {
 
     protected abstract void onActivate();
 
-    public abstract int price();
+    public abstract float price();
 
     public boolean isActive() {
         return active;
@@ -22,7 +22,8 @@ public abstract class AbstractAutomation {
 
     public boolean isBuyable() {
         return (ScoreDisplay.I().getScoreNumber() >= price()
-            || DevTools.unlimitedMoney()) && !isActive();
+            || DevTools.unlimitedMoney()
+            || DevTools.freeShopPurchases()) && !isActive();
     }
 
 

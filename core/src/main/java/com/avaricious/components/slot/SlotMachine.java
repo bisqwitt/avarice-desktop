@@ -82,7 +82,7 @@ public class SlotMachine {
     private final float[] reelStartFlash = new float[colCount];
     private final float[][] symbolWhiteFlash = new float[colCount][rowCount];
 
-    private static final float EMPTY_SPIN_SWEEP_STEP_DELAY = 0.017f;
+    private static final float EMPTY_SPIN_SWEEP_DIAGONAL_DELAY = 0.045f;
     private static final float EMPTY_SPIN_SWEEP_COMPLETION_DELAY = 0.20f;
 
     private boolean shiftingSymbol = false;
@@ -548,11 +548,7 @@ public class SlotMachine {
         }
     }
 
-    /**
-     * A soft consolation wave for an empty spin. The rows scan from
-     * top to bottom, with a tiny alternating horizontal stagger so the
-     * flash reads as motion rather than one full-screen blink.
-     */
+    /** A soft diagonal consolation wave for an empty spin. */
     public void playEmptySpinSweep(Runnable onComplete) {
         if (emptySpinSweepTimeScale <= 0f) {
             if (onComplete != null) onComplete.run();
@@ -565,7 +561,7 @@ public class SlotMachine {
         int sweepStep,
         Runnable onComplete
     ) {
-        int totalSteps = rowCount * colCount;
+        int totalSteps = rowCount + colCount - 1;
 
         if (sweepStep >= totalSteps) {
             Timer.schedule(new Timer.Task() {
@@ -577,14 +573,15 @@ public class SlotMachine {
             return;
         }
 
-        int targetRow = sweepStep / colCount;
-        int stepInRow = sweepStep % colCount;
-        int targetColumn = targetRow % 2 == 0
-            ? stepInRow
-            : colCount - 1 - stepInRow;
+        // All cells with the same column + row form one diagonal band.
+        // With row 0 at the visual top, this travels top-left to bottom-right.
+        for (int targetRow = 0; targetRow < rowCount; targetRow++) {
+            int targetColumn = sweepStep - targetRow;
+            if (targetColumn < 0 || targetColumn >= colCount) continue;
 
-        symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
-        grid[targetColumn][targetRow].pulse(0.18f);
+            symbolWhiteFlash[targetColumn][targetRow] = 0.72f;
+            grid[targetColumn][targetRow].pulse(0.18f);
+        }
 
         Timer.schedule(new Timer.Task() {
             @Override
@@ -594,7 +591,7 @@ public class SlotMachine {
                     onComplete
                 );
             }
-        }, EMPTY_SPIN_SWEEP_STEP_DELAY * emptySpinSweepTimeScale);
+        }, EMPTY_SPIN_SWEEP_DIAGONAL_DELAY * emptySpinSweepTimeScale);
     }
 
     public void shiftSymbol() {

@@ -20,7 +20,18 @@ public class GeneratedFabledText extends FabledText {
         float wordGap,
         ZIndex zIndex
     ) {
-        super(createWords(text, sizeRatio, letterSpacing, wordGap, zIndex));
+        this(text, sizeRatio, letterSpacing, wordGap, zIndex, false);
+    }
+
+    public GeneratedFabledText(
+        String text,
+        float sizeRatio,
+        float letterSpacing,
+        float wordGap,
+        ZIndex zIndex,
+        boolean bigFirstLetter
+    ) {
+        super(createWords(text, sizeRatio, letterSpacing, wordGap, zIndex, bigFirstLetter));
         setFloatEffects(0.02f, 1f);
     }
 
@@ -29,22 +40,25 @@ public class GeneratedFabledText extends FabledText {
         float sizeRatio,
         float letterSpacing,
         float wordGap,
-        ZIndex zIndex
+        ZIndex zIndex,
+        boolean bigFirstLetter
     ) {
         String[] labels = text.trim().toUpperCase(Locale.ROOT).split("\\s+");
         List<FabledWord> words = new ArrayList<>();
         float x = 0f;
 
-        for (String label : labels) {
+        for (int wordIndex = 0; wordIndex < labels.length; wordIndex++) {
+            String label = labels[wordIndex];
             List<TextureRegion> letters = new ArrayList<>();
             List<TextureRegion> shadows = new ArrayList<>();
 
             for (int index = 0; index < label.length(); index++) {
                 String letter = String.valueOf(label.charAt(index));
-                letters.add(Assets.I().get(AssetKey.valueOf(letter)));
-                shadows.add(Assets.I().get(
-                    AssetKey.valueOf(letter + "_SHADOW")
-                ));
+                boolean useBigLetter = bigFirstLetter && wordIndex == 0 && index == 0
+                    && hasBigLetter(letter);
+                String assetName = useBigLetter ? letter + "_BIG" : letter;
+                letters.add(Assets.I().get(AssetKey.valueOf(assetName)));
+                shadows.add(Assets.I().get(AssetKey.valueOf(assetName + "_SHADOW")));
             }
 
             FabledWord word = new FabledWord(
@@ -60,5 +74,16 @@ public class GeneratedFabledText extends FabledText {
         }
 
         return words.toArray(new FabledWord[0]);
+    }
+
+    private static boolean hasBigLetter(String letter) {
+        switch (letter) {
+            case "A": case "B": case "C": case "D": case "E":
+            case "H": case "I": case "L": case "P": case "R":
+            case "S": case "T": case "V": case "W":
+                return true;
+            default:
+                return false;
+        }
     }
 }

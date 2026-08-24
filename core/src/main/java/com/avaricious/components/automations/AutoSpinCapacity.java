@@ -10,7 +10,7 @@ public class AutoSpinCapacity extends AbstractAutomationUpgrade {
     private int capacity = 3;
 
     public AutoSpinCapacity() {
-        super(200);
+        super(1_000_000f, 6f);
     }
 
     @Override

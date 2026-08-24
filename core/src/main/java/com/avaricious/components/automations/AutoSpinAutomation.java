@@ -13,8 +13,8 @@ public class AutoSpinAutomation extends AbstractAutomation {
     }
 
     @Override
-    public int price() {
-        return 150;
+    public float price() {
+        return 250_000f;
     }
 
 }
