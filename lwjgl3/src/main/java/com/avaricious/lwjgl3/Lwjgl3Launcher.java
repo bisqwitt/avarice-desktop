@@ -2,10 +2,15 @@ package com.avaricious.lwjgl3;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.Graphics.DisplayMode;
+import com.badlogic.gdx.Graphics.Monitor;
 import com.avaricious.Main;
 
 /** Launches the desktop (LWJGL3) application. */
 public class Lwjgl3Launcher {
+    private static final int WINDOW_WIDTH = 1920;
+    private static final int WINDOW_HEIGHT = 1080;
+
     public static void main(String[] args) {
         if (StartupHelper.startNewJvmIfRequired()) return; // This handles macOS support and helps on Windows.
         createApplication();
@@ -28,7 +33,8 @@ public class Lwjgl3Launcher {
         //// useful for testing performance, but can also be very stressful to some hardware.
         //// You may also need to configure GPU drivers to fully disable Vsync; this can cause screen tearing.
 
-        configuration.setWindowedMode(1920, 1080);
+        configuration.setWindowedMode(WINDOW_WIDTH, WINDOW_HEIGHT);
+        placeWindowOnRightmostMonitor(configuration);
         //// You can change these files; they are in lwjgl3/src/main/resources/ .
         //// They can also be loaded from the root of assets/ .
         configuration.setWindowIcon("libgdx128.png", "libgdx64.png", "libgdx32.png", "libgdx16.png");
@@ -41,5 +47,22 @@ public class Lwjgl3Launcher {
         configuration.setOpenGLEmulation(Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20, 0, 0);
 
         return configuration;
+    }
+
+    private static void placeWindowOnRightmostMonitor(Lwjgl3ApplicationConfiguration configuration) {
+        Monitor[] monitors = Lwjgl3ApplicationConfiguration.getMonitors();
+        if (monitors.length == 0) return;
+
+        Monitor rightmostMonitor = monitors[0];
+        for (Monitor monitor : monitors) {
+            if (monitor.virtualX > rightmostMonitor.virtualX) {
+                rightmostMonitor = monitor;
+            }
+        }
+
+        DisplayMode displayMode = Lwjgl3ApplicationConfiguration.getDisplayMode(rightmostMonitor);
+        int x = rightmostMonitor.virtualX + Math.max(0, (displayMode.width - WINDOW_WIDTH) / 2);
+        int y = rightmostMonitor.virtualY + Math.max(0, (displayMode.height - WINDOW_HEIGHT) / 2);
+        configuration.setWindowPosition(x, y);
     }
 }

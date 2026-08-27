@@ -2,7 +2,6 @@ package com.avaricious.components.shop;
 
 import com.avaricious.CreditNumber;
 import com.avaricious.DevTools;
-import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ButtonBoard;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.Automations;
@@ -13,7 +12,6 @@ import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.*;
 import com.avaricious.utility.*;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Interpolation;
@@ -314,15 +312,6 @@ public class Shop {
 
     public void handleInput(Vector2 mouse, boolean pressed, boolean wasPressed, float delta) {
         if (state != State.SHOWN) return;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.F8)) {
-            boolean enabled = DevTools.toggleFreeShopPurchases();
-            if (enabled) {
-                AudioManager.I().playUpgradeSelected();
-                ScreenShake.I().addTrauma(0.08f);
-            } else {
-                AudioManager.I().playHover();
-            }
-        }
         handleTabInput(mouse, pressed, wasPressed);
         if (selectedTab == Tab.AUTOMATIONS) {
             Vector2 listMouse = automationViewport.contains(mouse)

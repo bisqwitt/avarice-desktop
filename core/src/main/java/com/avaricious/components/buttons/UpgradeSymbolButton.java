@@ -27,9 +27,9 @@ public class UpgradeSymbolButton extends DisablableButton {
                 }
                 SymbolValues.I().increaseValue(symbol);
             },
-            Assets.I().get(AssetKey.UPGRADE_BUTTON),
-            Assets.I().get(AssetKey.UPGRADE_BUTTON_PRESSED),
-            Assets.I().get(AssetKey.UPGRADE_BUTTON),
+            Assets.I().get(AssetKey.LEVEL_UP_BUTTON),
+            Assets.I().get(AssetKey.LEVEL_UP_BUTTON_PRESSED),
+            Assets.I().get(AssetKey.LEVEL_UP_BUTTON),
             new Rectangle(5.25f, 0f, 79 / 35f, 25 / 35f),
             key, ZIndex.SHOP_CARD
         );

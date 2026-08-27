@@ -33,11 +33,16 @@ public class ShopItem {
     private final DisablableButton buyButton;
     private TextureRegion icon;
     private Rectangle cardBounds;
-    private boolean compact;
+    private Layout layout = Layout.FULL;
+    private float iconX;
+    private float iconY;
+    private float iconSize;
     private float purchaseFeedbackTimer;
     private boolean majorPurchaseFeedback;
 
     private float y;
+
+    private enum Layout { FULL, COMPACT, HUD_ROW, HUD_SYMBOL_ROW }
 
     public ShopItem(FabledText title, AbstractAutomation automation) {
         this(title, null,
@@ -107,25 +112,49 @@ public class ShopItem {
             purchaseFeedbackTimer = Math.max(0f, purchaseFeedbackTimer - delta);
         }
         if (cardBounds != null) {
-            Pencil.I().addDrawing(new TextureDrawing(
-                background, cardBounds.x + 0.10f, cardBounds.y - 0.12f,
-                cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD, Assets.I().shadowColor()
-            ));
+            boolean hudLayout = layout == Layout.HUD_ROW || layout == Layout.HUD_SYMBOL_ROW;
+            if (!hudLayout) {
+                Pencil.I().addDrawing(new TextureDrawing(
+                    background, cardBounds.x + 0.10f, cardBounds.y - 0.12f,
+                    cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD, Assets.I().shadowColor()
+                ));
+            }
             Pencil.I().addDrawing(new TextureDrawing(
                 Assets.I().get(AssetKey.DARK_SLATE_PIXEL), cardBounds.x, cardBounds.y,
                 cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD,
-                buyButton.disabled() ? new Color(0.62f, 0.62f, 0.62f, 1f) : Color.WHITE
+                buyButton.disabled()
+                    ? new Color(0.50f, 0.50f, 0.50f, hudLayout ? 0.42f : 1f)
+                    : new Color(1f, 1f, 1f, hudLayout ? 0.62f : 1f)
             ));
-            Pencil.I().addDrawing(new TextureDrawing(
-                Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL), cardBounds.x,
-                cardBounds.y + cardBounds.height - 0.12f, cardBounds.width, 0.12f, ZIndex.SHOP_CARD
-            ));
+            if (hudLayout) {
+                Pencil.I().addDrawing(new TextureDrawing(
+                    Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL), cardBounds.x, cardBounds.y,
+                    cardBounds.width, 0.025f, ZIndex.SHOP_CARD,
+                    new Color(1f, 1f, 1f, 0.38f)
+                ));
+                if (layout == Layout.HUD_SYMBOL_ROW) {
+                    Pencil.I().addDrawing(new TextureDrawing(
+                        Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL),
+                        cardBounds.x + 2.86f,
+                        cardBounds.y + 0.15f,
+                        0.018f,
+                        cardBounds.height - 0.30f,
+                        ZIndex.SHOP_CARD,
+                        new Color(1f, 1f, 1f, 0.24f)
+                    ));
+                }
+            } else {
+                Pencil.I().addDrawing(new TextureDrawing(
+                    Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL), cardBounds.x,
+                    cardBounds.y + cardBounds.height - 0.12f,
+                    cardBounds.width, 0.12f, ZIndex.SHOP_CARD
+                ));
+            }
             if (icon != null) {
-                float iconSize = compact ? 0.72f : 0.82f;
                 Pencil.I().addDrawing(new TextureDrawing(
                     icon,
-                    cardBounds.x + (compact ? 0.28f : 0.45f),
-                    cardBounds.y + (compact ? 0.72f : 0.28f),
+                    iconX,
+                    iconY,
                     iconSize, iconSize, ZIndex.SHOP_CARD
                 ));
             }
@@ -136,7 +165,9 @@ public class ShopItem {
         }
 
         title.draw(delta);
-        if (description != null) description.draw(delta);
+        if (description != null && layout != Layout.HUD_ROW) {
+            description.draw(delta);
+        }
         price.draw(delta);
 
         if (cardBounds == null && buyButton.disabled()) Pencil.I().addDrawing(new TextureDrawing(
@@ -168,12 +199,12 @@ public class ShopItem {
         ));
 
         if (icon != null) {
-            float baseSize = compact ? 0.72f : 0.82f;
+            float baseSize = iconSize;
             float punch = 1f + MathUtils.sin(progress * MathUtils.PI) *
                 (majorPurchaseFeedback ? 0.38f : 0.20f);
             float size = baseSize * punch;
-            float baseX = cardBounds.x + (compact ? 0.28f : 0.45f);
-            float baseY = cardBounds.y + (compact ? 0.72f : 0.28f);
+            float baseX = iconX;
+            float baseY = iconY;
             Pencil.I().addDrawing(new TextureDrawing(
                 icon,
                 baseX + (baseSize - size) / 2f,
@@ -203,9 +234,12 @@ public class ShopItem {
     }
 
     public void setBounds(Rectangle bounds) {
-        compact = false;
+        layout = Layout.FULL;
         cardBounds = new Rectangle(bounds);
         y = bounds.y;
+        iconX = bounds.x + 0.45f;
+        iconY = bounds.y + 0.28f;
+        iconSize = 0.82f;
         title.setAbsoluteX(bounds.x + 0.40f);
         title.setY(bounds.y + bounds.height - 0.78f);
         title.fitWithinWidth(bounds.width - 0.80f);
@@ -219,9 +253,12 @@ public class ShopItem {
     }
 
     public void setCompactBounds(Rectangle bounds) {
-        compact = true;
+        layout = Layout.COMPACT;
         cardBounds = new Rectangle(bounds);
         y = bounds.y;
+        iconX = bounds.x + 0.28f;
+        iconY = bounds.y + 0.72f;
+        iconSize = 0.72f;
         title.setAbsoluteX(bounds.x + 0.25f);
         title.setY(bounds.y + bounds.height - 0.68f);
         title.fitWithinWidth(bounds.width - 0.5f);
@@ -234,6 +271,60 @@ public class ShopItem {
         price.setDigitSpacing(0.20f);
         price.getFirstDigitBounds().set(bounds.x + 0.16f, bounds.y + 0.20f, 0.20f, 11 / 35f);
         buyButton.getBounds().set(bounds.x + bounds.width - 1.72f, bounds.y + 0.13f, 1.47f, 25 / 38f);
+    }
+
+    public void setHudRowBounds(Rectangle bounds) {
+        layout = Layout.HUD_ROW;
+        cardBounds = new Rectangle(bounds);
+        y = bounds.y;
+        iconX = bounds.x + 0.12f;
+        iconY = bounds.y + 0.15f;
+        iconSize = 0.44f;
+
+        title.setAbsoluteX(bounds.x + 0.70f);
+        title.setY(bounds.y + 0.38f);
+        title.fitWithinWidth(bounds.width - 1.86f);
+
+        price.setCompactThreshold(1_000f);
+        price.setDigitSpacing(0.16f);
+        price.getFirstDigitBounds().set(bounds.x + 0.66f, bounds.y + 0.10f, 0.16f, 11 / 42f);
+        buyButton.getBounds().set(bounds.x + bounds.width - 0.98f, bounds.y + 0.10f, 0.82f, 0.52f);
+    }
+
+    public void setHudSymbolRowBounds(Rectangle bounds) {
+        layout = Layout.HUD_SYMBOL_ROW;
+        cardBounds = new Rectangle(bounds);
+        y = bounds.y;
+        iconX = bounds.x + 0.14f;
+        iconY = bounds.y + 0.22f;
+        iconSize = 0.58f;
+
+        title.setAbsoluteX(bounds.x + 0.86f);
+        title.setY(bounds.y + 0.64f);
+        title.fitWithinWidth(1.98f);
+
+        if (description != null) {
+            description.setAbsoluteX(bounds.x + 0.86f);
+            description.setY(bounds.y + 0.22f);
+            description.fitWithinWidth(0.72f);
+            description.setFloatEffects(0.01f, 1f);
+            description.getWords().forEach(word -> word.setColor(Assets.I().silver()));
+        }
+
+        price.setCompactThreshold(1_000f);
+        price.setDigitSpacing(0.16f);
+        price.getFirstDigitBounds().set(
+            bounds.x + 1.88f,
+            bounds.y + 0.22f,
+            0.16f,
+            11 / 43f
+        );
+        buyButton.getBounds().set(
+            bounds.x + 3.00f,
+            bounds.y + 0.22f,
+            0.58f,
+            0.56f
+        );
     }
 
     public void handleInput(Vector2 mouse, boolean touching, boolean touched) {

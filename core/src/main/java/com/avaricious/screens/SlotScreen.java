@@ -3,9 +3,9 @@ package com.avaricious.screens;
 import com.avaricious.DevTools;
 import com.avaricious.Main;
 import com.avaricious.Profiler;
+import com.avaricious.audio.AudioManager;
 import com.avaricious.components.*;
 import com.avaricious.components.automations.Automations;
-import com.avaricious.components.buttons.OpenShopButton;
 import com.avaricious.components.popups.PopupManager;
 import com.avaricious.components.roundInfoPanel.AutoSpinDisplay;
 import com.avaricious.components.roundInfoPanel.PlayerHealths;
@@ -13,6 +13,7 @@ import com.avaricious.components.roundInfoPanel.PlayerScores;
 import com.avaricious.components.roundInfoPanel.RoundInfoPanel;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.shop.Shop;
+import com.avaricious.components.shop.QuickShop;
 import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.components.slot.SlotMachineMatchFinder;
@@ -50,12 +51,9 @@ public class SlotScreen extends ScreenAdapter {
 
     private final Shop shop = new Shop(this::onReturnedFromShop);
 
-    private final LevelUpWindow levelUpWindow = new LevelUpWindow();
+    private final QuickShop quickShop = new QuickShop();
 
-    private final OpenShopButton openShopButton = new OpenShopButton(
-        new Rectangle(14f, 7f, 17 / 20f, 17 / 20f),
-        Input.Keys.S
-    );
+    private final LevelUpWindow levelUpWindow = new LevelUpWindow();
 
     private final ButtonBoard buttonBoard = ButtonBoard.I()
         .init(
@@ -70,6 +68,7 @@ public class SlotScreen extends ScreenAdapter {
         new VfxManager(Pixmap.Format.RGBA8888);
 
     private final Vector2 mouse = new Vector2();
+    private final Vector2 scrollMouse = new Vector2();
 
     private boolean leftClickWasPressed = false;
 
@@ -78,7 +77,19 @@ public class SlotScreen extends ScreenAdapter {
     private final InputProcessor shopScrollInput = new InputAdapter() {
         @Override
         public boolean scrolled(float amountX, float amountY) {
-            return shop.scrollAutomations(amountY);
+            if (shop.isShowing()) {
+                return shop.scrollAutomations(amountY);
+            }
+            if (levelUpWindow.isShowing()) {
+                return false;
+            }
+
+            scrollMouse.set(
+                Gdx.input.getX(),
+                Gdx.input.getY()
+            );
+            app.getViewport().unproject(scrollMouse);
+            return quickShop.scroll(amountY, scrollMouse);
         }
     };
 
@@ -191,9 +202,6 @@ public class SlotScreen extends ScreenAdapter {
         );
 
 
-        openShopButton.setVisibleAnimated(true);
-
-
         if (DevTools.enableProfiler()) {
             Profiler.start();
         }
@@ -294,7 +302,12 @@ public class SlotScreen extends ScreenAdapter {
             SlotMachine.I().update(delta);
 
             BouncingSymbolManager.I()
-                .updateFallingSymbols(delta);
+                .updateFallingSymbols(
+                    delta,
+                    quickShop.getCollisionBounds(),
+                    ScoreDisplay.I().getCollisionBounds(),
+                    buttonBoard.getSpinButtonCollisionBounds()
+                );
 
             ParticleManager.I().update(delta);
 
@@ -387,6 +400,8 @@ public class SlotScreen extends ScreenAdapter {
 
         ScoreDisplay.I().draw(delta);
 
+//        if (!shop.isShowing()) quickShop.draw(delta);
+
         RunManager.I()
             .getRoundsManager()
             .getRoundTimer()
@@ -399,9 +414,6 @@ public class SlotScreen extends ScreenAdapter {
 
 
         AutoSpinDisplay.I().draw(delta);
-
-
-        openShopButton.draw(delta);
 
 
 //        DeckUi.I().draw();
@@ -492,17 +504,13 @@ public class SlotScreen extends ScreenAdapter {
 
 
         vfxManager.endInputCapture();
-
         vfxManager.applyEffects();
-
-
         vfxManager.renderToScreen(
             app.getViewport().getScreenX(),
             app.getViewport().getScreenY(),
             app.getViewport().getScreenWidth(),
             app.getViewport().getScreenHeight()
         );
-
 
         // ------------------------------------------------------------
         // FOREGROUND / NON-POST-PROCESSED CONTENT
@@ -515,17 +523,31 @@ public class SlotScreen extends ScreenAdapter {
             buttonBoard.draw(delta);
         }
 
+        quickShop.draw(delta);
 
         BouncingSymbolManager.I()
             .drawFallingSymbols(delta);
-
-
         SlotMachine.I()
             .drawSymbolsInPatternHit();
-
-
         PopupManager.I().draw(delta);
 
+        /*
+         * Finish the gameplay foreground before queuing the modal.
+         *
+         * The quick shop uses a higher drawing layer than the level-up
+         * backdrop, so keeping both in the same Pencil pass allowed the shop
+         * to appear on top of the dimming overlay. Flushing here gives the
+         * level-up window a real compositing boundary: the entire gameplay
+         * scene (including the shop) is drawn first, then the modal backdrop
+         * and choices are drawn over it.
+         */
+        if (levelUpWindow.isShowing()) {
+            Pencil.I().draw(
+                batch,
+                delta,
+                true
+            );
+        }
 
         /*
          * Draw the impact flash BEFORE the level-up window.
@@ -715,6 +737,8 @@ public class SlotScreen extends ScreenAdapter {
 
     private void handleInput(float delta) {
 
+        handleDeveloperShortcuts();
+
         mouse.set(
             Gdx.input.getX(),
             Gdx.input.getY()
@@ -808,8 +832,7 @@ public class SlotScreen extends ScreenAdapter {
                 leftClickWasPressed
             );
 
-
-            openShopButton.handleInput(
+            quickShop.handleInput(
                 mouse,
                 leftClickPressed,
                 leftClickWasPressed
@@ -819,6 +842,22 @@ public class SlotScreen extends ScreenAdapter {
 
         leftClickWasPressed =
             leftClickPressed;
+    }
+
+    private void handleDeveloperShortcuts() {
+        if (!Gdx.input.isKeyJustPressed(Input.Keys.F8)) {
+            return;
+        }
+
+        boolean enabled =
+            DevTools.toggleFreeShopPurchases();
+
+        if (enabled) {
+            AudioManager.I().playUpgradeSelected();
+            ScreenShake.I().addTrauma(0.08f);
+        } else {
+            AudioManager.I().playHover();
+        }
     }
 
 

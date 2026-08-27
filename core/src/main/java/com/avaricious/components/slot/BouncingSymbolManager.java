@@ -7,6 +7,7 @@ import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
@@ -108,6 +109,13 @@ public class BouncingSymbolManager {
     }
 
     public void updateFallingSymbols(float delta) {
+        updateFallingSymbols(delta, new Rectangle[0]);
+    }
+
+    public void updateFallingSymbols(
+        float delta,
+        Rectangle... obstacleBounds
+    ) {
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.update(delta);
         }
@@ -125,6 +133,14 @@ public class BouncingSymbolManager {
          * highlighted/hitting slot-machine symbols.
          */
         handlePatternHitCollisions();
+
+        if (obstacleBounds != null) {
+            for (Rectangle obstacle : obstacleBounds) {
+                if (obstacle != null) {
+                    handleObstacleCollisions(obstacle);
+                }
+            }
+        }
 
         for (int i = bouncingSymbols.size() - 1; i >= 0; i--) {
             if (bouncingSymbols.get(i).isFinished()) {
@@ -322,21 +338,36 @@ public class BouncingSymbolManager {
                     BouncingSymbol symbol :
                     bouncingSymbols
                 ) {
-                    resolveBodyCollision(
+                    resolveRectangleCollision(
                         symbol,
-                        body
+                        body.getPos().x,
+                        body.getPos().y,
+                        SlotMachine.CELL_W,
+                        SlotMachine.CELL_H
                     );
                 }
             });
     }
 
-    /*
-     * Treat the BouncingSymbol as a circle and the Body
-     * as an axis-aligned rectangle.
-     */
-    private void resolveBodyCollision(
+    private void handleObstacleCollisions(Rectangle obstacle) {
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            resolveRectangleCollision(
+                symbol,
+                obstacle.x,
+                obstacle.y,
+                obstacle.width,
+                obstacle.height
+            );
+        }
+    }
+
+    /* Treat the symbol as a circle and each obstacle as a rectangle. */
+    private void resolveRectangleCollision(
         BouncingSymbol symbol,
-        Body body
+        float obstacleLeft,
+        float obstacleBottom,
+        float obstacleWidth,
+        float obstacleHeight
     ) {
 
         float circleX =
@@ -348,20 +379,11 @@ public class BouncingSymbolManager {
         float radius =
             symbol.getRadius();
 
-        /*
-         * Slot body rectangle.
-         */
-        float bodyLeft =
-            body.getPos().x;
+        float obstacleRight =
+            obstacleLeft + obstacleWidth;
 
-        float bodyRight =
-            bodyLeft + SlotMachine.CELL_W;
-
-        float bodyBottom =
-            body.getPos().y;
-
-        float bodyTop =
-            bodyBottom + SlotMachine.CELL_H;
+        float obstacleTop =
+            obstacleBottom + obstacleHeight;
 
         /*
          * Find the closest point on the rectangle
@@ -370,15 +392,15 @@ public class BouncingSymbolManager {
         float closestX =
             MathUtils.clamp(
                 circleX,
-                bodyLeft,
-                bodyRight
+                obstacleLeft,
+                obstacleRight
             );
 
         float closestY =
             MathUtils.clamp(
                 circleY,
-                bodyBottom,
-                bodyTop
+                obstacleBottom,
+                obstacleTop
             );
 
         float dx =
@@ -430,23 +452,23 @@ public class BouncingSymbolManager {
         /*
          * Special case:
          *
-         * The circle center itself is inside the Body.
+         * The circle center itself is inside the obstacle.
          *
          * Push it towards the nearest edge.
          */
         else {
 
             float distanceLeft =
-                circleX - bodyLeft;
+                circleX - obstacleLeft;
 
             float distanceRight =
-                bodyRight - circleX;
+                obstacleRight - circleX;
 
             float distanceBottom =
-                circleY - bodyBottom;
+                circleY - obstacleBottom;
 
             float distanceTop =
-                bodyTop - circleY;
+                obstacleTop - circleY;
 
             float minimum =
                 Math.min(
@@ -496,7 +518,7 @@ public class BouncingSymbolManager {
 
         /*
          * First move the bouncing symbol outside the
-         * slot Body so it doesn't remain overlapping.
+         * obstacle so it doesn't remain overlapping.
          */
         symbol.move(
             normalX * penetration,
@@ -513,7 +535,7 @@ public class BouncingSymbolManager {
 
         /*
          * If it's already traveling away from the
-         * Body, separation was enough.
+         * obstacle, separation was enough.
          */
         if (velocityAlongNormal >= 0f) {
             return;
@@ -521,7 +543,7 @@ public class BouncingSymbolManager {
 
         /*
          * Slightly stronger bounce than symbol-to-symbol
-         * collisions because the slot Body is static.
+         * collisions because the obstacle is static.
          */
         float restitution =
             MathUtils.random(0.8f, 0.95f);

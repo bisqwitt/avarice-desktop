@@ -423,7 +423,9 @@ public enum AssetKey {
     W("w"),
     W_SHADOW("w-shadow"),
     X("x"),
-    X_SHADOW("x-shadow");
+    X_SHADOW("x-shadow"),
+    LEVEL_UP_BUTTON("levelup-button"),
+    LEVEL_UP_BUTTON_PRESSED("levelup-button-pressed");
 
     private final String path;
 

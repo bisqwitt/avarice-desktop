@@ -12,6 +12,7 @@ import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.screens.ScreenManager;
 import com.avaricious.screens.SlotScreen;
+import com.avaricious.utility.GameplayLayout;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.math.Rectangle;
@@ -25,8 +26,8 @@ public class ButtonBoard {
         return instance == null ? instance = new ButtonBoard() : instance;
     }
 
-    private final float BOARD_X = 0.75f;
-    private final float BOARD_Y = 0.75f;
+    private static final float BOARD_Y = 0.65f;
+    private static final float SPIN_BUTTON_RIGHT_INSET = 0.5f;
 
     private final float BUTTON_W = 79 / 35f;
     private final float BUTTON_H = 25 / 35f;
@@ -51,20 +52,25 @@ public class ButtonBoard {
 
     public ButtonBoard init(Runnable onSpinButtonPressed, Runnable onCashoutButtonPressed) {
         spinAgainButton = new SpinButton(onSpinButtonPressed,
-            new Rectangle(BOARD_X + 12f, BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
+            new Rectangle(GameplayLayout.SLOT_X + GameplayLayout.SLOT_WIDTH
+                - BUTTON_W - SPIN_BUTTON_RIGHT_INSET,
+                BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
         buySpinButton = new BuySpinButton(() -> {
             AutoSpinDisplay.I().addSpin();
             ScoreDisplay.I().removeFromScore(50);
             if (AutoSpinDisplay.I().getSpins() == 1 && SlotMachine.I().isStale())
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         },
-            new Rectangle(BOARD_X + 12f, BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
+            new Rectangle(GameplayLayout.SLOT_X + GameplayLayout.SLOT_WIDTH
+                - BUTTON_W - SPIN_BUTTON_RIGHT_INSET,
+                BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
 
         drawCardButton = new DrawCardButton(() -> {
             Hand.I().drawCard();
             ScoreDisplay.I().removeFromScore(25);
         },
-            new Rectangle(BOARD_X + 0.2f, BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.ENTER);
+            new Rectangle(GameplayLayout.HUD_CENTER - BUTTON_W / 2f,
+                BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.ENTER);
 
         spinButton = spinAgainButton;
         TicketPressSystem.I().init(() -> spinButton.getBounds());
@@ -131,5 +137,19 @@ public class ButtonBoard {
 
     public boolean isVisible() {
         return drawCardButton.isVisibleNow();
+    }
+
+    public Rectangle getSpinButtonCollisionBounds() {
+        if (spinButton == null || !spinButton.isVisibleNow()) {
+            return null;
+        }
+
+        Rectangle bounds = spinButton.getBounds();
+        return new Rectangle(
+            bounds.x - 0.05f,
+            bounds.y - 0.10f,
+            bounds.width + 0.10f,
+            bounds.height + 0.15f
+        );
     }
 }

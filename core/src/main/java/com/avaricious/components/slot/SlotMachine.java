@@ -12,6 +12,7 @@ import com.avaricious.components.slot.rework.SpinResultManipulator;
 import com.avaricious.components.slot.rework.SpinResultPolicy;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.GameContext;
+import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.Seq;
 import com.avaricious.utility.TextureDrawing;
@@ -38,15 +39,15 @@ public class SlotMachine {
     }
 
     // --- Layout ---
-    public static final int colCount = 5;
+    public static final int colCount = 6;
     public static final int rowCount = 5;
     public static final float CELL_W = 1f;
     public static final float CELL_H = 1f;
     public static final float spacingX = 0.35f;
     public static final float spacingY = 0.15f;
 
-    public static final float originX = 5f;
-    public static final float originY = 2f;
+    public static final float originX = GameplayLayout.SLOT_X;
+    public static final float originY = GameplayLayout.SLOT_Y;
 
     private float reelStartStagger = 0.1f;
     private float reelStopStagger = 0.5f;
@@ -636,8 +637,8 @@ public class SlotMachine {
         return new Rectangle(
             originX,
             originY,
-            colCount * (CELL_W + spacingX),
-            rowCount * (CELL_H + spacingY)
+            colCount * CELL_W + (colCount - 1) * spacingX,
+            rowCount * CELL_H + (rowCount - 1) * spacingY
         );
     }
 

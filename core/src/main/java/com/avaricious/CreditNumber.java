@@ -27,7 +27,7 @@ public class CreditNumber extends DigitalNumber {
     @Override
     public void draw(float delta, float scale, float rotation) {
         super.draw(delta, scale, rotation);
-        float x = firstDigitBounds.x + super.getWidth() + 0.05f;
+        float x = firstDigitBounds.x + super.getWidth() + currencyGap();
         float y = calcNumberY();
 
         Pencil.I().addDrawing(new TextureDrawing(
@@ -45,7 +45,11 @@ public class CreditNumber extends DigitalNumber {
 
     @Override
     public float getWidth() {
-        return super.getWidth() + 0.05f + firstDigitBounds.width;
+        return super.getWidth() + currencyGap() + firstDigitBounds.width;
+    }
+
+    private float currencyGap() {
+        return Math.max(0.05f, offset - firstDigitBounds.width);
     }
 
     @Override

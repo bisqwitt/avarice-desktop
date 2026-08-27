@@ -53,7 +53,7 @@ public class BouncingSymbol {
     private boolean hovered = false;
 
     /*
-     * Lifetime before the symbol counts as missed.
+     * Tracks time for organic movement and the optional expiry behavior.
      */
     private float lifetime = 0f;
 
@@ -76,7 +76,13 @@ public class BouncingSymbol {
     private static final float MAX_BOUNCE = 0.97f;
 
     /*
-     * Maximum time the player has to claim the symbol.
+     * Keep the old missed-symbol/death animation available for later without
+     * expiring collectibles during normal play.
+     */
+    private static final boolean LIFETIME_EXPIRY_ENABLED = false;
+
+    /*
+     * Maximum claim time when lifetime expiry is enabled again.
      */
     private static final float MAX_LIFETIME = 3f;
 
@@ -163,7 +169,10 @@ public class BouncingSymbol {
         if (!claimed) {
             lifetime += delta;
 
-            if (lifetime >= MAX_LIFETIME) {
+            if (
+                LIFETIME_EXPIRY_ENABLED &&
+                    lifetime >= MAX_LIFETIME
+            ) {
                 miss();
             }
 
@@ -273,7 +282,6 @@ public class BouncingSymbol {
         trySpawnCashChip();
 
         AudioManager.I().playCollect(COMP_CHIP_REWARD);
-        ScreenShake.I().addTrauma(0.10f);
         impactFlash = 1f;
 
         return true;
@@ -320,7 +328,6 @@ public class BouncingSymbol {
         ));
 
         AudioManager.I().playMiss();
-        ScreenShake.I().addTrauma(0.055f);
         finished = true;
     }
 
@@ -667,6 +674,10 @@ public class BouncingSymbol {
     }
 
     private float getUrgency() {
+        if (!LIFETIME_EXPIRY_ENABLED) {
+            return 0f;
+        }
+
         float value = MathUtils.clamp(lifetime / MAX_LIFETIME, 0f, 1f);
         value = MathUtils.clamp((value - 0.58f) / 0.42f, 0f, 1f);
         return value * value * (3f - 2f * value);

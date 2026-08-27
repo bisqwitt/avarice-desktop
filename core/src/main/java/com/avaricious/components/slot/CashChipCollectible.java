@@ -115,7 +115,6 @@ public class CashChipCollectible {
             ZIndex.SLOT_MACHINE_FOREGROUND
         );
         AudioManager.I().playCollect(25);
-        ScreenShake.I().addTrauma(0.09f);
     }
 
     public void draw() {
