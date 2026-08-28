@@ -57,7 +57,6 @@ public class ButtonBoard {
                 BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
         buySpinButton = new BuySpinButton(() -> {
             AutoSpinDisplay.I().addSpin();
-            ScoreDisplay.I().removeFromScore(50);
             if (AutoSpinDisplay.I().getSpins() == 1 && SlotMachine.I().isStale())
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         },
@@ -151,5 +150,12 @@ public class ButtonBoard {
             bounds.width + 0.10f,
             bounds.height + 0.15f
         );
+    }
+
+    /** The visual bounds are also used to anchor rewards beside the button. */
+    public Rectangle getSpinButtonBounds() {
+        return spinButton == null
+            ? null
+            : new Rectangle(spinButton.getBounds());
     }
 }

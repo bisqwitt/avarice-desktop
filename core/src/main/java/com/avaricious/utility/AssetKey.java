@@ -425,7 +425,14 @@ public enum AssetKey {
     X("x"),
     X_SHADOW("x-shadow"),
     LEVEL_UP_BUTTON("levelup-button"),
-    LEVEL_UP_BUTTON_PRESSED("levelup-button-pressed");
+    LEVEL_UP_BUTTON_PRESSED("levelup-button-pressed"),
+    CHEST_CLOSED("ygg-chest-closed"),
+    CHEST_OPENING1("ygg-chest-opening-1"),
+    CHEST_OPENING2("ygg-chest-opening-2"),
+    CHEST_OPENING3("ygg-chest-opening-3"),
+    CHEST_OPENING4("ygg-chest-opening-4"),
+    CHEST_OPENING5("ygg-chest-opening-5"),
+    CHEST_OPENING6("ygg-chest-opening-6");
 
     private final String path;
 

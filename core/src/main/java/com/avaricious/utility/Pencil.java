@@ -32,12 +32,13 @@ public class Pencil {
     private SpriteBatch batch;
 
     private final List<Drawing> drawings = new ArrayList<>();
+    private final List<Drawing> postProcessedOnlyDrawings = new ArrayList<>();
 
     private final TextureRegion feltPixel = Assets.I().get(AssetKey.FELT_PIXEL);
     private final TextureRegion charcoal = Assets.I().get(AssetKey.CHARCOAL_PIXEL);
 
-    private Rectangle scissors;
     private Runnable beforeDrawing;
+    private boolean trackingPostProcessedOnlyDrawings;
 
     private boolean dimBackground = false;
     private ZIndex dimLayer = null;
@@ -69,7 +70,10 @@ public class Pencil {
                 .draw(batch);
         }
 
-        if(clearDrawings) drawings.clear();
+        if (clearDrawings) {
+            drawings.clear();
+            postProcessedOnlyDrawings.clear();
+        }
     }
 
     private void updateDarkenAnimation(float delta) {
@@ -89,6 +93,27 @@ public class Pencil {
             beforeDrawing = null;
         }
         drawings.add(drawing);
+        if (trackingPostProcessedOnlyDrawings) {
+            postProcessedOnlyDrawings.add(drawing);
+        }
+    }
+
+    public void beginPostProcessedOnlyDrawings() {
+        if (trackingPostProcessedOnlyDrawings) {
+            throw new IllegalStateException(
+                "Post-processed-only drawing scopes cannot be nested"
+            );
+        }
+        trackingPostProcessedOnlyDrawings = true;
+    }
+
+    public void endPostProcessedOnlyDrawings() {
+        trackingPostProcessedOnlyDrawings = false;
+    }
+
+    public void discardPostProcessedOnlyDrawings() {
+        drawings.removeAll(postProcessedOnlyDrawings);
+        postProcessedOnlyDrawings.clear();
     }
 
     public void toggleDarkenEverythingBehindLayer(ZIndex layer) {
@@ -109,7 +134,7 @@ public class Pencil {
     }
 
     public void startScissors(Camera cam, Matrix4 matrix, Rectangle area) {
-        scissors = new Rectangle();
+        Rectangle scissors = new Rectangle();
         beforeDrawing = () -> {
             ScissorStack.calculateScissors(cam, matrix, area, scissors);
             batch.flush();

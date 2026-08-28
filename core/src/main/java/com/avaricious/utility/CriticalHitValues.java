@@ -33,11 +33,19 @@ public class CriticalHitValues {
     }
 
     public void increaseCriticalHitChance() {
-        int oldChance = criticalHitChance;
-        criticalHitChance = Math.min(
+        increaseCriticalHitChance(CRITICAL_HIT_CHANCE_STEP);
+    }
+
+    public int getNextCriticalHitChance(int amount) {
+        return Math.min(
             MAX_CRITICAL_HIT_CHANCE,
-            criticalHitChance + CRITICAL_HIT_CHANCE_STEP
+            criticalHitChance + amount
         );
+    }
+
+    public void increaseCriticalHitChance(int amount) {
+        int oldChance = criticalHitChance;
+        criticalHitChance = getNextCriticalHitChance(amount);
         changeSupport.firePropertyChange(
             CRITICAL_HIT_CHANCE,
             oldChance,
@@ -56,15 +64,23 @@ public class CriticalHitValues {
     }
 
     public int getNextCriticalDamagePercent() {
+        return getNextCriticalDamagePercent(CRITICAL_DAMAGE_STEP);
+    }
+
+    public int getNextCriticalDamagePercent(int amount) {
         return Math.min(
             MAX_CRITICAL_DAMAGE_PERCENT,
-            criticalDamagePercent + CRITICAL_DAMAGE_STEP
+            criticalDamagePercent + amount
         );
     }
 
     public void increaseCriticalDamage() {
+        increaseCriticalDamage(CRITICAL_DAMAGE_STEP);
+    }
+
+    public void increaseCriticalDamage(int amount) {
         int oldDamage = criticalDamagePercent;
-        criticalDamagePercent = getNextCriticalDamagePercent();
+        criticalDamagePercent = getNextCriticalDamagePercent(amount);
         changeSupport.firePropertyChange(
             CRITICAL_DAMAGE,
             oldDamage,

@@ -72,9 +72,17 @@ public class AudioManager {
     }
 
     public void playUpgradeSelected() {
-        playOneShot(0.75f, 7f);
-        scheduleOneShot(0.065f, 0.60f, 12f);
-        scheduleOneShot(0.14f, 0.52f, 19f);
+        playUpgradeSelected(0);
+    }
+
+    public void playUpgradeSelected(int rarityTier) {
+        int tier = MathUtils.clamp(rarityTier, 0, 4);
+        playOneShot(0.75f + tier * 0.035f, 7f + tier);
+        scheduleOneShot(0.065f, 0.60f + tier * 0.025f, 12f + tier);
+        scheduleOneShot(0.14f, 0.52f + tier * 0.025f, 19f + tier);
+        if (tier >= 2) {
+            scheduleOneShot(0.21f, 0.34f + tier * 0.025f, 24f);
+        }
     }
 
     public void playShopPurchase(boolean major) {

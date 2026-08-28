@@ -6,6 +6,16 @@ import java.util.List;
 
 public enum AssetAnimationKey {
 
+    CHEST_OPEN(
+        AssetKey.CHEST_CLOSED,
+        AssetKey.CHEST_OPENING1,
+        AssetKey.CHEST_OPENING2,
+        AssetKey.CHEST_OPENING3,
+        AssetKey.CHEST_OPENING4,
+        AssetKey.CHEST_OPENING5,
+        AssetKey.CHEST_OPENING6
+    ),
+
     DUMPSTER_CLOSE(
         AssetKey.DUMPSTER_OPENED,
         AssetKey.DUMPSTER_1,

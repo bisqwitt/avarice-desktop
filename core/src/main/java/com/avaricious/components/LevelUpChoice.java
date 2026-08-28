@@ -3,6 +3,8 @@ package com.avaricious.components;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.FabledText;
+import com.avaricious.components.texts.GeneratedFabledText;
+import com.avaricious.items.upgrades.UpgradeRarity;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.Pencil;
@@ -37,18 +39,29 @@ public class LevelUpChoice {
     private static final float TITLE_HORIZONTAL_PADDING =
         0.30f;
 
+    private static final float RARITY_BADGE_WIDTH = 79f / 45f;
+    private static final float RARITY_BADGE_HEIGHT = 23f / 45f;
+    private static final float RARITY_TEXT_MAX_WIDTH = 1.42f;
+
     /*
      * -------------------------------------------------
      */
 
     private final FabledText title;
     private final FabledText description;
+    private final FabledText rarityText;
 
     private final Runnable upgrade;
+    private final UpgradeRarity rarity;
 
     private Rectangle bounds;
 
     private final TextureRegion background =
+        Assets.I().get(
+            AssetKey.DARK_SLATE_PIXEL
+        );
+
+    private final TextureRegion shadowPixel =
         Assets.I().get(
             AssetKey.BLACK_PIXEL
         );
@@ -111,6 +124,7 @@ public class LevelUpChoice {
     private float renderRotation = 0f;
 
     private float entranceProgress = 0f;
+    private int shortcutNumber;
 
     public LevelUpChoice(
         Symbol symbol,
@@ -118,7 +132,15 @@ public class LevelUpChoice {
         FabledText description,
         Runnable upgrade
     ) {
-        this(title, description, upgrade, Assets.I().getSymbol(symbol), Assets.I().get(symbol.shadowKey()), Assets.I().get(symbol.whiteKey()));
+        this(
+            title,
+            description,
+            upgrade,
+            Assets.I().getSymbol(symbol),
+            Assets.I().get(symbol.shadowKey()),
+            Assets.I().get(symbol.whiteKey()),
+            UpgradeRarity.COMMON
+        );
     }
 
     public LevelUpChoice(
@@ -129,13 +151,66 @@ public class LevelUpChoice {
         TextureRegion shadowTexture,
         TextureRegion whiteTexture
     ) {
+        this(
+            title,
+            description,
+            upgrade,
+            texture,
+            shadowTexture,
+            whiteTexture,
+            UpgradeRarity.COMMON
+        );
+    }
+
+    public LevelUpChoice(
+        FabledText title,
+        FabledText description,
+        Runnable upgrade,
+        TextureRegion texture,
+        TextureRegion shadowTexture,
+        TextureRegion whiteTexture,
+        UpgradeRarity rarity
+    ) {
+        this(
+            title,
+            description,
+            upgrade,
+            texture,
+            shadowTexture,
+            whiteTexture,
+            null,
+            rarity
+        );
+    }
+
+    private LevelUpChoice(
+        FabledText title,
+        FabledText description,
+        Runnable upgrade,
+        TextureRegion texture,
+        TextureRegion shadowTexture,
+        TextureRegion whiteTexture,
+        boolean[][] patternMask,
+        UpgradeRarity rarity
+    ) {
         this.title = title;
         this.description = description;
         this.upgrade = upgrade;
         this.texture = texture;
         this.shadowTexture = shadowTexture;
         this.whiteTexture = whiteTexture;
-        this.patternMask = null;
+        this.patternMask = patternMask == null ? null : copyMask(patternMask);
+        this.rarity = rarity == null ? UpgradeRarity.COMMON : rarity;
+        this.rarityText = new GeneratedFabledText(
+            this.rarity.toString(),
+            39f,
+            0.024f,
+            0.11f,
+            ZIndex.SHOP_CARD,
+            true
+        );
+        this.rarityText.fitWithinWidth(RARITY_TEXT_MAX_WIDTH);
+        this.rarityText.setFloatEffects(0.008f, 0.85f);
     }
 
     public LevelUpChoice(
@@ -144,13 +219,32 @@ public class LevelUpChoice {
         Runnable upgrade,
         boolean[][] patternMask
     ) {
-        this.title = title;
-        this.description = description;
-        this.upgrade = upgrade;
-        this.texture = null;
-        this.shadowTexture = null;
-        this.whiteTexture = null;
-        this.patternMask = copyMask(patternMask);
+        this(
+            title,
+            description,
+            upgrade,
+            patternMask,
+            UpgradeRarity.COMMON
+        );
+    }
+
+    public LevelUpChoice(
+        FabledText title,
+        FabledText description,
+        Runnable upgrade,
+        boolean[][] patternMask,
+        UpgradeRarity rarity
+    ) {
+        this(
+            title,
+            description,
+            upgrade,
+            null,
+            null,
+            null,
+            patternMask,
+            rarity
+        );
     }
 
     public void setBounds(
@@ -174,6 +268,7 @@ public class LevelUpChoice {
             bounds.width -
                 TITLE_HORIZONTAL_PADDING * 2f
         );
+        rarityText.fitWithinWidth(RARITY_TEXT_MAX_WIDTH);
     }
 
     public void setEntranceDelay(
@@ -181,6 +276,10 @@ public class LevelUpChoice {
     ) {
         this.entranceDelay =
             entranceDelay;
+    }
+
+    public void setShortcutNumber(int shortcutNumber) {
+        this.shortcutNumber = shortcutNumber;
     }
 
     public void setHovered(
@@ -255,7 +354,7 @@ public class LevelUpChoice {
          * Huge white symbol hit.
          */
         symbolFlash = 1f;
-        AudioManager.I().playUpgradeSelected();
+        AudioManager.I().playUpgradeSelected(getRarityTier());
     }
 
     /*
@@ -487,6 +586,10 @@ public class LevelUpChoice {
                 1f - eased;
         }
 
+        if (!dismissed) {
+            renderCenterY += hoverAmount * 0.10f;
+        }
+
         updateTextPosition(
             renderCenterX,
             renderCenterY
@@ -608,6 +711,17 @@ public class LevelUpChoice {
             centerY +
                 0.25f
         );
+
+        float rarityTextWidth = Math.min(
+            rarityText.getNaturalWidth(),
+            RARITY_TEXT_MAX_WIDTH
+        );
+        rarityText.setAbsoluteX(centerX - rarityTextWidth / 2f);
+        rarityText.setY(
+            centerY -
+                bounds.height / 2f +
+                0.29f
+        );
     }
 
     public void draw(float delta) {
@@ -635,6 +749,48 @@ public class LevelUpChoice {
             renderCenterY -
                 renderHeight / 2f;
 
+        Color rarityColor = Assets.I().getRarityColor(rarity);
+        float rarityPulse =
+            (MathUtils.sin(age * 2.8f + getRarityTier() * 0.7f) + 1f) *
+                0.5f;
+
+        float glowAlpha =
+            0.018f +
+                getRarityTier() * 0.010f +
+                hoverAmount * 0.085f +
+                (selected ? 0.10f + rarityPulse * 0.07f : 0f);
+        float glowPadding =
+            0.06f + hoverAmount * 0.07f + (selected ? 0.07f : 0f);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            renderX - glowPadding,
+            renderY - glowPadding,
+            renderWidth + glowPadding * 2f,
+            renderHeight + glowPadding * 2f,
+            1f,
+            renderRotation,
+            ZIndex.SHOP,
+            new Color(
+                rarityColor.r,
+                rarityColor.g,
+                rarityColor.b,
+                glowAlpha * renderAlpha
+            )
+        ));
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            shadowPixel,
+            renderX + 0.10f * renderScale,
+            renderY - 0.14f * renderScale,
+            renderWidth,
+            renderHeight,
+            1f,
+            renderRotation,
+            ZIndex.SHOP,
+            new Color(0f, 0f, 0f, 0.46f * renderAlpha)
+        ));
+
         /*
          * -------------------------------------------------
          * BACKGROUND
@@ -643,8 +799,8 @@ public class LevelUpChoice {
 
         float backgroundAlpha =
             MathUtils.lerp(
-                0.50f,
-                0.32f,
+                0.72f,
+                0.64f,
                 lightenAmount
             );
 
@@ -670,9 +826,9 @@ public class LevelUpChoice {
                 renderRotation,
                 ZIndex.SHOP,
                 new Color(
-                    0f,
-                    0f,
-                    0f,
+                    0.72f,
+                    0.74f,
+                    0.78f,
                     backgroundAlpha *
                         renderAlpha
                 )
@@ -710,6 +866,23 @@ public class LevelUpChoice {
             borderAlpha
         );
 
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            renderX + borderSize,
+            renderY + renderHeight - borderSize - 0.055f * renderScale,
+            renderWidth - borderSize * 2f,
+            0.055f * renderScale,
+            1f,
+            renderRotation,
+            ZIndex.SHOP,
+            new Color(
+                rarityColor.r,
+                rarityColor.g,
+                rarityColor.b,
+                (0.34f + hoverAmount * 0.38f) * renderAlpha
+            )
+        ));
+
         /*
          * -------------------------------------------------
          * SYMBOL
@@ -740,7 +913,7 @@ public class LevelUpChoice {
 
         float symbolCenterY =
             renderCenterY -
-                1.05f;
+                0.78f;
 
         float symbolX =
             renderCenterX -
@@ -749,6 +922,25 @@ public class LevelUpChoice {
         float symbolY =
             symbolCenterY -
                 symbolSize / 2f;
+
+        float iconPlateSize = symbolSize * 1.12f;
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            renderCenterX - iconPlateSize / 2f,
+            symbolCenterY - iconPlateSize / 2f,
+            iconPlateSize,
+            iconPlateSize,
+            1f,
+            renderRotation + 45f,
+            ZIndex.SHOP,
+            new Color(
+                rarityColor.r,
+                rarityColor.g,
+                rarityColor.b,
+                (0.035f + hoverAmount * 0.075f +
+                    (selected ? 0.07f : 0f)) * renderAlpha
+            )
+        ));
 
         if (patternMask != null) {
             drawPatternIcon(
@@ -850,7 +1042,14 @@ public class LevelUpChoice {
                 )
             );
         }
+
         }
+
+        drawRaritySparkles(
+            symbolCenterY,
+            symbolSize,
+            rarityColor
+        );
 
         /*
          * -------------------------------------------------
@@ -871,19 +1070,21 @@ public class LevelUpChoice {
                 );
 
         if (drawText) {
+            drawRarityBadge(renderY);
+            drawShortcutBadge(renderX, renderY, renderWidth, renderHeight);
             title.draw(delta);
             description.draw(delta);
+            rarityText.draw(delta);
         }
 
         /*
-         * Draw this after the image and text on a higher
-         * layer so the entire non-hovered choice receives
-         * the same light lift, not just its background.
+         * Draw this after the image and text so hovering one card pushes the
+         * others into the background instead of making them compete for focus.
          */
         if (lightenAmount > 0.001f) {
             Pencil.I().addDrawing(
                 new TextureDrawing(
-                    whitePixel,
+                    shadowPixel,
                     renderX,
                     renderY,
                     renderWidth,
@@ -892,12 +1093,12 @@ public class LevelUpChoice {
                     renderRotation,
                     ZIndex.SHOP_CARD_TOUCHING,
                     new Color(
-                        1f,
-                        1f,
-                        1f,
+                        0f,
+                        0f,
+                        0f,
                         lightenAmount *
                             (1f - hoverAmount) *
-                            0.075f *
+                            0.24f *
                             renderAlpha
                     )
                 )
@@ -1008,13 +1209,13 @@ public class LevelUpChoice {
         float thickness,
         float alpha
     ) {
-        Color color =
-            new Color(
-                1f,
-                1f,
-                1f,
-                alpha
-            );
+        Color rarityColor = Assets.I().getRarityColor(rarity);
+        Color color = new Color(
+            rarityColor.r,
+            rarityColor.g,
+            rarityColor.b,
+            alpha
+        );
 
         /*
          * Bottom.
@@ -1079,6 +1280,136 @@ public class LevelUpChoice {
                 color
             )
         );
+    }
+
+    private void drawRarityBadge(float renderY) {
+        float badgeWidth = RARITY_BADGE_WIDTH * renderScale;
+        float badgeHeight = RARITY_BADGE_HEIGHT * renderScale;
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            rarity.getRarityBoxTexture(),
+            renderCenterX - badgeWidth / 2f,
+            renderY + 0.12f * renderScale,
+            badgeWidth,
+            badgeHeight,
+            1f,
+            renderRotation,
+            ZIndex.SHOP,
+            new Color(1f, 1f, 1f, renderAlpha)
+        ));
+    }
+
+    private void drawShortcutBadge(
+        float renderX,
+        float renderY,
+        float renderWidth,
+        float renderHeight
+    ) {
+        if (shortcutNumber < 1 || shortcutNumber > 9 || selected || dismissed) {
+            return;
+        }
+
+        float badgeSize = 0.43f * renderScale;
+        float badgeX = renderX + renderWidth - badgeSize - 0.15f * renderScale;
+        float badgeY = renderY + renderHeight - badgeSize - 0.15f * renderScale;
+        Color rarityColor = Assets.I().getRarityColor(rarity);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            shadowPixel,
+            badgeX,
+            badgeY - 0.045f * renderScale,
+            badgeSize,
+            badgeSize,
+            1f,
+            renderRotation,
+            ZIndex.SHOP_CARD,
+            new Color(0f, 0f, 0f, 0.52f * renderAlpha)
+        ));
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            badgeX,
+            badgeY,
+            badgeSize,
+            badgeSize,
+            1f,
+            renderRotation,
+            ZIndex.SHOP_CARD,
+            new Color(
+                rarityColor.r,
+                rarityColor.g,
+                rarityColor.b,
+                (0.62f + hoverAmount * 0.28f) * renderAlpha
+            )
+        ));
+
+        float numberWidth = 0.15f * renderScale;
+        float numberHeight = 0.25f * renderScale;
+        float numberX = badgeX + (badgeSize - numberWidth) / 2f;
+        float numberY = badgeY + (badgeSize - numberHeight) / 2f;
+        Pencil.I().addDrawing(new TextureDrawing(
+            Assets.I().getDigitalNumberShadow(shortcutNumber),
+            numberX,
+            numberY - 0.025f * renderScale,
+            numberWidth,
+            numberHeight,
+            1f,
+            renderRotation,
+            ZIndex.SHOP_CARD,
+            new Color(1f, 1f, 1f, renderAlpha)
+        ));
+        Pencil.I().addDrawing(new TextureDrawing(
+            Assets.I().getDigitalNumber(shortcutNumber),
+            numberX,
+            numberY,
+            numberWidth,
+            numberHeight,
+            1f,
+            renderRotation,
+            ZIndex.SHOP_CARD,
+            new Color(1f, 1f, 1f, renderAlpha)
+        ));
+    }
+
+    private void drawRaritySparkles(
+        float symbolCenterY,
+        float symbolSize,
+        Color rarityColor
+    ) {
+        float amount = Math.max(hoverAmount, selected ? 0.85f : 0f);
+        if (amount <= 0.01f) return;
+
+        for (int index = 0; index < 4; index++) {
+            float angle = age * (42f + getRarityTier() * 5f) + index * 90f;
+            float radius = symbolSize * (0.62f + (index % 2) * 0.09f);
+            float size = (0.035f + (index % 2) * 0.018f) * renderScale;
+            float sparkleX = renderCenterX + MathUtils.cosDeg(angle) * radius;
+            float sparkleY = symbolCenterY + MathUtils.sinDeg(angle) * radius;
+
+            Pencil.I().addDrawing(new TextureDrawing(
+                whitePixel,
+                sparkleX - size / 2f,
+                sparkleY - size / 2f,
+                size,
+                size,
+                1f,
+                angle,
+                ZIndex.SHOP_CARD,
+                new Color(
+                    rarityColor.r,
+                    rarityColor.g,
+                    rarityColor.b,
+                    amount * (0.48f + (index % 2) * 0.22f) * renderAlpha
+                )
+            ));
+        }
+    }
+
+    public Color getRarityColor() {
+        return new Color(Assets.I().getRarityColor(rarity));
+    }
+
+    public int getRarityTier() {
+        return MathUtils.clamp(rarity.ordinal(), 0, 4);
     }
 
     public float getCenterX() {

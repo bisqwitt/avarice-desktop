@@ -142,18 +142,12 @@ public class Shop {
 
     public void draw(float delta) {
         if (state == State.HIDDEN) return;
-        update(delta);
         float eased = Interpolation.pow3Out.apply(transition);
         float offsetY = (1f - eased) * HEIGHT;
 
-        Pencil.I().addDrawing(new TextureDrawing(backdrop, 0f, 0f, WIDTH, HEIGHT,
-            ZIndex.SHOP, new Color(1f, 1f, 1f, 0.96f * eased)));
-        Pencil.I().addDrawing(new TextureDrawing(panel, 0.65f, 0.25f + offsetY,
-            14.7f, 8.25f, ZIndex.SHOP));
-
         title.setY(7.65f + offsetY);
         title.draw(delta);
-        drawTabs(delta, offsetY);
+        drawTabs(delta, offsetY, false);
 
         balance.getFirstDigitBounds().setY(7.72f + offsetY);
         exitButton.getBounds().setY(0.38f + offsetY);
@@ -161,8 +155,52 @@ public class Shop {
         exitButton.draw(delta);
         drawDeveloperStatus(delta, offsetY);
 
-        if (selectedTab == Tab.AUTOMATIONS) drawAutomationItems(delta, offsetY);
-        else drawSymbolItems(delta, offsetY);
+        if (selectedTab == Tab.AUTOMATIONS) {
+            drawAutomationScrollbar(offsetY);
+            drawAutomationItems(delta, offsetY, null);
+        } else {
+            drawSymbolItems(delta, offsetY, null);
+        }
+    }
+
+    /** Draws the shop surface and disabled cards into the CRT capture. */
+    public void drawPostProcessedItems(float delta) {
+        if (state == State.HIDDEN) return;
+        update(delta);
+
+        float eased = Interpolation.pow3Out.apply(transition);
+        float offsetY = (1f - eased) * HEIGHT;
+
+        Pencil.I().beginPostProcessedOnlyDrawings();
+        try {
+            Pencil.I().addDrawing(new TextureDrawing(
+                backdrop,
+                0f,
+                0f,
+                WIDTH,
+                HEIGHT,
+                ZIndex.SHOP,
+                new Color(1f, 1f, 1f, 0.96f * eased)
+            ));
+            Pencil.I().addDrawing(new TextureDrawing(
+                panel,
+                0.65f,
+                0.25f + offsetY,
+                14.7f,
+                8.25f,
+                ZIndex.SHOP
+            ));
+
+            drawTabs(delta, offsetY, true);
+
+            if (selectedTab == Tab.AUTOMATIONS) {
+                drawAutomationItems(delta, offsetY, true);
+            } else {
+                drawSymbolItems(delta, offsetY, true);
+            }
+        } finally {
+            Pencil.I().endPostProcessedOnlyDrawings();
+        }
     }
 
     private void drawDeveloperStatus(float delta, float offsetY) {
@@ -173,11 +211,41 @@ public class Shop {
         status.draw(delta);
     }
 
-    private void drawTabs(float delta, float offsetY) {
+    private void drawTabs(
+        float delta,
+        float offsetY,
+        boolean inactiveOnly
+    ) {
         symbolTabBounds.y = 6.58f + offsetY;
         automationTabBounds.y = 6.58f + offsetY;
-        drawTab(symbolTabBounds, symbolTabText, selectedTab == Tab.SYMBOL_VALUES, delta);
-        drawTab(automationTabBounds, automationTabText, selectedTab == Tab.AUTOMATIONS, delta);
+
+        boolean symbolsSelected = selectedTab == Tab.SYMBOL_VALUES;
+        if (inactiveOnly) {
+            if (symbolsSelected) {
+                drawTab(
+                    automationTabBounds,
+                    automationTabText,
+                    false,
+                    delta
+                );
+            } else {
+                drawTab(symbolTabBounds, symbolTabText, false, delta);
+            }
+            return;
+        }
+
+        drawTab(
+            symbolTabBounds,
+            symbolTabText,
+            symbolsSelected,
+            symbolsSelected ? delta : 0f
+        );
+        drawTab(
+            automationTabBounds,
+            automationTabText,
+            !symbolsSelected,
+            symbolsSelected ? 0f : delta
+        );
     }
 
     private void drawTab(Rectangle bounds, FabledText text, boolean selected, float delta) {
@@ -193,7 +261,11 @@ public class Shop {
         text.draw(delta);
     }
 
-    private void drawAutomationItems(float delta, float offsetY) {
+    private void drawAutomationItems(
+        float delta,
+        float offsetY,
+        Boolean disabledFilter
+    ) {
         float left = 1.25f;
         float right = 8.2f;
         float top = 4.05f + automationScrollOffset + offsetY;
@@ -209,13 +281,14 @@ public class Shop {
         }
 
         automationViewport.y = 1.20f + offsetY;
-        drawAutomationScrollbar(offsetY);
         Pencil.I().startScissors(
             GameContext.I().viewport.getCamera(),
             GameContext.I().batch.getTransformMatrix(),
             automationViewport
         );
-        for (ShopItem item : automationItems) item.draw(delta);
+        for (ShopItem item : automationItems) {
+            drawItem(item, delta, disabledFilter);
+        }
         Pencil.I().addDrawing(new TextureDrawing(
             Assets.I().get(AssetKey.WHITE_PIXEL),
             automationViewport.x,
@@ -265,7 +338,11 @@ public class Shop {
         ));
     }
 
-    private void drawSymbolItems(float delta, float offsetY) {
+    private void drawSymbolItems(
+        float delta,
+        float offsetY,
+        Boolean disabledFilter
+    ) {
         float gap = 0.28f;
         float topY = 4.05f + offsetY;
         float bottomY = 1.45f + offsetY;
@@ -281,7 +358,21 @@ public class Shop {
                 bottomLeft + index * (SYMBOL_CARD_WIDTH + gap), bottomY,
                 SYMBOL_CARD_WIDTH, SYMBOL_CARD_HEIGHT));
         }
-        for (ShopItem item : symbolItems) item.draw(delta);
+        for (ShopItem item : symbolItems) {
+            drawItem(item, delta, disabledFilter);
+        }
+    }
+
+    private void drawItem(
+        ShopItem item,
+        float delta,
+        Boolean disabledFilter
+    ) {
+        boolean disabled = item.isDisabled();
+        if (disabledFilter != null && disabled != disabledFilter) return;
+
+        // A disabled item already advanced its animations in the CRT pass.
+        item.draw(disabledFilter == null && disabled ? 0f : delta);
     }
 
     private void update(float delta) {

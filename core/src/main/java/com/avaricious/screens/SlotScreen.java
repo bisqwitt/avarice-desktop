@@ -15,6 +15,7 @@ import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.shop.Shop;
 import com.avaricious.components.shop.QuickShop;
 import com.avaricious.components.slot.BouncingSymbolManager;
+import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.components.slot.SlotMachineMatchFinder;
 import com.avaricious.components.slot.SlotMachineResultRunner;
@@ -194,11 +195,14 @@ public class SlotScreen extends ScreenAdapter {
         // ------------------------------------------------------------
 
         SlotMachine.I().setOnLastReelFinished(
-            () -> SlotMachineResultRunner.I().runResult(
-                SlotMachineMatchFinder.I().findMatches(
-                    SlotMachine.I().getCurrentSpinResult()
-                )
-            )
+            () -> {
+                ChestManager.I().rollForChest();
+                SlotMachineResultRunner.I().runResult(
+                    SlotMachineMatchFinder.I().findMatches(
+                        SlotMachine.I().getCurrentSpinResult()
+                    )
+                );
+            }
         );
 
 
@@ -215,6 +219,7 @@ public class SlotScreen extends ScreenAdapter {
     @Override
     public void show() {
         RunManager.I().newRun();
+        ChestManager.I().reset();
         TicketPressSystem.I().reset();
         drawStartingHand();
 
@@ -308,6 +313,8 @@ public class SlotScreen extends ScreenAdapter {
                     ScoreDisplay.I().getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
+
+            ChestManager.I().update(delta);
 
             ParticleManager.I().update(delta);
 
@@ -441,7 +448,8 @@ public class SlotScreen extends ScreenAdapter {
 
         CompChipBar.I().draw(delta);
 
-        shop.draw(delta);
+        shop.drawPostProcessedItems(delta);
+        quickShop.drawPostProcessedItems(delta);
 
 
 //        bossLootWindow.draw(delta);
@@ -494,10 +502,12 @@ public class SlotScreen extends ScreenAdapter {
 
         batch.begin();
 
+        boolean fullShopShowing = shop.isShowing();
+
         Pencil.I().draw(
             batch,
             delta,
-            false
+            fullShopShowing
         );
 
         batch.end();
@@ -512,6 +522,10 @@ public class SlotScreen extends ScreenAdapter {
             app.getViewport().getScreenHeight()
         );
 
+        if (!fullShopShowing) {
+            Pencil.I().discardPostProcessedOnlyDrawings();
+        }
+
         // ------------------------------------------------------------
         // FOREGROUND / NON-POST-PROCESSED CONTENT
         // ------------------------------------------------------------
@@ -523,10 +537,12 @@ public class SlotScreen extends ScreenAdapter {
             buttonBoard.draw(delta);
         }
 
+        shop.draw(delta);
         quickShop.draw(delta);
 
         BouncingSymbolManager.I()
             .drawFallingSymbols(delta);
+        ChestManager.I().draw();
         SlotMachine.I()
             .drawSymbolsInPatternHit();
         PopupManager.I().draw(delta);
@@ -810,33 +826,43 @@ public class SlotScreen extends ScreenAdapter {
 
         } else {
 
-            SlotMachine.I().handleInput(
-                mouse,
-                leftClickPressed,
-                leftClickWasPressed,
-                delta
-            );
-
-
-            BouncingSymbolManager.I()
-                .handleInput(
+            boolean chestConsumedInput =
+                ChestManager.I().handleInput(
                     mouse,
                     leftClickPressed,
                     leftClickWasPressed
                 );
 
+            if (!chestConsumedInput) {
 
-            buttonBoard.handleInput(
-                mouse,
-                leftClickPressed,
-                leftClickWasPressed
-            );
+                SlotMachine.I().handleInput(
+                    mouse,
+                    leftClickPressed,
+                    leftClickWasPressed,
+                    delta
+                );
 
-            quickShop.handleInput(
-                mouse,
-                leftClickPressed,
-                leftClickWasPressed
-            );
+
+                BouncingSymbolManager.I()
+                    .handleInput(
+                        mouse,
+                        leftClickPressed,
+                        leftClickWasPressed
+                    );
+
+
+                buttonBoard.handleInput(
+                    mouse,
+                    leftClickPressed,
+                    leftClickWasPressed
+                );
+
+                quickShop.handleInput(
+                    mouse,
+                    leftClickPressed,
+                    leftClickWasPressed
+                );
+            }
         }
 
 

@@ -5,6 +5,7 @@ import com.avaricious.components.slot.SlotMachineResultRunner;
 import com.avaricious.components.slot.pattern.PatternUnlocks;
 import com.avaricious.components.slot.pattern.UnlockablePattern;
 import com.avaricious.components.texts.*;
+import com.avaricious.items.upgrades.UpgradeRarity;
 import com.avaricious.utility.*;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -27,7 +28,7 @@ public class LevelUpWindow {
      * How long the entire selection payoff lasts before
      * normal gameplay resumes.
      */
-    private static final float SELECTION_DURATION = 0.58f;
+    private static final float SELECTION_DURATION = 0.66f;
 
     private final TextureRegion background =
         Assets.I().get(AssetKey.CHARCOAL_PIXEL);
@@ -36,6 +37,14 @@ public class LevelUpWindow {
         Assets.I().get(AssetKey.WHITE_PIXEL);
 
     private final LevelUpText title = new LevelUpText();
+    private final GeneratedFabledText prompt = new GeneratedFabledText(
+        "CHOOSE AN UPGRADE",
+        39f,
+        0.025f,
+        0.13f,
+        ZIndex.SHOP_CARD,
+        true
+    );
 
     private final List<LevelUpChoice> choices =
         new ArrayList<>();
@@ -75,6 +84,7 @@ public class LevelUpWindow {
      */
     private float screenFlash = 0f;
     private float revealTimer = 0f;
+    private final Color selectionColor = new Color(Color.WHITE);
 
     private static final Color[] CELEBRATION_COLORS = {
         new Color(1f, 0.32f, 0.72f, 1f),
@@ -91,6 +101,19 @@ public class LevelUpWindow {
      */
     private float titleStartY = Float.NaN;
 
+    public LevelUpWindow() {
+        prompt.fitWithinWidth(4.25f);
+        prompt.setAbsoluteX(
+            WORLD_WIDTH / 2f -
+                Math.min(prompt.getNaturalWidth(), 4.25f) / 2f
+        );
+        prompt.setY(6.43f);
+        prompt.setFloatEffects(0.012f, 0.85f);
+        prompt.getWords().forEach(word ->
+            word.setColor(Assets.I().silver())
+        );
+    }
+
     public void show() {
         if (showing) return;
 
@@ -103,6 +126,7 @@ public class LevelUpWindow {
         selectionTimer = 0f;
         screenFlash = 0f;
         revealTimer = 0f;
+        selectionColor.set(Color.WHITE);
 
         burstParticles.clear();
 
@@ -175,15 +199,21 @@ public class LevelUpWindow {
             CollectibleValues.I().getExtraSpadeSpawnChance() <
                 CollectibleValues.MAX_EXTRA_SPADE_SPAWN_CHANCE
         ) {
+            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+            int increaseAmount = rarity.scaleLevelUpAmount(
+                CollectibleValues.EXTRA_SPADE_CHANCE_STEP
+            );
             TextureRegion spade = Assets.I().get(AssetKey.SPADE);
             possibleChoices.add(
                 new LevelUpChoice(
                     new ExtraSpadeChanceText(),
-                    new ExtraSpadeChanceDescription(),
-                    () -> CollectibleValues.I().increaseExtraSpadeSpawnChance(),
+                    new ExtraSpadeChanceDescription(increaseAmount),
+                    () -> CollectibleValues.I()
+                        .increaseExtraSpadeSpawnChance(increaseAmount),
                     spade,
                     spade,
-                    spade
+                    spade,
+                    rarity
                 )
             );
         }
@@ -192,6 +222,10 @@ public class LevelUpWindow {
             CollectibleValues.I().getCashChipSpawnChance() <
                 CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE
         ) {
+            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+            int increaseAmount = rarity.scaleLevelUpAmount(
+                CollectibleValues.CASH_CHIP_CHANCE_STEP
+            );
             TextureRegion cashChip = Assets.I().get(AssetKey.POKER_CHIP);
             possibleChoices.add(
                 new LevelUpChoice(
@@ -202,11 +236,13 @@ public class LevelUpWindow {
                         0.22f,
                         ZIndex.SHOP_CARD
                     ),
-                    new CashChipChanceDescription(),
-                    CollectibleValues.I()::increaseCashChipSpawnChance,
+                    new CashChipChanceDescription(increaseAmount),
+                    () -> CollectibleValues.I()
+                        .increaseCashChipSpawnChance(increaseAmount),
                     cashChip,
                     Assets.I().get(AssetKey.POKER_CHIP_SHADOW),
-                    cashChip
+                    cashChip,
+                    rarity
                 )
             );
         }
@@ -234,7 +270,8 @@ public class LevelUpWindow {
                         ZIndex.SHOP_CARD
                     ),
                     () -> PatternUnlocks.I().unlock(pattern),
-                    pattern.mask()
+                    pattern.mask(),
+                    UpgradeRarity.RARE
                 )
             );
         }
@@ -243,17 +280,23 @@ public class LevelUpWindow {
             CriticalHitValues.I().getCriticalHitChance() <
                 CriticalHitValues.MAX_CRITICAL_HIT_CHANCE
         ) {
+            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+            int increaseAmount = rarity.scaleLevelUpAmount(
+                CriticalHitValues.CRITICAL_HIT_CHANCE_STEP
+            );
             TextureRegion criticalHit = Assets.I().get(AssetKey.CRITICAL_HIT);
             TextureRegion criticalHitShadow =
                 Assets.I().get(AssetKey.CRITICAL_HIT_SHADOW);
             possibleChoices.add(
                 new LevelUpChoice(
                     new CriticalHitChanceText(),
-                    new CriticalHitChanceDescription(),
-                    () -> CriticalHitValues.I().increaseCriticalHitChance(),
+                    new CriticalHitChanceDescription(increaseAmount),
+                    () -> CriticalHitValues.I()
+                        .increaseCriticalHitChance(increaseAmount),
                     criticalHit,
                     criticalHitShadow,
-                    criticalHit
+                    criticalHit,
+                    rarity
                 )
             );
         }
@@ -262,16 +305,22 @@ public class LevelUpWindow {
             CriticalHitValues.I().getCriticalHitChance() > 0 &&
                 !CriticalHitValues.I().isCriticalDamageMaxed()
         ) {
+            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+            int increaseAmount = rarity.scaleLevelUpAmount(
+                CriticalHitValues.CRITICAL_DAMAGE_STEP
+            );
             TextureRegion multiplier = Assets.I().get(AssetKey.MULTI);
             TextureRegion multiplierShadow = Assets.I().get(AssetKey.MULTI_SHADOW);
             possibleChoices.add(
                 new LevelUpChoice(
                     new CriticalDamageText(),
-                    new CriticalDamageDescription(),
-                    () -> CriticalHitValues.I().increaseCriticalDamage(),
+                    new CriticalDamageDescription(increaseAmount),
+                    () -> CriticalHitValues.I()
+                        .increaseCriticalDamage(increaseAmount),
                     multiplier,
                     multiplierShadow,
-                    multiplier
+                    multiplier,
+                    rarity
                 )
             );
         }
@@ -295,6 +344,7 @@ public class LevelUpWindow {
             choice.setEntranceDelay(
                 i * 0.075f
             );
+            choice.setShortcutNumber(i + 1);
 
             choices.add(choice);
         }
@@ -303,14 +353,20 @@ public class LevelUpWindow {
     }
 
     private LevelUpChoice createCollectibleChoice() {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            CollectibleValues.EXTRA_COLLECTIBLE_CHANCE_STEP
+        );
         TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
         return new LevelUpChoice(
             new ExtraLemonCollectibleChanceText(),
-            new ExtraCollectibleChanceDescription(),
-            CollectibleValues.I()::increaseExtraCollectibleSpawnChance,
+            new ExtraCollectibleChanceDescription(increaseAmount),
+            () -> CollectibleValues.I()
+                .increaseExtraCollectibleSpawnChance(increaseAmount),
             retrigger,
             Assets.I().get(AssetKey.RETRIGGER_SHADOW),
-            retrigger
+            retrigger,
+            rarity
         );
     }
 
@@ -327,7 +383,7 @@ public class LevelUpWindow {
         float startX =
             (WORLD_WIDTH - totalWidth) / 2f;
 
-        float y = 2f;
+        float y = 1.72f;
 
         for (int i = 0; i < choices.size(); i++) {
             choices.get(i).setBounds(
@@ -477,6 +533,7 @@ public class LevelUpWindow {
 
         selecting = true;
         selectedChoice = choice;
+        selectionColor.set(choice.getRarityColor());
 
         selectionTimer = 0f;
 
@@ -517,7 +574,10 @@ public class LevelUpWindow {
          * safely below maximum trauma.
          */
         ScreenShake.I()
-            .addTrauma(0.28f);
+            .addTrauma(
+                0.25f +
+                    choice.getRarityTier() * 0.025f
+            );
 
         /*
          * Reward explosion around the lower symbol
@@ -527,7 +587,8 @@ public class LevelUpWindow {
             choice.getCenterX(),
             choice.getCenterY() - 1f,
             64,
-            1.25f
+            1.25f,
+            selectionColor
         );
     }
 
@@ -537,12 +598,23 @@ public class LevelUpWindow {
         int particleCount,
         float power
     ) {
+        spawnBurst(x, y, particleCount, power, null);
+    }
+
+    private void spawnBurst(
+        float x,
+        float y,
+        int particleCount,
+        float power,
+        Color accentColor
+    ) {
         for (int i = 0; i < particleCount; i++) {
             burstParticles.add(
                 new BurstParticle(
                     x,
                     y,
-                    power
+                    power,
+                    accentColor
                 )
             );
         }
@@ -627,8 +699,8 @@ public class LevelUpWindow {
 
         float backgroundAlpha =
             selecting
-                ? 0.31f
-                : 0.25f;
+                ? 0.48f
+                : 0.39f;
 
         Pencil.I().addDrawing(
             new TextureDrawing(
@@ -647,7 +719,8 @@ public class LevelUpWindow {
             )
         );
 
-//        drawEnergyRays();
+        drawEnergyRays();
+        drawHeaderFrame();
 
         /*
          * Very fast full-screen white hit.
@@ -665,9 +738,9 @@ public class LevelUpWindow {
                     WORLD_HEIGHT,
                     ZIndex.SHOP,
                     new Color(
-                        1f,
-                        1f,
-                        1f,
+                        selectionColor.r,
+                        selectionColor.g,
+                        selectionColor.b,
                         screenFlash * 0.11f
                     )
                 )
@@ -675,6 +748,9 @@ public class LevelUpWindow {
         }
 
         title.draw(delta);
+        if (!selecting && revealTimer >= 0.10f) {
+            prompt.draw(delta);
+        }
 
         for (LevelUpChoice choice : choices) {
             choice.draw(delta);
@@ -711,7 +787,15 @@ public class LevelUpWindow {
             float shimmer = (MathUtils.sin(revealTimer * 4f + i * 1.7f) + 1f) * 0.5f;
             float length = MathUtils.lerp(2.7f, 5.8f, shimmer) * reveal;
             float thickness = MathUtils.lerp(0.018f, 0.055f, shimmer);
-            Color base = CELEBRATION_COLORS[i % CELEBRATION_COLORS.length];
+            Color base;
+            if (selecting) {
+                base = new Color(selectionColor).lerp(
+                    Color.WHITE,
+                    0.18f + (i % 4) * 0.11f
+                );
+            } else {
+                base = CELEBRATION_COLORS[i % CELEBRATION_COLORS.length];
+            }
 
             Pencil.I().addDrawing(
                 new TextureDrawing(
@@ -728,6 +812,42 @@ public class LevelUpWindow {
                 )
             );
         }
+    }
+
+    private void drawHeaderFrame() {
+        float reveal = smoothStep(
+            MathUtils.clamp(revealTimer / 0.32f, 0f, 1f)
+        );
+        float pulse = 0.72f + MathUtils.sin(revealTimer * 2.6f) * 0.12f;
+        float lineWidth = 3.55f * reveal;
+        float lineY = 6.74f;
+        Color lineColor = selecting
+            ? new Color(
+                selectionColor.r,
+                selectionColor.g,
+                selectionColor.b,
+                0.34f * reveal
+            )
+            : new Color(1f, 0.80f, 0.28f, 0.28f * pulse * reveal);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            5.35f - lineWidth,
+            lineY,
+            lineWidth,
+            0.025f,
+            ZIndex.SHOP,
+            lineColor
+        ));
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            10.65f,
+            lineY,
+            lineWidth,
+            0.025f,
+            ZIndex.SHOP,
+            lineColor
+        ));
     }
 
     private static float smoothStep(
@@ -778,7 +898,8 @@ public class LevelUpWindow {
         public BurstParticle(
             float x,
             float y,
-            float power
+            float power,
+            Color accentColor
         ) {
             this.x = x;
             this.y = y;
@@ -827,11 +948,16 @@ public class LevelUpWindow {
                     360f
                 );
 
-            color = new Color(
-                CELEBRATION_COLORS[
-                    MathUtils.random(CELEBRATION_COLORS.length - 1)
-                ]
-            );
+            color = accentColor == null
+                ? new Color(
+                    CELEBRATION_COLORS[
+                        MathUtils.random(CELEBRATION_COLORS.length - 1)
+                    ]
+                )
+                : new Color(accentColor).lerp(
+                    Color.WHITE,
+                    MathUtils.random(0.12f, 0.58f)
+                );
         }
 
         public void update(float delta) {

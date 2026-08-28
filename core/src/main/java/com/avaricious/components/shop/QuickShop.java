@@ -102,12 +102,10 @@ public class QuickShop {
     }
 
     public void draw(float delta) {
-        updateScroll(delta);
         drawSectionDivider();
         title.setY(6.40f + GameplayLayout.HUD_Y_OFFSET);
         title.draw(delta);
-        drawTab(AUTOMATION_TAB_BOUNDS, automationTabText, selectedTab == Tab.AUTOMATIONS, delta);
-        drawTab(SYMBOL_TAB_BOUNDS, symbolTabText, selectedTab == Tab.SYMBOLS, delta);
+        drawTabs(delta, false);
 
         if (selectedTab == Tab.SYMBOLS) {
             drawSymbolScrollbar();
@@ -120,9 +118,9 @@ public class QuickShop {
         );
 
         if (selectedTab == Tab.AUTOMATIONS) {
-            drawAutomationItems(delta);
+            drawAutomationItems(delta, null);
         } else {
-            drawSymbolItems(delta);
+            drawSymbolItems(delta, null);
         }
 
         Pencil.I().addDrawing(new TextureDrawing(
@@ -135,6 +133,75 @@ public class QuickShop {
             new Color(1f, 1f, 1f, 0f)
         ));
         Pencil.I().endScissors();
+    }
+
+    /**
+     * Queues an isolated copy of each disabled card before the CRT capture.
+     * A separate normal copy is queued later in the foreground pass.
+     */
+    public void drawPostProcessedItems(float delta) {
+        updateScroll(delta);
+
+        Pencil.I().beginPostProcessedOnlyDrawings();
+        try {
+            drawTabs(delta, true);
+
+            Pencil.I().startScissors(
+                GameContext.I().viewport.getCamera(),
+                GameContext.I().batch.getTransformMatrix(),
+                ITEMS_VIEWPORT
+            );
+
+            if (selectedTab == Tab.AUTOMATIONS) {
+                drawAutomationItems(delta, true);
+            } else {
+                drawSymbolItems(delta, true);
+            }
+
+            Pencil.I().addDrawing(new TextureDrawing(
+                Assets.I().get(AssetKey.WHITE_PIXEL),
+                ITEMS_VIEWPORT.x,
+                ITEMS_VIEWPORT.y,
+                0.001f,
+                0.001f,
+                ZIndex.SHOP_CARD_TOUCHING,
+                new Color(1f, 1f, 1f, 0f)
+            ));
+            Pencil.I().endScissors();
+        } finally {
+            Pencil.I().endPostProcessedOnlyDrawings();
+        }
+    }
+
+    private void drawTabs(float delta, boolean inactiveOnly) {
+        boolean automationsSelected = selectedTab == Tab.AUTOMATIONS;
+
+        if (inactiveOnly) {
+            if (automationsSelected) {
+                drawTab(SYMBOL_TAB_BOUNDS, symbolTabText, false, delta);
+            } else {
+                drawTab(
+                    AUTOMATION_TAB_BOUNDS,
+                    automationTabText,
+                    false,
+                    delta
+                );
+            }
+            return;
+        }
+
+        drawTab(
+            AUTOMATION_TAB_BOUNDS,
+            automationTabText,
+            automationsSelected,
+            automationsSelected ? delta : 0f
+        );
+        drawTab(
+            SYMBOL_TAB_BOUNDS,
+            symbolTabText,
+            !automationsSelected,
+            automationsSelected ? 0f : delta
+        );
     }
 
     private void drawSectionDivider() {
@@ -167,18 +234,18 @@ public class QuickShop {
         text.draw(delta);
     }
 
-    private void drawAutomationItems(float delta) {
+    private void drawAutomationItems(float delta, Boolean disabledFilter) {
         float x = GameplayLayout.HUD_LEFT;
         float y = 4.86f + GameplayLayout.HUD_Y_OFFSET;
         for (ShopItem item : automationItems) {
             item.setHudRowBounds(new Rectangle(
                 x, y, GameplayLayout.HUD_WIDTH, AUTOMATION_ROW_HEIGHT));
-            item.draw(delta);
+            drawItem(item, delta, disabledFilter);
             y -= AUTOMATION_ROW_HEIGHT + AUTOMATION_ROW_GAP;
         }
     }
 
-    private void drawSymbolItems(float delta) {
+    private void drawSymbolItems(float delta, Boolean disabledFilter) {
         float top = ITEMS_VIEWPORT.y + ITEMS_VIEWPORT.height
             - SYMBOL_ROW_HEIGHT + symbolScrollOffset;
         for (int index = 0; index < symbolItems.size(); index++) {
@@ -189,8 +256,20 @@ public class QuickShop {
                 GameplayLayout.HUD_WIDTH,
                 SYMBOL_ROW_HEIGHT
             ));
-            symbolItems.get(index).draw(delta);
+            drawItem(symbolItems.get(index), delta, disabledFilter);
         }
+    }
+
+    private void drawItem(
+        ShopItem item,
+        float delta,
+        Boolean disabledFilter
+    ) {
+        boolean disabled = item.isDisabled();
+        if (disabledFilter != null && disabled != disabledFilter) return;
+
+        // A disabled item already advanced its animations in the CRT pass.
+        item.draw(disabledFilter == null && disabled ? 0f : delta);
     }
 
     private void updateScroll(float delta) {

@@ -335,6 +335,10 @@ public class ShopItem {
         return cardBounds != null && cardBounds.overlaps(area);
     }
 
+    public boolean isDisabled() {
+        return buyButton.disabled();
+    }
+
     public float getHeight() {
         return description != null ? 3f : 2.5f;
     }

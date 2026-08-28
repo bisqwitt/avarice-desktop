@@ -43,11 +43,20 @@ public class CollectibleValues {
     }
 
     public void increaseExtraCollectibleSpawnChance() {
-        int oldChance = extraCollectibleSpawnChance;
-        extraCollectibleSpawnChance = Math.min(
+        increaseExtraCollectibleSpawnChance(EXTRA_COLLECTIBLE_CHANCE_STEP);
+    }
+
+    public int getNextExtraCollectibleSpawnChance(int amount) {
+        return Math.min(
             MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE,
-            oldChance + EXTRA_COLLECTIBLE_CHANCE_STEP
+            extraCollectibleSpawnChance + amount
         );
+    }
+
+    public void increaseExtraCollectibleSpawnChance(int amount) {
+        int oldChance = extraCollectibleSpawnChance;
+        extraCollectibleSpawnChance =
+            getNextExtraCollectibleSpawnChance(amount);
         extraCollectibleSpawnChanceChangeSupport.firePropertyChange(
             EXTRA_COLLECTIBLE_SPAWN_CHANCE,
             oldChance,
@@ -66,11 +75,19 @@ public class CollectibleValues {
     }
 
     public void increaseExtraSpadeSpawnChance() {
-        int oldChance = extraSpadeSpawnChance;
-        extraSpadeSpawnChance = Math.min(
+        increaseExtraSpadeSpawnChance(EXTRA_SPADE_CHANCE_STEP);
+    }
+
+    public int getNextExtraSpadeSpawnChance(int amount) {
+        return Math.min(
             MAX_EXTRA_SPADE_SPAWN_CHANCE,
-            oldChance + EXTRA_SPADE_CHANCE_STEP
+            extraSpadeSpawnChance + amount
         );
+    }
+
+    public void increaseExtraSpadeSpawnChance(int amount) {
+        int oldChance = extraSpadeSpawnChance;
+        extraSpadeSpawnChance = getNextExtraSpadeSpawnChance(amount);
         extraSpadeSpawnChanceChangeSupport.firePropertyChange(
             EXTRA_SPADE_SPAWN_CHANCE,
             oldChance,
@@ -89,11 +106,19 @@ public class CollectibleValues {
     }
 
     public void increaseCashChipSpawnChance() {
-        int oldChance = cashChipSpawnChance;
-        cashChipSpawnChance = Math.min(
+        increaseCashChipSpawnChance(CASH_CHIP_CHANCE_STEP);
+    }
+
+    public int getNextCashChipSpawnChance(int amount) {
+        return Math.min(
             MAX_CASH_CHIP_SPAWN_CHANCE,
-            oldChance + CASH_CHIP_CHANCE_STEP
+            cashChipSpawnChance + amount
         );
+    }
+
+    public void increaseCashChipSpawnChance(int amount) {
+        int oldChance = cashChipSpawnChance;
+        cashChipSpawnChance = getNextCashChipSpawnChance(amount);
         cashChipSpawnChanceChangeSupport.firePropertyChange(
             CASH_CHIP_SPAWN_CHANCE,
             oldChance,

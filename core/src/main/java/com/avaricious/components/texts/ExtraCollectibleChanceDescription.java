@@ -33,14 +33,15 @@ public class ExtraCollectibleChanceDescription extends FabledText {
     private static final float ARROW_GAP = 0.15f;
 
     public ExtraCollectibleChanceDescription() {
+        this(CollectibleValues.EXTRA_COLLECTIBLE_CHANCE_STEP);
+    }
+
+    public ExtraCollectibleChanceDescription(int increaseAmount) {
 
         this(
             CollectibleValues.I()::getExtraCollectibleSpawnChance,
-            () -> Math.min(
-                CollectibleValues.MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE,
-                CollectibleValues.I().getExtraCollectibleSpawnChance()
-                    + CollectibleValues.EXTRA_COLLECTIBLE_CHANCE_STEP
-            ),
+            () -> CollectibleValues.I()
+                .getNextExtraCollectibleSpawnChance(increaseAmount),
             CollectibleValues.I()::addExtraCollectibleSpawnChanceChangeListener,
             CollectibleValues.EXTRA_COLLECTIBLE_SPAWN_CHANCE
         );
