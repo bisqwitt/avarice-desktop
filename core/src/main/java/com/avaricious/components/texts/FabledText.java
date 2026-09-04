@@ -63,6 +63,10 @@ public class FabledText {
         return rightEdge - originX;
     }
 
+    public float getRenderedWidth() {
+        return getNaturalWidth() * renderScale;
+    }
+
     /*
      * Sets every word to the supplied Y position.
      *

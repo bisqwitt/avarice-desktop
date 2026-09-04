@@ -31,6 +31,7 @@ public class ShopItem {
     private final FabledText description;
     private final CreditNumber price;
     private final DisablableButton buyButton;
+    private final boolean unavailable;
     private TextureRegion icon;
     private Rectangle cardBounds;
     private Layout layout = Layout.FULL;
@@ -105,6 +106,17 @@ public class ShopItem {
             new Rectangle(1.25f, 0, 7 / 24f, 11 / 24f), 0.4f)
             .setZIndex(ZIndex.SHOP_CARD);
         this.buyButton = buyButton;
+        unavailable = buyButton == null;
+    }
+
+    public static ShopItem unavailable(
+        FabledText title,
+        FabledText description,
+        TextureRegion icon
+    ) {
+        ShopItem item = new ShopItem(title, description, 0f, null);
+        item.icon = icon;
+        return item;
     }
 
     public void draw(float delta) {
@@ -122,7 +134,7 @@ public class ShopItem {
             Pencil.I().addDrawing(new TextureDrawing(
                 Assets.I().get(AssetKey.DARK_SLATE_PIXEL), cardBounds.x, cardBounds.y,
                 cardBounds.width, cardBounds.height, ZIndex.SHOP_CARD,
-                buyButton.disabled()
+                isDisabled()
                     ? new Color(0.50f, 0.50f, 0.50f, hudLayout ? 0.42f : 1f)
                     : new Color(1f, 1f, 1f, hudLayout ? 0.62f : 1f)
             ));
@@ -165,15 +177,18 @@ public class ShopItem {
         }
 
         title.draw(delta);
-        if (description != null && layout != Layout.HUD_ROW) {
+        if (
+            description != null &&
+                (layout != Layout.HUD_ROW || unavailable)
+        ) {
             description.draw(delta);
         }
-        price.draw(delta);
+        if (!unavailable) price.draw(delta);
 
-        if (cardBounds == null && buyButton.disabled()) Pencil.I().addDrawing(new TextureDrawing(
+        if (cardBounds == null && isDisabled()) Pencil.I().addDrawing(new TextureDrawing(
             background, 0.75f, y, 7.5f, getHeight(), ZIndex.SHOP_CARD, Assets.I().shadowColor()
         ));
-        buyButton.draw(delta);
+        if (!unavailable) buyButton.draw(delta);
         drawPurchaseFeedback();
     }
 
@@ -249,7 +264,9 @@ public class ShopItem {
             description.fitWithinWidth(2.15f);
         }
         price.getFirstDigitBounds().set(bounds.x + 1.48f, bounds.y + 0.18f, 7 / 24f, 11 / 24f);
-        buyButton.getBounds().set(bounds.x + bounds.width - 2.35f, bounds.y + 0.14f, 2.00f, 25 / 35f);
+        if (!unavailable) {
+            buyButton.getBounds().set(bounds.x + bounds.width - 2.35f, bounds.y + 0.14f, 2.00f, 25 / 35f);
+        }
     }
 
     public void setCompactBounds(Rectangle bounds) {
@@ -270,7 +287,9 @@ public class ShopItem {
         price.setCompactThreshold(1_000f);
         price.setDigitSpacing(0.20f);
         price.getFirstDigitBounds().set(bounds.x + 0.16f, bounds.y + 0.20f, 0.20f, 11 / 35f);
-        buyButton.getBounds().set(bounds.x + bounds.width - 1.72f, bounds.y + 0.13f, 1.47f, 25 / 38f);
+        if (!unavailable) {
+            buyButton.getBounds().set(bounds.x + bounds.width - 1.72f, bounds.y + 0.13f, 1.47f, 25 / 38f);
+        }
     }
 
     public void setHudRowBounds(Rectangle bounds) {
@@ -282,13 +301,21 @@ public class ShopItem {
         iconSize = 0.44f;
 
         title.setAbsoluteX(bounds.x + 0.70f);
-        title.setY(bounds.y + 0.38f);
-        title.fitWithinWidth(bounds.width - 1.86f);
+        title.setY(bounds.y + (unavailable ? 0.43f : 0.38f));
+        title.fitWithinWidth(bounds.width - (unavailable ? 0.86f : 1.86f));
 
-        price.setCompactThreshold(1_000f);
-        price.setDigitSpacing(0.16f);
-        price.getFirstDigitBounds().set(bounds.x + 0.66f, bounds.y + 0.10f, 0.16f, 11 / 42f);
-        buyButton.getBounds().set(bounds.x + bounds.width - 0.98f, bounds.y + 0.10f, 0.82f, 0.52f);
+        if (unavailable && description != null) {
+            description.setAbsoluteX(bounds.x + 0.70f);
+            description.setY(bounds.y + 0.12f);
+            description.fitWithinWidth(bounds.width - 0.86f);
+        }
+
+        if (!unavailable) {
+            price.setCompactThreshold(1_000f);
+            price.setDigitSpacing(0.16f);
+            price.getFirstDigitBounds().set(bounds.x + 0.66f, bounds.y + 0.10f, 0.16f, 11 / 42f);
+            buyButton.getBounds().set(bounds.x + bounds.width - 0.98f, bounds.y + 0.10f, 0.82f, 0.52f);
+        }
     }
 
     public void setHudSymbolRowBounds(Rectangle bounds) {
@@ -319,16 +346,18 @@ public class ShopItem {
             0.16f,
             11 / 43f
         );
-        buyButton.getBounds().set(
-            bounds.x + 3.00f,
-            bounds.y + 0.22f,
-            0.58f,
-            0.56f
-        );
+        if (!unavailable) {
+            buyButton.getBounds().set(
+                bounds.x + 3.00f,
+                bounds.y + 0.22f,
+                0.58f,
+                0.56f
+            );
+        }
     }
 
     public void handleInput(Vector2 mouse, boolean touching, boolean touched) {
-        buyButton.handleInput(mouse, touching, touched);
+        if (!unavailable) buyButton.handleInput(mouse, touching, touched);
     }
 
     public boolean intersects(Rectangle area) {
@@ -336,7 +365,7 @@ public class ShopItem {
     }
 
     public boolean isDisabled() {
-        return buyButton.disabled();
+        return unavailable || buyButton.disabled();
     }
 
     public float getHeight() {
@@ -348,7 +377,7 @@ public class ShopItem {
         title.setY(y + (description != null ? 2.15f : 1.6f));
         if (description != null) description.setY(y + 1.4f);
         price.getFirstDigitBounds().setY(y + 0.4f);
-        buyButton.getBounds().setY(y + 0.3f);
+        if (!unavailable) buyButton.getBounds().setY(y + 0.3f);
     }
 
     private void updatePrice(float newPrice) {

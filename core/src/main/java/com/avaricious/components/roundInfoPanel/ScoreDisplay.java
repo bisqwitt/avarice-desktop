@@ -23,7 +23,7 @@ public class ScoreDisplay {
     private static final float LABEL_Y = 8.17f + GameplayLayout.HUD_Y_OFFSET;
 
     private final GeneratedFabledText scoreLabel = new GeneratedFabledText(
-        "SCORE", 46f, 0.022f, 0.11f, ZIndex.BUTTON_BOARD, false);
+        "CASH", 46f, 0.022f, 0.11f, ZIndex.BUTTON_BOARD, false);
 
     private final CreditNumber scoreNumber = new CreditNumber(0,
         new Rectangle(GameplayLayout.HUD_LEFT, DIGIT_Y, 7 / 12f, 11 / 12f), 0.75f)

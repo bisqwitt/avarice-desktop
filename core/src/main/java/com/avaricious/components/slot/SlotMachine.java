@@ -54,6 +54,7 @@ public class SlotMachine {
     private float spinHoldDuration = 1f;
     private float emptySpinSweepTimeScale = 1f;
     private boolean instantSpin = false;
+    private float screenShakeScale = 1f;
 
     private final List<Reel> reels = new ArrayList<>();
     private final DragableBody[][] grid = new DragableBody[colCount][rowCount];
@@ -394,7 +395,7 @@ public class SlotMachine {
         }
 
         AudioManager.I().playSpinStart();
-        ScreenShake.I().addTrauma(0.075f);
+        ScreenShake.I().addTrauma(0.075f * screenShakeScale);
 
         if (instantSpin) {
             for (int c = 0; c < colCount; c++) {
@@ -511,7 +512,7 @@ public class SlotMachine {
                         ZIndex.SYMBOL_HIT_PARTICLES
                     );
                 }
-                ScreenShake.I().addTrauma(0.11f);
+                ScreenShake.I().addTrauma(0.11f * screenShakeScale);
                 AudioManager.I().playReelStop(column, true);
             }
             return;
@@ -531,7 +532,9 @@ public class SlotMachine {
             );
         }
 
-        ScreenShake.I().addTrauma(0.055f + column * 0.018f);
+        ScreenShake.I().addTrauma(
+            (0.055f + column * 0.018f) * screenShakeScale
+        );
         AudioManager.I().playReelStop(column, finalReel);
     }
 
@@ -735,13 +738,15 @@ public class SlotMachine {
         float reelStopStagger,
         float reelStopDuration,
         float emptySpinSweepTimeScale,
-        boolean instantSpin
+        boolean instantSpin,
+        float screenShakeScale
     ) {
         this.reelStartStagger = Math.max(0f, reelStartStagger);
         this.spinHoldDuration = Math.max(0f, spinHoldDuration);
         this.reelStopStagger = Math.max(0f, reelStopStagger);
         this.emptySpinSweepTimeScale = Math.max(0f, emptySpinSweepTimeScale);
         this.instantSpin = instantSpin;
+        this.screenShakeScale = MathUtils.clamp(screenShakeScale, 0f, 1f);
 
         for (Reel reel : reels) {
             reel.setSpeed(reelSpeed);

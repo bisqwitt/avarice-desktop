@@ -61,7 +61,24 @@ public class XpMultiplier extends AbstractAutomationUpgrade {
     }
 
     public int getNextMultiplier() {
-        return Math.min(MAX_MULTIPLIER, multiplier + 1);
+        return getMultiplierAfter(1);
+    }
+
+    public int getMultiplierAfter(int upgrades) {
+        return Math.min(
+            MAX_MULTIPLIER,
+            multiplier + Math.max(0, upgrades)
+        );
+    }
+
+    public void increaseMultiplier(int upgrades) {
+        for (int i = 0; i < upgrades && !isMaxed(); i++) {
+            onUpgrade();
+        }
+    }
+
+    public boolean isMaxMultiplierReached() {
+        return isMaxed();
     }
 
     public void addMultiplierChangeListener(PropertyChangeListener listener) {

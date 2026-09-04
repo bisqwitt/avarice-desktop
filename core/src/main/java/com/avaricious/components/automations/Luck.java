@@ -37,10 +37,14 @@ public class Luck extends AbstractAutomationUpgrade {
 
     @Override
     void onUpgrade() {
+        increaseBonusPercent(BONUS_PER_UPGRADE);
+    }
+
+    public void increaseBonusPercent(int amount) {
         int oldBonus = bonusPercent;
         bonusPercent = Math.min(
             MAX_BONUS_PERCENT,
-            bonusPercent + BONUS_PER_UPGRADE
+            bonusPercent + Math.max(0, amount)
         );
 
         SlotMachine.I().setLuckBonus(bonusPercent / 100f);
@@ -61,9 +65,13 @@ public class Luck extends AbstractAutomationUpgrade {
     }
 
     public int getNextBonusPercent() {
+        return getNextBonusPercent(BONUS_PER_UPGRADE);
+    }
+
+    public int getNextBonusPercent(int amount) {
         return Math.min(
             MAX_BONUS_PERCENT,
-            bonusPercent + BONUS_PER_UPGRADE
+            bonusPercent + Math.max(0, amount)
         );
     }
 

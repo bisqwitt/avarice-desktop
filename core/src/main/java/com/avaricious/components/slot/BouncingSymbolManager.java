@@ -154,6 +154,15 @@ public class BouncingSymbolManager {
         }
     }
 
+    List<CollectorTarget> getCollectorTargets() {
+        List<CollectorTarget> targets = new ArrayList<>(
+            bouncingSymbols.size() + cashChips.size()
+        );
+        targets.addAll(bouncingSymbols);
+        targets.addAll(cashChips);
+        return targets;
+    }
+
     /*
      * ---------------------------------------------------------
      * BOUNCING SYMBOL <-> BOUNCING SYMBOL

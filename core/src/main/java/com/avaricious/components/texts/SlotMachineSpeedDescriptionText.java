@@ -19,20 +19,24 @@ public class SlotMachineSpeedDescriptionText extends FabledText {
     private static final float ARROW_GAP = 0.15f;
 
     public SlotMachineSpeedDescriptionText() {
+        this(1);
+    }
+
+    public SlotMachineSpeedDescriptionText(int upgradeCount) {
         SlotMachineSpeed speed = Automations.I().getSlotMachineSpeed();
 
         speed.addSpeedTierChangeListener(evt -> {
             if (SlotMachineSpeed.SPEED_TIER.equals(evt.getPropertyName())) {
                 updateDescription(
                     speed.getSpeedPercent(),
-                    speed.getNextSpeedPercent()
+                    speed.getSpeedPercentAfter(upgradeCount)
                 );
             }
         });
 
         updateDescription(
             speed.getSpeedPercent(),
-            speed.getNextSpeedPercent()
+            speed.getSpeedPercentAfter(upgradeCount)
         );
     }
 

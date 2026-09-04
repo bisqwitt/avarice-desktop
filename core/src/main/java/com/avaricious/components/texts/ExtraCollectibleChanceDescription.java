@@ -95,6 +95,13 @@ public class ExtraCollectibleChanceDescription extends FabledText {
         int nextValue
     ) {
 
+        float startX = getWords().isEmpty()
+            ? 0f
+            : getWords().get(0).getStartingPos().x;
+        float startY = getWords().isEmpty()
+            ? 0f
+            : getWords().get(0).getStartingPos().y;
+
         /*
          * First percentage:
          *
@@ -103,7 +110,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
         FabledWord currentWord =
             createPercentageWord(
                 currentValue,
-                new Vector2(0f, 0f)
+                new Vector2(startX, startY)
             );
 
         /*
@@ -111,7 +118,8 @@ public class ExtraCollectibleChanceDescription extends FabledText {
          * the visible end of currentWord.
          */
         float arrowX =
-            currentWord.getWidth()
+            startX
+                + currentWord.getWidth()
                 + ARROW_GAP;
 
         FabledWord arrowWord =
@@ -128,7 +136,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
                 ),
                 new Vector2(
                     arrowX,
-                    0f
+                    startY
                 ),
                 SIZE_RATIO,
                 0f,
@@ -149,7 +157,7 @@ public class ExtraCollectibleChanceDescription extends FabledText {
                 nextValue,
                 new Vector2(
                     nextValueX,
-                    0f
+                    startY
                 )
             );
 

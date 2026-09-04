@@ -3,12 +3,16 @@ package com.avaricious.components.slot.pattern;
 import com.avaricious.components.slot.Symbol;
 import com.badlogic.gdx.math.Vector2;
 
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
 /** Run progression for non-linear slot patterns. */
 public final class PatternUnlocks {
+
+    public static final String UNLOCKED_COUNT = "unlockedPatternCount";
 
     private static PatternUnlocks instance;
 
@@ -18,12 +22,21 @@ public final class PatternUnlocks {
 
     private final EnumSet<UnlockablePattern> unlocked =
         EnumSet.noneOf(UnlockablePattern.class);
+    private final PropertyChangeSupport changeSupport =
+        new PropertyChangeSupport(this);
 
     private PatternUnlocks() {
     }
 
     public void unlock(UnlockablePattern pattern) {
-        if (pattern != null) unlocked.add(pattern);
+        int oldCount = unlocked.size();
+        if (pattern != null && unlocked.add(pattern)) {
+            changeSupport.firePropertyChange(
+                UNLOCKED_COUNT,
+                oldCount,
+                unlocked.size()
+            );
+        }
     }
 
     public boolean isUnlocked(UnlockablePattern pattern) {
@@ -36,6 +49,18 @@ public final class PatternUnlocks {
             if (!isUnlocked(pattern)) locked.add(pattern);
         }
         return locked;
+    }
+
+    public int getUnlockedCount() {
+        return unlocked.size();
+    }
+
+    public int getPatternCount() {
+        return UnlockablePattern.values().length;
+    }
+
+    public void addUnlockedCountChangeListener(PropertyChangeListener listener) {
+        changeSupport.addPropertyChangeListener(listener);
     }
 
     public List<PatternMatch> findMatches(Symbol[][] symbols) {

@@ -10,6 +10,8 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
 
     public static final String SPEED_TIER = "speedTier";
     public static final int INSTANT_SPEED_PERCENT = 0;
+    private static final float NORMAL_RESULT_STEP_DELAY = 0.40f;
+    private static final float MIN_SCREEN_SHAKE_SCALE = 0.30f;
     private static final float[] UPGRADE_PRICES = {
         2_500f,
         10_000f,
@@ -82,6 +84,7 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
 
     private void applyProfile() {
         SpeedProfile profile = PROFILES[tier];
+        float screenShakeScale = getScreenShakeScale(profile.resultStepDelay);
 
         SlotMachine.I().setSpeedProfile(
             profile.reelSpeed,
@@ -90,11 +93,27 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
             profile.reelStopStagger,
             profile.reelStopDuration,
             profile.emptyResultTimeScale,
-            profile.instant
+            profile.instant,
+            screenShakeScale
         );
         SlotMachineResultRunner.I().setRevealTiming(
             profile.resultStepDelay,
-            profile.instant
+            profile.instant,
+            screenShakeScale
+        );
+    }
+
+    private float getScreenShakeScale(float resultStepDelay) {
+        /*
+         * Faster profiles fire many more impacts per second. Scaling each
+         * impact by the square root of its cadence keeps those impacts from
+         * accumulating into a near-constant maximum shake while preserving
+         * some punch at Instant speed.
+         */
+        float cadenceRatio = resultStepDelay / NORMAL_RESULT_STEP_DELAY;
+        return Math.max(
+            MIN_SCREEN_SHAKE_SCALE,
+            Math.min(1f, (float) Math.sqrt(cadenceRatio))
         );
     }
 
@@ -104,6 +123,20 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
 
     public int getNextSpeedPercent() {
         return PROFILES[Math.min(tier + 1, PROFILES.length - 1)].displayPercent;
+    }
+
+    public int getSpeedPercentAfter(int upgrades) {
+        int targetTier = Math.min(
+            tier + Math.max(0, upgrades),
+            PROFILES.length - 1
+        );
+        return PROFILES[targetTier].displayPercent;
+    }
+
+    public void increaseSpeed(int upgrades) {
+        for (int i = 0; i < upgrades && !isMaxed(); i++) {
+            onUpgrade();
+        }
     }
 
     public boolean isMaxSpeedReached() {

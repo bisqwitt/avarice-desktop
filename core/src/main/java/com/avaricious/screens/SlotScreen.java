@@ -16,10 +16,10 @@ import com.avaricious.components.shop.Shop;
 import com.avaricious.components.shop.QuickShop;
 import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.ChestManager;
+import com.avaricious.components.slot.CollectorManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.components.slot.SlotMachineMatchFinder;
 import com.avaricious.components.slot.SlotMachineResultRunner;
-import com.avaricious.effects.CrtEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.items.upgrades.Hand;
@@ -42,6 +42,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.Timer;
 import com.crashinvaders.vfx.VfxManager;
+import com.crashinvaders.vfx.effects.CrtEffect;
 import com.crashinvaders.vfx.effects.OldTvEffect;
 
 public class SlotScreen extends ScreenAdapter {
@@ -79,7 +80,7 @@ public class SlotScreen extends ScreenAdapter {
         @Override
         public boolean scrolled(float amountX, float amountY) {
             if (shop.isShowing()) {
-                return shop.scrollAutomations(amountY);
+                return shop.scrollItems(amountY);
             }
             if (levelUpWindow.isShowing()) {
                 return false;
@@ -170,6 +171,8 @@ public class SlotScreen extends ScreenAdapter {
 
         vfxManager.addEffect(new CrtEffect());
 
+//        vfxManager.addEffect(new CrtEffect());
+
 
         // ------------------------------------------------------------
         // LEVEL-UP FLASH TEXTURE
@@ -220,6 +223,7 @@ public class SlotScreen extends ScreenAdapter {
     public void show() {
         RunManager.I().newRun();
         ChestManager.I().reset();
+        CollectorManager.I().reset();
         TicketPressSystem.I().reset();
         drawStartingHand();
 
@@ -313,6 +317,8 @@ public class SlotScreen extends ScreenAdapter {
                     ScoreDisplay.I().getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
+
+            CollectorManager.I().update(delta);
 
             ChestManager.I().update(delta);
 
@@ -542,6 +548,7 @@ public class SlotScreen extends ScreenAdapter {
 
         BouncingSymbolManager.I()
             .drawFallingSymbols(delta);
+        CollectorManager.I().draw();
         ChestManager.I().draw();
         SlotMachine.I()
             .drawSymbolsInPatternHit();
@@ -907,6 +914,9 @@ public class SlotScreen extends ScreenAdapter {
             Automations.I()
                 .getAutoSpin()
                 .isActive() &&
+                !Automations.I()
+                    .getFullAutoSpin()
+                    .isActive() &&
                 AutoSpinDisplay.I()
                     .getSpins() < 1
         ) {
@@ -934,7 +944,10 @@ public class SlotScreen extends ScreenAdapter {
         }
 
 
-        if (Automations.I().getAutoSpin().isActive()) {
+        if (
+            Automations.I().getAutoSpin().isActive() &&
+                !Automations.I().getFullAutoSpin().isActive()
+        ) {
 
             AutoSpinDisplay.I()
                 .removeSpin();
@@ -1039,13 +1052,16 @@ public class SlotScreen extends ScreenAdapter {
 
 
         if (
-            Automations.I()
-                .getAutoSpin()
-                .isActive()
+            Automations.I().getAutoSpin().isActive() ||
+                Automations.I().getFullAutoSpin().isActive()
         ) {
 
             onSpinButtonPressed();
         }
+    }
+
+    public boolean isShopShowing() {
+        return shop.isShowing();
     }
 
 

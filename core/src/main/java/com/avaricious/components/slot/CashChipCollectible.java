@@ -20,7 +20,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
 /** A secondary, manually collected money reward dropped by a symbol collectible. */
-public class CashChipCollectible {
+public class CashChipCollectible implements CollectorTarget {
 
     private static final float SIZE = 0.72f;
     private static final float INPUT_GRACE = 0.16f;
@@ -88,6 +88,12 @@ public class CashChipCollectible {
         );
         if (!touching || !hovered) return;
 
+        collect();
+    }
+
+    private boolean collect() {
+        if (claimed || finished || age < INPUT_GRACE) return false;
+
         claimed = true;
         disappearTime = 0f;
         ScoreDisplay.I().addToScore(reward);
@@ -115,6 +121,7 @@ public class CashChipCollectible {
             ZIndex.SLOT_MACHINE_FOREGROUND
         );
         AudioManager.I().playCollect(25);
+        return true;
     }
 
     public void draw() {
@@ -220,5 +227,30 @@ public class CashChipCollectible {
 
     public boolean isFinished() {
         return finished;
+    }
+
+    @Override
+    public boolean isAvailableForCollector() {
+        return !claimed && !finished && age >= INPUT_GRACE;
+    }
+
+    @Override
+    public float getCollectorTargetX() {
+        return x;
+    }
+
+    @Override
+    public float getCollectorTargetY() {
+        return y;
+    }
+
+    @Override
+    public float getCollectorTargetRadius() {
+        return SIZE * 0.42f;
+    }
+
+    @Override
+    public boolean collectByCollector() {
+        return collect();
     }
 }

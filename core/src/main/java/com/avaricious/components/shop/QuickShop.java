@@ -2,19 +2,8 @@ package com.avaricious.components.shop;
 
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.Symbol;
-import com.avaricious.components.texts.AutoSpinCapacityDescriptionText;
-import com.avaricious.components.texts.FabledText;
-import com.avaricious.components.texts.GeneratedFabledText;
-import com.avaricious.components.texts.LuckDescriptionText;
-import com.avaricious.components.texts.SlotMachineSpeedDescriptionText;
-import com.avaricious.components.texts.XpMultiplierDescriptionText;
-import com.avaricious.utility.AssetKey;
-import com.avaricious.utility.Assets;
-import com.avaricious.utility.GameContext;
-import com.avaricious.utility.GameplayLayout;
-import com.avaricious.utility.Pencil;
-import com.avaricious.utility.TextureDrawing;
-import com.avaricious.utility.ZIndex;
+import com.avaricious.components.texts.*;
+import com.avaricious.utility.*;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Interpolation;
@@ -25,18 +14,24 @@ import com.badlogic.gdx.math.Vector2;
 import java.util.Arrays;
 import java.util.List;
 
-/** An always-visible, compact version of the shop for moment-to-moment purchases. */
+/** Always-visible compact shop with Symbols, Stats, and Unlocks tabs. */
 public class QuickShop {
+    private static final float TAB_WIDTH = 1.20f;
+    private static final float TAB_GAP = 0.06f;
     private static final Rectangle SYMBOL_TAB_BOUNDS = new Rectangle(
         GameplayLayout.HUD_LEFT,
         5.76f + GameplayLayout.HUD_Y_OFFSET,
-        1.80f, 0.46f);
-    private static final Rectangle AUTOMATION_TAB_BOUNDS = new Rectangle(
-        GameplayLayout.HUD_LEFT + 1.92f,
+        TAB_WIDTH, 0.46f);
+    private static final Rectangle STATS_TAB_BOUNDS = new Rectangle(
+        GameplayLayout.HUD_LEFT + TAB_WIDTH + TAB_GAP,
         5.76f + GameplayLayout.HUD_Y_OFFSET,
-        1.80f, 0.46f);
-    private static final float AUTOMATION_ROW_HEIGHT = 0.72f;
-    private static final float AUTOMATION_ROW_GAP = 0.08f;
+        TAB_WIDTH, 0.46f);
+    private static final Rectangle UNLOCKS_TAB_BOUNDS = new Rectangle(
+        GameplayLayout.HUD_LEFT + (TAB_WIDTH + TAB_GAP) * 2f,
+        5.76f + GameplayLayout.HUD_Y_OFFSET,
+        TAB_WIDTH, 0.46f);
+    private static final float UPGRADE_ROW_HEIGHT = 0.72f;
+    private static final float UPGRADE_ROW_GAP = 0.08f;
     private static final float SYMBOL_ROW_HEIGHT = 1.02f;
     private static final float SYMBOL_ROW_GAP = 0.10f;
     private static final Rectangle ITEMS_VIEWPORT = new Rectangle(
@@ -56,38 +51,68 @@ public class QuickShop {
 
     private final GeneratedFabledText title = new GeneratedFabledText(
         "SHOP", 46f, 0.022f, 0.11f, ZIndex.SHOP_CARD, false);
-    private final GeneratedFabledText automationTabText = text("AUTOMATIONS", 39f, 0.025f, 0.12f);
-    private final GeneratedFabledText symbolTabText = text("SYMBOLS", 36f, 0.027f, 0.13f);
-    private final List<ShopItem> automationItems;
+    private final GeneratedFabledText symbolTabText = text("SYMBOLS", 39f, 0.025f, 0.12f);
+    private final GeneratedFabledText statsTabText = text("STATS", 39f, 0.025f, 0.12f);
+    private final GeneratedFabledText unlocksTabText = text("UNLOCKS", 39f, 0.025f, 0.12f);
     private final List<ShopItem> symbolItems;
+    private final List<ShopItem> statsItems;
+    private final List<ShopItem> unlockItems;
 
-    private enum Tab { AUTOMATIONS, SYMBOLS }
+    private enum Tab { SYMBOLS, STATS, UNLOCKS }
     private Tab selectedTab = Tab.SYMBOLS;
     private Tab pressedTab;
     private final Vector2 blockedMouse = new Vector2(-100f, -100f);
     private float symbolScrollOffset;
     private float symbolScrollTarget;
+    private float statsScrollOffset;
+    private float statsScrollTarget;
+    private float unlocksScrollOffset;
+    private float unlocksScrollTarget;
 
     public QuickShop() {
         title.setAbsoluteX(GameplayLayout.HUD_LEFT);
         title.getWords().forEach(word -> word.setColor(Assets.I().silver()));
-        automationTabText.setAbsoluteX(AUTOMATION_TAB_BOUNDS.x + 0.12f);
-        automationTabText.fitWithinWidth(AUTOMATION_TAB_BOUNDS.width - 0.24f);
-        symbolTabText.setAbsoluteX(SYMBOL_TAB_BOUNDS.x + 0.12f);
-        symbolTabText.fitWithinWidth(SYMBOL_TAB_BOUNDS.width - 0.24f);
+        positionTabText(symbolTabText, SYMBOL_TAB_BOUNDS);
+        positionTabText(statsTabText, STATS_TAB_BOUNDS);
+        positionTabText(unlocksTabText, UNLOCKS_TAB_BOUNDS);
 
         Automations upgrades = Automations.I();
-        automationItems = Arrays.asList(
-            new ShopItem(cardTitle("AUTO SPIN"), label("HANDS FREE"),
-                upgrades.getAutoSpin(), Assets.I().get(AssetKey.SPIN_BUTTON), Input.Keys.NUM_1),
-            new ShopItem(cardTitle("AUTO SPIN CAPACITY"), new AutoSpinCapacityDescriptionText(),
-                upgrades.getAutoSpinCapacity(), Assets.I().get(AssetKey.SHOPPING_CART), Input.Keys.NUM_2),
+        statsItems = Arrays.asList(
             new ShopItem(cardTitle("SLOT SPEED"), new SlotMachineSpeedDescriptionText(),
-                upgrades.getSlotMachineSpeed(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
+                upgrades.getSlotMachineSpeed(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_1),
             new ShopItem(cardTitle("XP MULTIPLIER"), new XpMultiplierDescriptionText(),
-                upgrades.getXpMultiplier(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_5),
+                upgrades.getXpMultiplier(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_2),
+            new ShopItem(cardTitle("EXTRA COLLECTIBLE CHANCE"), new ExtraCollectibleChanceDescription(),
+                upgrades.getExtraCollectibleChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
+            new ShopItem(cardTitle("EXTRA SPADE CHANCE"), new ExtraSpadeChanceDescription(),
+                upgrades.getExtraSpadeChance(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_4),
+            new ShopItem(cardTitle("CRIT CHANCE"), new CriticalHitChanceDescription(),
+                upgrades.getCriticalHitChance(), Assets.I().get(AssetKey.CRITICAL_HIT), Input.Keys.NUM_5),
+            new ShopItem(cardTitle("CRIT DAMAGE"), new CriticalDamageDescription(),
+                upgrades.getCriticalDamage(), Assets.I().get(AssetKey.MULTI), Input.Keys.NUM_6),
+            new ShopItem(cardTitle("DOUBLE HIT CHANCE"), new DoubleHitChanceDescription(),
+                upgrades.getDoubleHitChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_7),
+            new ShopItem(cardTitle("CASH CHIP DROP CHANCE"), new CashChipChanceDescription(),
+                upgrades.getCashChipChance(), Assets.I().get(AssetKey.POKER_CHIP), Input.Keys.NUM_8),
+            new ShopItem(cardTitle("CHEST DROP CHANCE"), new ChestDropChanceDescriptionText(),
+                upgrades.getChestDropChance(), Assets.I().get(AssetKey.CHEST_CLOSED), Input.Keys.NUM_9),
             new ShopItem(cardTitle("LUCK"), new LuckDescriptionText(),
-                upgrades.getLuck(), Assets.I().get(AssetKey.LUCK), Input.Keys.NUM_4)
+                upgrades.getLuck(), Assets.I().get(AssetKey.LUCK), Input.Keys.NUM_0)
+        );
+
+        unlockItems = Arrays.asList(
+            new ShopItem(cardTitle("SPIN QUEUER"), label("QUEUE SPINS"),
+                upgrades.getSpinQueuer(), Assets.I().get(AssetKey.SPIN_BUTTON), Input.Keys.NUM_1),
+            new ShopItem(cardTitle("SPIN QUEUER CAPACITY"), new AutoSpinCapacityDescriptionText(),
+                upgrades.getAutoSpinCapacity(), Assets.I().get(AssetKey.SHOPPING_CART), Input.Keys.NUM_2),
+            new ShopItem(cardTitle("AUTOSPIN"), label("FULLY AUTOMATIC"),
+                upgrades.getFullAutoSpin(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
+            new ShopItem(cardTitle("COLLECTORS"), new CollectorCountDescriptionText(),
+                upgrades.getCollectorCapacity(), Assets.I().get(AssetKey.COLLECTOR), Input.Keys.NUM_4),
+            ShopItem.unavailable(cardTitle("CHEST OPENER"), label("COMING SOON"),
+                Assets.I().get(AssetKey.CHEST_CLOSED)),
+            new ShopItem(cardTitle("NEW PATTERNS"), new PatternUnlockDescriptionText(),
+                upgrades.getPatternUnlock(), Assets.I().get(AssetKey.PLUS_SYMBOL), Input.Keys.NUM_6)
         );
 
         symbolItems = Arrays.asList(
@@ -101,72 +126,40 @@ public class QuickShop {
         );
     }
 
+    private static void positionTabText(FabledText text, Rectangle bounds) {
+        text.fitWithinWidth(bounds.width - 0.16f);
+        text.setAbsoluteX(
+            bounds.x + (bounds.width - text.getRenderedWidth()) / 2f
+        );
+    }
+
     public void draw(float delta) {
         drawSectionDivider();
         title.setY(6.40f + GameplayLayout.HUD_Y_OFFSET);
         title.draw(delta);
         drawTabs(delta, false);
+        drawScrollbar();
 
-        if (selectedTab == Tab.SYMBOLS) {
-            drawSymbolScrollbar();
-        }
-
-        Pencil.I().startScissors(
-            GameContext.I().viewport.getCamera(),
-            GameContext.I().batch.getTransformMatrix(),
-            ITEMS_VIEWPORT
-        );
-
-        if (selectedTab == Tab.AUTOMATIONS) {
-            drawAutomationItems(delta, null);
-        } else {
-            drawSymbolItems(delta, null);
-        }
-
-        Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.WHITE_PIXEL),
-            ITEMS_VIEWPORT.x,
-            ITEMS_VIEWPORT.y,
-            0.001f,
-            0.001f,
-            ZIndex.SHOP_CARD_TOUCHING,
-            new Color(1f, 1f, 1f, 0f)
-        ));
+        Pencil.I().startScissors(GameContext.I().viewport.getCamera(),
+            GameContext.I().batch.getTransformMatrix(), ITEMS_VIEWPORT);
+        drawSelectedItems(delta, null);
+        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.WHITE_PIXEL),
+            ITEMS_VIEWPORT.x, ITEMS_VIEWPORT.y, 0.001f, 0.001f,
+            ZIndex.SHOP_CARD_TOUCHING, new Color(1f, 1f, 1f, 0f)));
         Pencil.I().endScissors();
     }
 
-    /**
-     * Queues an isolated copy of each disabled card before the CRT capture.
-     * A separate normal copy is queued later in the foreground pass.
-     */
     public void drawPostProcessedItems(float delta) {
         updateScroll(delta);
-
         Pencil.I().beginPostProcessedOnlyDrawings();
         try {
             drawTabs(delta, true);
-
-            Pencil.I().startScissors(
-                GameContext.I().viewport.getCamera(),
-                GameContext.I().batch.getTransformMatrix(),
-                ITEMS_VIEWPORT
-            );
-
-            if (selectedTab == Tab.AUTOMATIONS) {
-                drawAutomationItems(delta, true);
-            } else {
-                drawSymbolItems(delta, true);
-            }
-
-            Pencil.I().addDrawing(new TextureDrawing(
-                Assets.I().get(AssetKey.WHITE_PIXEL),
-                ITEMS_VIEWPORT.x,
-                ITEMS_VIEWPORT.y,
-                0.001f,
-                0.001f,
-                ZIndex.SHOP_CARD_TOUCHING,
-                new Color(1f, 1f, 1f, 0f)
-            ));
+            Pencil.I().startScissors(GameContext.I().viewport.getCamera(),
+                GameContext.I().batch.getTransformMatrix(), ITEMS_VIEWPORT);
+            drawSelectedItems(delta, true);
+            Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.WHITE_PIXEL),
+                ITEMS_VIEWPORT.x, ITEMS_VIEWPORT.y, 0.001f, 0.001f,
+                ZIndex.SHOP_CARD_TOUCHING, new Color(1f, 1f, 1f, 0f)));
             Pencil.I().endScissors();
         } finally {
             Pencil.I().endPostProcessedOnlyDrawings();
@@ -174,74 +167,52 @@ public class QuickShop {
     }
 
     private void drawTabs(float delta, boolean inactiveOnly) {
-        boolean automationsSelected = selectedTab == Tab.AUTOMATIONS;
+        drawTabFor(Tab.SYMBOLS, SYMBOL_TAB_BOUNDS, symbolTabText, delta, inactiveOnly);
+        drawTabFor(Tab.STATS, STATS_TAB_BOUNDS, statsTabText, delta, inactiveOnly);
+        drawTabFor(Tab.UNLOCKS, UNLOCKS_TAB_BOUNDS, unlocksTabText, delta, inactiveOnly);
+    }
 
-        if (inactiveOnly) {
-            if (automationsSelected) {
-                drawTab(SYMBOL_TAB_BOUNDS, symbolTabText, false, delta);
-            } else {
-                drawTab(
-                    AUTOMATION_TAB_BOUNDS,
-                    automationTabText,
-                    false,
-                    delta
-                );
-            }
-            return;
-        }
-
-        drawTab(
-            AUTOMATION_TAB_BOUNDS,
-            automationTabText,
-            automationsSelected,
-            automationsSelected ? delta : 0f
-        );
-        drawTab(
-            SYMBOL_TAB_BOUNDS,
-            symbolTabText,
-            !automationsSelected,
-            automationsSelected ? 0f : delta
-        );
+    private void drawTabFor(Tab tab, Rectangle bounds, FabledText text,
+                            float delta, boolean inactiveOnly) {
+        boolean selected = selectedTab == tab;
+        if (inactiveOnly && selected) return;
+        drawTab(bounds, text, selected, selected ? delta : 0f);
     }
 
     private void drawSectionDivider() {
-        Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL),
+        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.BRIGHT_SLATE_PIXEL),
             GameplayLayout.HUD_LEFT, 6.75f + GameplayLayout.HUD_Y_OFFSET,
-            GameplayLayout.HUD_WIDTH, 0.025f,
-            ZIndex.SHOP_CARD,
-            new Color(1f, 1f, 1f, 0.48f)
-        ));
+            GameplayLayout.HUD_WIDTH, 0.025f, ZIndex.SHOP_CARD,
+            new Color(1f, 1f, 1f, 0.48f)));
     }
 
     private void drawTab(Rectangle bounds, FabledText text, boolean selected, float delta) {
-        Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.DARK_SLATE_PIXEL),
-            bounds.x, bounds.y, bounds.width, bounds.height,
-            ZIndex.SHOP_CARD,
-            selected
-                ? new Color(1f, 1f, 1f, 0.86f)
-                : new Color(0.42f, 0.42f, 0.42f, 0.55f)
-        ));
-        if (selected) {
-            Pencil.I().addDrawing(new TextureDrawing(
-                Assets.I().get(AssetKey.YELLOW_PIXEL),
-                bounds.x, bounds.y, bounds.width, 0.04f,
-                ZIndex.SHOP_CARD
-            ));
-        }
+        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.DARK_SLATE_PIXEL),
+            bounds.x, bounds.y, bounds.width, bounds.height, ZIndex.SHOP_CARD,
+            selected ? new Color(1f, 1f, 1f, 0.86f)
+                : new Color(0.42f, 0.42f, 0.42f, 0.55f)));
+        if (selected) Pencil.I().addDrawing(new TextureDrawing(
+            Assets.I().get(AssetKey.YELLOW_PIXEL), bounds.x, bounds.y,
+            bounds.width, 0.04f, ZIndex.SHOP_CARD));
         text.setY(bounds.y + 0.15f);
         text.draw(delta);
     }
 
-    private void drawAutomationItems(float delta, Boolean disabledFilter) {
-        float x = GameplayLayout.HUD_LEFT;
-        float y = 4.86f + GameplayLayout.HUD_Y_OFFSET;
-        for (ShopItem item : automationItems) {
-            item.setHudRowBounds(new Rectangle(
-                x, y, GameplayLayout.HUD_WIDTH, AUTOMATION_ROW_HEIGHT));
+    private void drawSelectedItems(float delta, Boolean disabledFilter) {
+        if (selectedTab == Tab.SYMBOLS) {
+            drawSymbolItems(delta, disabledFilter);
+        } else {
+            drawUpgradeItems(delta, disabledFilter);
+        }
+    }
+
+    private void drawUpgradeItems(float delta, Boolean disabledFilter) {
+        float y = 4.86f + GameplayLayout.HUD_Y_OFFSET + selectedScrollOffset();
+        for (ShopItem item : selectedItems()) {
+            item.setHudRowBounds(new Rectangle(GameplayLayout.HUD_LEFT, y,
+                GameplayLayout.HUD_WIDTH, UPGRADE_ROW_HEIGHT));
             drawItem(item, delta, disabledFilter);
-            y -= AUTOMATION_ROW_HEIGHT + AUTOMATION_ROW_GAP;
+            y -= UPGRADE_ROW_HEIGHT + UPGRADE_ROW_GAP;
         }
     }
 
@@ -250,80 +221,52 @@ public class QuickShop {
             - SYMBOL_ROW_HEIGHT + symbolScrollOffset;
         for (int index = 0; index < symbolItems.size(); index++) {
             float y = top - index * (SYMBOL_ROW_HEIGHT + SYMBOL_ROW_GAP);
-            symbolItems.get(index).setHudSymbolRowBounds(new Rectangle(
-                GameplayLayout.HUD_LEFT,
-                y,
-                GameplayLayout.HUD_WIDTH,
-                SYMBOL_ROW_HEIGHT
-            ));
-            drawItem(symbolItems.get(index), delta, disabledFilter);
+            ShopItem item = symbolItems.get(index);
+            item.setHudSymbolRowBounds(new Rectangle(GameplayLayout.HUD_LEFT,
+                y, GameplayLayout.HUD_WIDTH, SYMBOL_ROW_HEIGHT));
+            drawItem(item, delta, disabledFilter);
         }
     }
 
-    private void drawItem(
-        ShopItem item,
-        float delta,
-        Boolean disabledFilter
-    ) {
+    private void drawItem(ShopItem item, float delta, Boolean disabledFilter) {
         boolean disabled = item.isDisabled();
         if (disabledFilter != null && disabled != disabledFilter) return;
-
-        // A disabled item already advanced its animations in the CRT pass.
         item.draw(disabledFilter == null && disabled ? 0f : delta);
     }
 
     private void updateScroll(float delta) {
-        symbolScrollOffset = Interpolation.fade.apply(
-            symbolScrollOffset,
-            symbolScrollTarget,
-            Math.min(1f, delta * 13f)
-        );
-        if (Math.abs(symbolScrollOffset - symbolScrollTarget) < 0.002f) {
-            symbolScrollOffset = symbolScrollTarget;
-        }
+        symbolScrollOffset = approachScroll(symbolScrollOffset, symbolScrollTarget, delta);
+        statsScrollOffset = approachScroll(statsScrollOffset, statsScrollTarget, delta);
+        unlocksScrollOffset = approachScroll(unlocksScrollOffset, unlocksScrollTarget, delta);
     }
 
-    private void drawSymbolScrollbar() {
-        float maxScroll = maxSymbolScroll();
-        if (maxScroll <= 0f) return;
+    private float approachScroll(float current, float target, float delta) {
+        float result = Interpolation.fade.apply(current, target, Math.min(1f, delta * 13f));
+        return Math.abs(result - target) < 0.002f ? target : result;
+    }
 
+    private void drawScrollbar() {
+        float maxScroll = maxSelectedScroll();
+        if (maxScroll <= 0f) return;
         float trackX = ITEMS_VIEWPORT.x + ITEMS_VIEWPORT.width + 0.045f;
         float trackWidth = 0.045f;
-        float contentHeight = symbolContentHeight();
-        float thumbHeight = Math.max(
-            0.55f,
-            ITEMS_VIEWPORT.height * ITEMS_VIEWPORT.height / contentHeight
-        );
-        float progress = symbolScrollOffset / maxScroll;
+        float thumbHeight = Math.max(0.55f,
+            ITEMS_VIEWPORT.height * ITEMS_VIEWPORT.height / selectedContentHeight());
+        float progress = selectedScrollOffset() / maxScroll;
         float thumbY = ITEMS_VIEWPORT.y + ITEMS_VIEWPORT.height - thumbHeight
             - progress * (ITEMS_VIEWPORT.height - thumbHeight);
 
-        Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.BLACK_PIXEL),
-            trackX,
-            ITEMS_VIEWPORT.y,
-            trackWidth,
-            ITEMS_VIEWPORT.height,
-            ZIndex.SHOP_CARD,
-            new Color(1f, 1f, 1f, 0.24f)
-        ));
-        Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.YELLOW_PIXEL),
-            trackX - 0.015f,
-            thumbY,
-            trackWidth + 0.03f,
-            thumbHeight,
-            ZIndex.SHOP_CARD
-        ));
+        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.BLACK_PIXEL),
+            trackX, ITEMS_VIEWPORT.y, trackWidth, ITEMS_VIEWPORT.height,
+            ZIndex.SHOP_CARD, new Color(1f, 1f, 1f, 0.24f)));
+        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.YELLOW_PIXEL),
+            trackX - 0.015f, thumbY, trackWidth + 0.03f, thumbHeight, ZIndex.SHOP_CARD));
     }
 
     public void handleInput(Vector2 mouse, boolean pressed, boolean wasPressed) {
         handleTabInput(mouse, pressed, wasPressed);
-        List<ShopItem> visibleItems = selectedTab == Tab.AUTOMATIONS
-            ? automationItems
-            : symbolItems;
         Vector2 itemMouse = ITEMS_VIEWPORT.contains(mouse) ? mouse : blockedMouse;
-        for (ShopItem item : visibleItems) {
+        for (ShopItem item : selectedItems()) {
             if (item.intersects(ITEMS_VIEWPORT)) {
                 item.handleInput(itemMouse, pressed, wasPressed);
             }
@@ -331,21 +274,15 @@ public class QuickShop {
     }
 
     public boolean scroll(float amountY, Vector2 mouse) {
-        if (
-            selectedTab != Tab.SYMBOLS ||
-                amountY == 0f ||
-                !ITEMS_VIEWPORT.contains(mouse) ||
-                maxSymbolScroll() <= 0f
-        ) {
+        if (amountY == 0f || !ITEMS_VIEWPORT.contains(mouse) || maxSelectedScroll() <= 0f) {
             return false;
         }
-
-        symbolScrollTarget = MathUtils.clamp(
-            symbolScrollTarget
-                + Math.signum(amountY) * (SYMBOL_ROW_HEIGHT + SYMBOL_ROW_GAP),
-            0f,
-            maxSymbolScroll()
-        );
+        float step = selectedTab == Tab.SYMBOLS
+            ? SYMBOL_ROW_HEIGHT + SYMBOL_ROW_GAP
+            : UPGRADE_ROW_HEIGHT + UPGRADE_ROW_GAP;
+        setSelectedScrollTarget(MathUtils.clamp(
+            selectedScrollTarget() + Math.signum(amountY) * step,
+            0f, maxSelectedScroll()));
         return true;
     }
 
@@ -355,31 +292,56 @@ public class QuickShop {
 
     private void handleTabInput(Vector2 mouse, boolean pressed, boolean wasPressed) {
         if (pressed && !wasPressed) {
-            if (AUTOMATION_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.AUTOMATIONS;
-            else if (SYMBOL_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.SYMBOLS;
+            if (SYMBOL_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.SYMBOLS;
+            else if (STATS_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.STATS;
+            else if (UNLOCKS_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.UNLOCKS;
             else pressedTab = null;
         } else if (!pressed && wasPressed) {
-            if (pressedTab == Tab.AUTOMATIONS && AUTOMATION_TAB_BOUNDS.contains(mouse)) {
-                selectedTab = Tab.AUTOMATIONS;
-            } else if (pressedTab == Tab.SYMBOLS && SYMBOL_TAB_BOUNDS.contains(mouse)) {
+            if (pressedTab == Tab.SYMBOLS && SYMBOL_TAB_BOUNDS.contains(mouse)) {
                 selectedTab = Tab.SYMBOLS;
+            } else if (pressedTab == Tab.STATS && STATS_TAB_BOUNDS.contains(mouse)) {
+                selectedTab = Tab.STATS;
+            } else if (pressedTab == Tab.UNLOCKS && UNLOCKS_TAB_BOUNDS.contains(mouse)) {
+                selectedTab = Tab.UNLOCKS;
             }
             pressedTab = null;
         }
     }
 
-    private int symbolRowCount() {
-        return symbolItems.size();
+    private List<ShopItem> selectedItems() {
+        if (selectedTab == Tab.STATS) return statsItems;
+        if (selectedTab == Tab.UNLOCKS) return unlockItems;
+        return symbolItems;
     }
 
-    private float symbolContentHeight() {
-        int rows = symbolRowCount();
-        return rows * SYMBOL_ROW_HEIGHT
-            + Math.max(0, rows - 1) * SYMBOL_ROW_GAP;
+    private float selectedContentHeight() {
+        int rows = selectedItems().size();
+        float height = selectedTab == Tab.SYMBOLS ? SYMBOL_ROW_HEIGHT : UPGRADE_ROW_HEIGHT;
+        float gap = selectedTab == Tab.SYMBOLS ? SYMBOL_ROW_GAP : UPGRADE_ROW_GAP;
+        return rows * height + Math.max(0, rows - 1) * gap;
     }
 
-    private float maxSymbolScroll() {
-        return Math.max(0f, symbolContentHeight() - ITEMS_VIEWPORT.height);
+    private float maxSelectedScroll() {
+        float padding = selectedTab == Tab.SYMBOLS ? 0f : 0.08f;
+        return Math.max(0f, selectedContentHeight() - ITEMS_VIEWPORT.height + padding);
+    }
+
+    private float selectedScrollOffset() {
+        if (selectedTab == Tab.STATS) return statsScrollOffset;
+        if (selectedTab == Tab.UNLOCKS) return unlocksScrollOffset;
+        return symbolScrollOffset;
+    }
+
+    private float selectedScrollTarget() {
+        if (selectedTab == Tab.STATS) return statsScrollTarget;
+        if (selectedTab == Tab.UNLOCKS) return unlocksScrollTarget;
+        return symbolScrollTarget;
+    }
+
+    private void setSelectedScrollTarget(float target) {
+        if (selectedTab == Tab.STATS) statsScrollTarget = target;
+        else if (selectedTab == Tab.UNLOCKS) unlocksScrollTarget = target;
+        else symbolScrollTarget = target;
     }
 
     private ShopItem symbolItem(Symbol symbol, int key) {
@@ -387,8 +349,10 @@ public class QuickShop {
             Assets.I().get(symbol.textureKey()), key);
     }
 
-    private static GeneratedFabledText text(String value, float fontSize, float spacing, float scale) {
-        return new GeneratedFabledText(value, fontSize, spacing, scale, ZIndex.SHOP_CARD, true);
+    private static GeneratedFabledText text(String value, float fontSize,
+                                             float spacing, float scale) {
+        return new GeneratedFabledText(value, fontSize, spacing, scale,
+            ZIndex.SHOP_CARD, true);
     }
 
     private static FabledText cardTitle(String value) {

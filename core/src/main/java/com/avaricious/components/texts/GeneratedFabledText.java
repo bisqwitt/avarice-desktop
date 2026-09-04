@@ -80,7 +80,7 @@ public class GeneratedFabledText extends FabledText {
         switch (letter) {
             case "A": case "B": case "C": case "D": case "E":
             case "H": case "I": case "L": case "P": case "R":
-            case "S": case "T": case "V": case "W":
+            case "S": case "T": case "V": case "W": case "U":
                 return true;
             default:
                 return false;

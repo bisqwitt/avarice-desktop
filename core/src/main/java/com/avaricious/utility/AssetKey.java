@@ -432,7 +432,11 @@ public enum AssetKey {
     CHEST_OPENING3("ygg-chest-opening-3"),
     CHEST_OPENING4("ygg-chest-opening-4"),
     CHEST_OPENING5("ygg-chest-opening-5"),
-    CHEST_OPENING6("ygg-chest-opening-6");
+    CHEST_OPENING6("ygg-chest-opening-6"),
+    COLLECTOR("collector"),
+    COLLECTOR_SHADOW("collector-shadow"),
+    U_BIG("u-big"),
+    U_BIG_SHADOW("u-big-shadow");
 
     private final String path;
 

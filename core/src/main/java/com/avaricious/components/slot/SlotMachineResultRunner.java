@@ -18,6 +18,7 @@ import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.CriticalHitValues;
+import com.avaricious.utility.DoubleHitValues;
 import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.Color;
@@ -49,6 +50,7 @@ public class SlotMachineResultRunner {
     private final SlotMachine slotMachine = SlotMachine.I();
     private float resultStepDelay = DEFAULT_RESULT_STEP_DELAY;
     private boolean instantResults = false;
+    private float screenShakeScale = 1f;
 
     private SlotMachineResultRunner() {
     }
@@ -65,7 +67,10 @@ public class SlotMachineResultRunner {
 //                buttonBoard.setVisible(true);
                 slotMachine.playEmptySpinSweep(() -> {
                     slotMachine.setStale(true);
-                    if (Automations.I().getAutoSpin().isActive()) {
+                    if (
+                        Automations.I().getAutoSpin().isActive() ||
+                            Automations.I().getFullAutoSpin().isActive()
+                    ) {
                         ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
                     }
                 });
@@ -108,7 +113,7 @@ public class SlotMachineResultRunner {
                 scheduler.scheduleNoDelay(focusPattern);
             }
 
-            triggerSeparateSlots(matches, patternMatch, slots, scheduler);
+            triggerSeparateSlots(patternMatch, slots, scheduler);
 
             scheduler.schedule(() -> {
                 PopupManager.I().releaseHoldingNumbers();
@@ -141,7 +146,8 @@ public class SlotMachineResultRunner {
                 );
 
                 ScreenShake.I().addTrauma(
-                    0.31f + Math.min(0.12f, slots.size() * 0.012f)
+                    (0.31f + Math.min(0.12f, slots.size() * 0.012f))
+                        * screenShakeScale
                 );
 
                 int multi = slots.size() * 10;
@@ -175,7 +181,10 @@ public class SlotMachineResultRunner {
                 ScreenManager.I().getScreen(SlotScreen.class).onRoundEnd();
 //            buttonBoard.setVisible(true);
 //            ScoreDisplay.I().updateScoreNumber();
-            if (Automations.I().getAutoSpin().isActive())
+            if (
+                Automations.I().getAutoSpin().isActive() ||
+                    Automations.I().getFullAutoSpin().isActive()
+            )
                 ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
         });
 
@@ -197,92 +206,135 @@ public class SlotMachineResultRunner {
         }
     }
 
-    private void triggerSeparateSlots(List<PatternMatch> matches, PatternMatch match, List<Body> slots, TaskScheduler scheduler) {
+    private void triggerSeparateSlots(
+        PatternMatch match,
+        List<Body> slots,
+        TaskScheduler scheduler
+    ) {
         SlotScreen slotScreen = ScreenManager.I().getScreen(SlotScreen.class);
         slotScreen.setSymbolsHitLastSpin(0);
         for (Body body : slots) {
-            scheduler.schedule(() -> {
-                slotScreen.addSymbolsHitLastSpin();
-
-                slotMachine.flashSymbol(body, 1f);
-                body.pulse(1.75f);
-                ScreenShake.I().addTrauma(
-                    0.18f + Math.min(0.10f, EffectManager.streak * 0.025f)
-                );
-
-                float basePoints = SymbolValues.I().getValue(match.getSymbol());
-                boolean criticalHit = CriticalHitValues.I().rollCriticalHit();
-                float points = criticalHit
-                    ? CriticalHitValues.I().applyCriticalDamage(basePoints)
-                    : basePoints;
-                points = TicketPressSystem.I().applyPayoutMultiplier(points);
-                Color popupColor = criticalHit
-                    ? new Color(1f, 0.22f, 0.42f, 1f)
-                    : Assets.I().getSymbolColor(match.getSymbol());
-
-                PopupManager.I().spawnNumber(new NumberPopup(
-                    points,
-                    popupColor,
-                    body.getPos().x + SlotMachine.CELL_W * 0.72f + 0.2f,
-                    body.getPos().y + SlotMachine.CELL_H * 0.62f + 0.2f,
-                    false,
-                    false
-                ));
-
-                ScoreDisplay.I().addToScore(points);
-
-                if (criticalHit) {
-                    PopupManager.I().spawnStatisticHit(
-                        Assets.I().get(AssetKey.CRITICAL_HIT),
-                        body.getPos().x + 1f,
-                        body.getPos().y + 1.35f
-                    );
-                    ParticleManager.I().create(
-                        body.getPos().x,
-                        body.getPos().y,
-                        ParticleType.RAINBOW,
-                        0.025f,
-                        46f,
-                        ZIndex.SYMBOL_HIT_PARTICLES
-                    );
-                    ScreenShake.I().addTrauma(0.10f);
-                }
-
-                EffectManager.create(Assets.I().getSymbol(match.getSymbol()),
-                    new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
-                    TextureEcho.Type.SLOT);
-
-                BouncingSymbolManager.I().createSymbolDrop(
-                    match.getSymbol(),
-                    body.getPos().x,
-                    body.getPos().y
-                );
-
-                if (criticalHit) {
-                    AudioManager.I().playCriticalHit(EffectManager.streak);
-                } else {
-                    AudioManager.I().playHit(EffectManager.streak);
-                }
-
-//                Seq.of(Hand.I().getHand())
-//                    .filter(card -> card instanceof AbstractQuestCard
-//                        && ((AbstractQuestCard) card).condition(matches, match))
-//                    .forEach(card -> ((AbstractQuestCard) card).complete());
-
-                onHit();
-            });
-
+            boolean doubleHit = DoubleHitValues.I().rollDoubleHit();
+            scheduler.schedule(() ->
+                resolveSymbolHit(match, body, slotScreen, false));
+            if (doubleHit) {
+                scheduler.schedule(() ->
+                    resolveSymbolHit(match, body, slotScreen, true));
+            }
         }
+    }
+
+    private void resolveSymbolHit(
+        PatternMatch match,
+        Body body,
+        SlotScreen slotScreen,
+        boolean repeatedHit
+    ) {
+        slotScreen.addSymbolsHitLastSpin();
+
+        slotMachine.flashSymbol(body, 1f);
+        body.pulse(repeatedHit ? 1.95f : 1.75f);
+        ScreenShake.I().addTrauma(
+            (0.18f + Math.min(0.10f, EffectManager.streak * 0.025f)
+                + (repeatedHit ? 0.05f : 0f)) * screenShakeScale
+        );
+
+        if (repeatedHit) {
+            PopupManager.I().spawnStatisticHit(
+                Assets.I().get(AssetKey.RETRIGGER),
+                body.getPos().x + 1f,
+                body.getPos().y + 1.72f
+            );
+            ParticleManager.I().create(
+                body.getPos().x,
+                body.getPos().y,
+                ParticleType.WHITE,
+                0.020f,
+                38f,
+                ZIndex.SYMBOL_HIT_PARTICLES
+            );
+        }
+
+        float basePoints = SymbolValues.I().getValue(match.getSymbol());
+        boolean criticalHit = CriticalHitValues.I().rollCriticalHit();
+        float points = criticalHit
+            ? CriticalHitValues.I().applyCriticalDamage(basePoints)
+            : basePoints;
+        points = TicketPressSystem.I().applyPayoutMultiplier(points);
+        Color popupColor = criticalHit
+            ? new Color(1f, 0.22f, 0.42f, 1f)
+            : Assets.I().getSymbolColor(match.getSymbol());
+
+        PopupManager.I().spawnNumber(new NumberPopup(
+            points,
+            popupColor,
+            body.getPos().x + SlotMachine.CELL_W * 0.72f + 0.2f,
+            body.getPos().y + SlotMachine.CELL_H * 0.62f + 0.2f,
+            false,
+            false
+        ));
+
+        ScoreDisplay.I().addToScore(points);
+
+        if (criticalHit) {
+            PopupManager.I().spawnStatisticHit(
+                Assets.I().get(AssetKey.CRITICAL_HIT),
+                body.getPos().x + 1f,
+                body.getPos().y + 1.35f
+            );
+            ParticleManager.I().create(
+                body.getPos().x,
+                body.getPos().y,
+                ParticleType.RAINBOW,
+                0.025f,
+                46f,
+                ZIndex.SYMBOL_HIT_PARTICLES
+            );
+            ScreenShake.I().addTrauma(0.10f * screenShakeScale);
+        }
+
+        EffectManager.create(
+            Assets.I().getSymbol(match.getSymbol()),
+            new Rectangle(
+                body.getPos().x,
+                body.getPos().y,
+                SlotMachine.CELL_W,
+                SlotMachine.CELL_H
+            ),
+            TextureEcho.Type.SLOT
+        );
+
+        BouncingSymbolManager.I().createSymbolDrop(
+            match.getSymbol(),
+            body.getPos().x,
+            body.getPos().y
+        );
+
+        if (criticalHit) {
+            AudioManager.I().playCriticalHit(EffectManager.streak);
+        } else {
+            AudioManager.I().playHit(EffectManager.streak);
+        }
+
+        onHit();
     }
 
     public TaskScheduler getScheduler() {
         return scheduler;
     }
 
-    public void setRevealTiming(float resultStepDelay, boolean instantResults) {
+    public void setRevealTiming(
+        float resultStepDelay,
+        boolean instantResults,
+        float screenShakeScale
+    ) {
         this.instantResults = instantResults;
         this.resultStepDelay = instantResults
             ? Math.max(INSTANT_RESULT_STEP_DELAY, resultStepDelay)
             : Math.max(0f, resultStepDelay);
+        this.screenShakeScale = Math.max(
+            0f,
+            Math.min(1f, screenShakeScale)
+        );
     }
 }

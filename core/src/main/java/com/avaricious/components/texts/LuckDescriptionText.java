@@ -19,16 +19,20 @@ public class LuckDescriptionText extends FabledText {
     private static final float ARROW_GAP = 0.15f;
 
     public LuckDescriptionText() {
+        this(Luck.BONUS_PER_UPGRADE);
+    }
+
+    public LuckDescriptionText(int increaseAmount) {
         Luck luck = Automations.I().getLuck();
 
         luck.addPropertyChangeListener(evt -> updateDescription(
             luck.getBonusPercent(),
-            luck.getNextBonusPercent()
+            luck.getNextBonusPercent(increaseAmount)
         ));
 
         updateDescription(
             luck.getBonusPercent(),
-            luck.getNextBonusPercent()
+            luck.getNextBonusPercent(increaseAmount)
         );
     }
 

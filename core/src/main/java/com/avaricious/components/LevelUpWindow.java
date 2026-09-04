@@ -1,9 +1,12 @@
 package com.avaricious.components;
 
 import com.avaricious.audio.AudioManager;
+import com.avaricious.components.automations.Automations;
+import com.avaricious.components.automations.Luck;
+import com.avaricious.components.automations.SlotMachineSpeed;
+import com.avaricious.components.automations.XpMultiplier;
+import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.SlotMachineResultRunner;
-import com.avaricious.components.slot.pattern.PatternUnlocks;
-import com.avaricious.components.slot.pattern.UnlockablePattern;
 import com.avaricious.components.texts.*;
 import com.avaricious.items.upgrades.UpgradeRarity;
 import com.avaricious.utility.*;
@@ -151,6 +154,10 @@ public class LevelUpWindow {
             .pause();
 
         generateChoices();
+        if (choices.isEmpty()) {
+            hide();
+            return;
+        }
         spawnBurst(WORLD_WIDTH / 2f, 7.05f, 52, 1.12f);
     }
 
@@ -188,6 +195,18 @@ public class LevelUpWindow {
         List<LevelUpChoice> possibleChoices =
             new ArrayList<>();
 
+        Automations stats = Automations.I();
+
+        SlotMachineSpeed speed = stats.getSlotMachineSpeed();
+        if (!speed.isMaxSpeedReached()) {
+            possibleChoices.add(createSpeedChoice(speed));
+        }
+
+        XpMultiplier xpMultiplier = stats.getXpMultiplier();
+        if (!xpMultiplier.isMaxMultiplierReached()) {
+            possibleChoices.add(createXpMultiplierChoice(xpMultiplier));
+        }
+
         if (
             CollectibleValues.I().getExtraCollectibleSpawnChance() <
                 CollectibleValues.MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE
@@ -219,64 +238,6 @@ public class LevelUpWindow {
         }
 
         if (
-            CollectibleValues.I().getCashChipSpawnChance() <
-                CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE
-        ) {
-            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-            int increaseAmount = rarity.scaleLevelUpAmount(
-                CollectibleValues.CASH_CHIP_CHANCE_STEP
-            );
-            TextureRegion cashChip = Assets.I().get(AssetKey.POKER_CHIP);
-            possibleChoices.add(
-                new LevelUpChoice(
-                    new GeneratedFabledText(
-                        "CASH CHIP DROP",
-                        22f,
-                        0.05f,
-                        0.22f,
-                        ZIndex.SHOP_CARD
-                    ),
-                    new CashChipChanceDescription(increaseAmount),
-                    () -> CollectibleValues.I()
-                        .increaseCashChipSpawnChance(increaseAmount),
-                    cashChip,
-                    Assets.I().get(AssetKey.POKER_CHIP_SHADOW),
-                    cashChip,
-                    rarity
-                )
-            );
-        }
-
-        List<UnlockablePattern> lockedPatterns =
-            PatternUnlocks.I().getLockedPatterns();
-        if (!lockedPatterns.isEmpty()) {
-            UnlockablePattern pattern = lockedPatterns.get(
-                SeededRandomizer.nextInt(0, lockedPatterns.size() - 1)
-            );
-            possibleChoices.add(
-                new LevelUpChoice(
-                    new GeneratedFabledText(
-                        pattern.displayName(),
-                        22f,
-                        0.05f,
-                        0.22f,
-                        ZIndex.SHOP_CARD
-                    ),
-                    new GeneratedFabledText(
-                        "UNLOCK SHAPE",
-                        27f,
-                        0.04f,
-                        0.20f,
-                        ZIndex.SHOP_CARD
-                    ),
-                    () -> PatternUnlocks.I().unlock(pattern),
-                    pattern.mask(),
-                    UpgradeRarity.RARE
-                )
-            );
-        }
-
-        if (
             CriticalHitValues.I().getCriticalHitChance() <
                 CriticalHitValues.MAX_CRITICAL_HIT_CHANCE
         ) {
@@ -299,6 +260,32 @@ public class LevelUpWindow {
                     rarity
                 )
             );
+        }
+
+        if (
+            DoubleHitValues.I().getDoubleHitChance() <
+                DoubleHitValues.MAX_DOUBLE_HIT_CHANCE
+        ) {
+            possibleChoices.add(createDoubleHitChoice());
+        }
+
+        if (
+            CollectibleValues.I().getCashChipSpawnChance() <
+                CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE
+        ) {
+            possibleChoices.add(createCashChipChoice());
+        }
+
+        if (
+            ChestManager.I().getDropChancePercent() <
+                ChestManager.MAX_DROP_CHANCE_PERCENT
+        ) {
+            possibleChoices.add(createChestDropChoice());
+        }
+
+        Luck luck = stats.getLuck();
+        if (!luck.isMaxBonusReached()) {
+            possibleChoices.add(createLuckChoice(luck));
         }
 
         if (
@@ -352,6 +339,36 @@ public class LevelUpWindow {
         updateChoiceBounds();
     }
 
+    private LevelUpChoice createSpeedChoice(SlotMachineSpeed speed) {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int upgradeCount = rarity.scaleLevelUpAmount(1);
+        TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
+        return new LevelUpChoice(
+            new SlotMachineSpeedText(),
+            new SlotMachineSpeedDescriptionText(upgradeCount),
+            () -> speed.increaseSpeed(upgradeCount),
+            retrigger,
+            Assets.I().get(AssetKey.RETRIGGER_SHADOW),
+            retrigger,
+            rarity
+        );
+    }
+
+    private LevelUpChoice createXpMultiplierChoice(XpMultiplier multiplier) {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int upgradeCount = rarity.scaleLevelUpAmount(1);
+        TextureRegion spade = Assets.I().get(AssetKey.SPADE);
+        return new LevelUpChoice(
+            createChoiceTitle("XP MULTIPLIER"),
+            new XpMultiplierDescriptionText(upgradeCount),
+            () -> multiplier.increaseMultiplier(upgradeCount),
+            spade,
+            spade,
+            spade,
+            rarity
+        );
+    }
+
     private LevelUpChoice createCollectibleChoice() {
         UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
         int increaseAmount = rarity.scaleLevelUpAmount(
@@ -367,6 +384,85 @@ public class LevelUpWindow {
             Assets.I().get(AssetKey.RETRIGGER_SHADOW),
             retrigger,
             rarity
+        );
+    }
+
+    private LevelUpChoice createDoubleHitChoice() {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            DoubleHitValues.DOUBLE_HIT_CHANCE_STEP
+        );
+        TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
+        return new LevelUpChoice(
+            createChoiceTitle("DOUBLE HIT CHANCE"),
+            new DoubleHitChanceDescription(increaseAmount),
+            () -> DoubleHitValues.I().increaseDoubleHitChance(increaseAmount),
+            retrigger,
+            Assets.I().get(AssetKey.RETRIGGER_SHADOW),
+            retrigger,
+            rarity
+        );
+    }
+
+    private LevelUpChoice createCashChipChoice() {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            CollectibleValues.CASH_CHIP_CHANCE_STEP
+        );
+        TextureRegion cashChip = Assets.I().get(AssetKey.POKER_CHIP);
+        return new LevelUpChoice(
+            createChoiceTitle("CASH CHIP DROP"),
+            new CashChipChanceDescription(increaseAmount),
+            () -> CollectibleValues.I()
+                .increaseCashChipSpawnChance(increaseAmount),
+            cashChip,
+            Assets.I().get(AssetKey.POKER_CHIP_SHADOW),
+            cashChip,
+            rarity
+        );
+    }
+
+    private LevelUpChoice createChestDropChoice() {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            ChestManager.DROP_CHANCE_STEP
+        );
+        TextureRegion chest = Assets.I().get(AssetKey.CHEST_CLOSED);
+        return new LevelUpChoice(
+            createChoiceTitle("CHEST DROP CHANCE"),
+            new ChestDropChanceDescriptionText(increaseAmount),
+            () -> ChestManager.I().increaseDropChance(increaseAmount),
+            chest,
+            chest,
+            chest,
+            rarity
+        );
+    }
+
+    private LevelUpChoice createLuckChoice(Luck luck) {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            Luck.BONUS_PER_UPGRADE
+        );
+        TextureRegion luckIcon = Assets.I().get(AssetKey.LUCK);
+        return new LevelUpChoice(
+            new LuckText(),
+            new LuckDescriptionText(increaseAmount),
+            () -> luck.increaseBonusPercent(increaseAmount),
+            luckIcon,
+            Assets.I().get(AssetKey.LUCK_SHADOW),
+            luckIcon,
+            rarity
+        );
+    }
+
+    private GeneratedFabledText createChoiceTitle(String text) {
+        return new GeneratedFabledText(
+            text,
+            22f,
+            0.05f,
+            0.22f,
+            ZIndex.SHOP_CARD
         );
     }
 

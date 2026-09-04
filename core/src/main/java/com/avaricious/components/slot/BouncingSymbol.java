@@ -25,9 +25,10 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
-public class BouncingSymbol {
+public class BouncingSymbol implements CollectorTarget {
 
     private static final int COMP_CHIP_REWARD = 1;
+    private static final float COLLECTOR_GRACE_PERIOD = 0.12f;
 
     private final Symbol symbol;
     private final TextureRegion texture;
@@ -242,6 +243,12 @@ public class BouncingSymbol {
         if (!touching || !hovered || claimed) {
             return false;
         }
+
+        return collect();
+    }
+
+    private boolean collect() {
+        if (claimed || finished) return false;
 
         pulseEffect.pulse(1.65f);
 
@@ -704,6 +711,31 @@ public class BouncingSymbol {
             getWidth(),
             getHeight()
         ) * 0.42f;
+    }
+
+    @Override
+    public boolean isAvailableForCollector() {
+        return !claimed && !finished && spawnAge >= COLLECTOR_GRACE_PERIOD;
+    }
+
+    @Override
+    public float getCollectorTargetX() {
+        return getCenterX();
+    }
+
+    @Override
+    public float getCollectorTargetY() {
+        return getCenterY();
+    }
+
+    @Override
+    public float getCollectorTargetRadius() {
+        return getRadius();
+    }
+
+    @Override
+    public boolean collectByCollector() {
+        return collect();
     }
 
     public float getVelocityX() {
