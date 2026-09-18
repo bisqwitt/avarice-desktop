@@ -14,20 +14,16 @@ import com.badlogic.gdx.math.Vector2;
 import java.util.Arrays;
 import java.util.List;
 
-/** Always-visible compact shop with Symbols, Stats, and Unlocks tabs. */
+/** Always-visible compact shop with Symbols and Unlocks tabs. */
 public class QuickShop {
-    private static final float TAB_WIDTH = 1.20f;
+    private static final float TAB_WIDTH = 1.83f;
     private static final float TAB_GAP = 0.06f;
     private static final Rectangle SYMBOL_TAB_BOUNDS = new Rectangle(
         GameplayLayout.HUD_LEFT,
         5.76f + GameplayLayout.HUD_Y_OFFSET,
         TAB_WIDTH, 0.46f);
-    private static final Rectangle STATS_TAB_BOUNDS = new Rectangle(
-        GameplayLayout.HUD_LEFT + TAB_WIDTH + TAB_GAP,
-        5.76f + GameplayLayout.HUD_Y_OFFSET,
-        TAB_WIDTH, 0.46f);
     private static final Rectangle UNLOCKS_TAB_BOUNDS = new Rectangle(
-        GameplayLayout.HUD_LEFT + (TAB_WIDTH + TAB_GAP) * 2f,
+        GameplayLayout.HUD_LEFT + TAB_WIDTH + TAB_GAP,
         5.76f + GameplayLayout.HUD_Y_OFFSET,
         TAB_WIDTH, 0.46f);
     private static final float UPGRADE_ROW_HEIGHT = 0.72f;
@@ -52,20 +48,16 @@ public class QuickShop {
     private final GeneratedFabledText title = new GeneratedFabledText(
         "SHOP", 46f, 0.022f, 0.11f, ZIndex.SHOP_CARD, false);
     private final GeneratedFabledText symbolTabText = text("SYMBOLS", 39f, 0.025f, 0.12f);
-    private final GeneratedFabledText statsTabText = text("STATS", 39f, 0.025f, 0.12f);
     private final GeneratedFabledText unlocksTabText = text("UNLOCKS", 39f, 0.025f, 0.12f);
     private final List<ShopItem> symbolItems;
-    private final List<ShopItem> statsItems;
     private final List<ShopItem> unlockItems;
 
-    private enum Tab { SYMBOLS, STATS, UNLOCKS }
+    private enum Tab { SYMBOLS, UNLOCKS }
     private Tab selectedTab = Tab.SYMBOLS;
     private Tab pressedTab;
     private final Vector2 blockedMouse = new Vector2(-100f, -100f);
     private float symbolScrollOffset;
     private float symbolScrollTarget;
-    private float statsScrollOffset;
-    private float statsScrollTarget;
     private float unlocksScrollOffset;
     private float unlocksScrollTarget;
 
@@ -73,33 +65,9 @@ public class QuickShop {
         title.setAbsoluteX(GameplayLayout.HUD_LEFT);
         title.getWords().forEach(word -> word.setColor(Assets.I().silver()));
         positionTabText(symbolTabText, SYMBOL_TAB_BOUNDS);
-        positionTabText(statsTabText, STATS_TAB_BOUNDS);
         positionTabText(unlocksTabText, UNLOCKS_TAB_BOUNDS);
 
         Automations upgrades = Automations.I();
-        statsItems = Arrays.asList(
-            new ShopItem(cardTitle("SLOT SPEED"), new SlotMachineSpeedDescriptionText(),
-                upgrades.getSlotMachineSpeed(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_1),
-            new ShopItem(cardTitle("XP MULTIPLIER"), new XpMultiplierDescriptionText(),
-                upgrades.getXpMultiplier(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_2),
-            new ShopItem(cardTitle("EXTRA COLLECTIBLE CHANCE"), new ExtraCollectibleChanceDescription(),
-                upgrades.getExtraCollectibleChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
-            new ShopItem(cardTitle("EXTRA SPADE CHANCE"), new ExtraSpadeChanceDescription(),
-                upgrades.getExtraSpadeChance(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_4),
-            new ShopItem(cardTitle("CRIT CHANCE"), new CriticalHitChanceDescription(),
-                upgrades.getCriticalHitChance(), Assets.I().get(AssetKey.CRITICAL_HIT), Input.Keys.NUM_5),
-            new ShopItem(cardTitle("CRIT DAMAGE"), new CriticalDamageDescription(),
-                upgrades.getCriticalDamage(), Assets.I().get(AssetKey.MULTI), Input.Keys.NUM_6),
-            new ShopItem(cardTitle("DOUBLE HIT CHANCE"), new DoubleHitChanceDescription(),
-                upgrades.getDoubleHitChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_7),
-            new ShopItem(cardTitle("CASH CHIP DROP CHANCE"), new CashChipChanceDescription(),
-                upgrades.getCashChipChance(), Assets.I().get(AssetKey.POKER_CHIP), Input.Keys.NUM_8),
-            new ShopItem(cardTitle("CHEST DROP CHANCE"), new ChestDropChanceDescriptionText(),
-                upgrades.getChestDropChance(), Assets.I().get(AssetKey.CHEST_CLOSED), Input.Keys.NUM_9),
-            new ShopItem(cardTitle("LUCK"), new LuckDescriptionText(),
-                upgrades.getLuck(), Assets.I().get(AssetKey.LUCK), Input.Keys.NUM_0)
-        );
-
         unlockItems = Arrays.asList(
             new ShopItem(cardTitle("SPIN QUEUER"), label("QUEUE SPINS"),
                 upgrades.getSpinQueuer(), Assets.I().get(AssetKey.SPIN_BUTTON), Input.Keys.NUM_1),
@@ -168,7 +136,6 @@ public class QuickShop {
 
     private void drawTabs(float delta, boolean inactiveOnly) {
         drawTabFor(Tab.SYMBOLS, SYMBOL_TAB_BOUNDS, symbolTabText, delta, inactiveOnly);
-        drawTabFor(Tab.STATS, STATS_TAB_BOUNDS, statsTabText, delta, inactiveOnly);
         drawTabFor(Tab.UNLOCKS, UNLOCKS_TAB_BOUNDS, unlocksTabText, delta, inactiveOnly);
     }
 
@@ -236,7 +203,6 @@ public class QuickShop {
 
     private void updateScroll(float delta) {
         symbolScrollOffset = approachScroll(symbolScrollOffset, symbolScrollTarget, delta);
-        statsScrollOffset = approachScroll(statsScrollOffset, statsScrollTarget, delta);
         unlocksScrollOffset = approachScroll(unlocksScrollOffset, unlocksScrollTarget, delta);
     }
 
@@ -293,14 +259,11 @@ public class QuickShop {
     private void handleTabInput(Vector2 mouse, boolean pressed, boolean wasPressed) {
         if (pressed && !wasPressed) {
             if (SYMBOL_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.SYMBOLS;
-            else if (STATS_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.STATS;
             else if (UNLOCKS_TAB_BOUNDS.contains(mouse)) pressedTab = Tab.UNLOCKS;
             else pressedTab = null;
         } else if (!pressed && wasPressed) {
             if (pressedTab == Tab.SYMBOLS && SYMBOL_TAB_BOUNDS.contains(mouse)) {
                 selectedTab = Tab.SYMBOLS;
-            } else if (pressedTab == Tab.STATS && STATS_TAB_BOUNDS.contains(mouse)) {
-                selectedTab = Tab.STATS;
             } else if (pressedTab == Tab.UNLOCKS && UNLOCKS_TAB_BOUNDS.contains(mouse)) {
                 selectedTab = Tab.UNLOCKS;
             }
@@ -309,7 +272,6 @@ public class QuickShop {
     }
 
     private List<ShopItem> selectedItems() {
-        if (selectedTab == Tab.STATS) return statsItems;
         if (selectedTab == Tab.UNLOCKS) return unlockItems;
         return symbolItems;
     }
@@ -327,20 +289,17 @@ public class QuickShop {
     }
 
     private float selectedScrollOffset() {
-        if (selectedTab == Tab.STATS) return statsScrollOffset;
         if (selectedTab == Tab.UNLOCKS) return unlocksScrollOffset;
         return symbolScrollOffset;
     }
 
     private float selectedScrollTarget() {
-        if (selectedTab == Tab.STATS) return statsScrollTarget;
         if (selectedTab == Tab.UNLOCKS) return unlocksScrollTarget;
         return symbolScrollTarget;
     }
 
     private void setSelectedScrollTarget(float target) {
-        if (selectedTab == Tab.STATS) statsScrollTarget = target;
-        else if (selectedTab == Tab.UNLOCKS) unlocksScrollTarget = target;
+        if (selectedTab == Tab.UNLOCKS) unlocksScrollTarget = target;
         else symbolScrollTarget = target;
     }
 

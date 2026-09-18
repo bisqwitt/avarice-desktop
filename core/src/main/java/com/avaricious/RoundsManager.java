@@ -5,6 +5,7 @@ import com.avaricious.components.roundInfoPanel.RoundTimer;
 import com.avaricious.items.upgrades.cards.AbstractCard;
 import com.avaricious.items.upgrades.quests.AbstractQuest;
 import com.avaricious.items.upgrades.quests.PlaySevenCardsInOneSpinQuest;
+import com.avaricious.utility.EconomyScaling;
 import com.avaricious.utility.Observable;
 import com.avaricious.utility.Seq;
 
@@ -13,22 +14,85 @@ import java.util.List;
 
 public class RoundsManager extends Observable<Integer> {
 
+    private static final float FIRST_ROUND_TARGET = 100f;
+    private static final float ROUND_TARGET_GROWTH = 1.50f;
+
+    public enum RoundOutcome {
+        IN_PROGRESS,
+        CLEARED,
+        FAILED
+    }
+
     private final RoundTimer roundTimer = new RoundTimer();
     private Integer currentRound = 0;
+    private float roundTarget;
+    private RoundOutcome outcome = RoundOutcome.IN_PROGRESS;
 
     private final List<AbstractCard> playedCardsThisRound = new ArrayList<>();
     private boolean defenceTypeCardsDisabled = false;
 
-    public void nextRound() {
-        setCurrentRound(currentRound + 1);
-        CreditManager.I().roundEnd();
-//        Hand.I().drawCard();
+    public void startNewRun() {
+        currentRound = 0;
+        nextRound();
+    }
 
+    public void nextRound() {
+        int nextRound = currentRound + 1;
+        roundTarget = calculateTarget(nextRound);
+        outcome = RoundOutcome.IN_PROGRESS;
         roundTimer.startTimer();
+        setCurrentRound(nextRound);
     }
 
     public Integer getCurrentRound() {
         return currentRound;
+    }
+
+    public boolean tryStartSpin() {
+        return canSpin();
+    }
+
+    public boolean updateTimer(float delta) {
+        return outcome == RoundOutcome.IN_PROGRESS
+            && roundTimer.update(delta);
+    }
+
+    public RoundOutcome resolveRound(float availableCash) {
+        if (outcome != RoundOutcome.IN_PROGRESS) {
+            return outcome;
+        }
+
+        if (roundTimer.timerEnded()) {
+            outcome = availableCash >= roundTarget
+                ? RoundOutcome.CLEARED
+                : RoundOutcome.FAILED;
+        }
+        return outcome;
+    }
+
+    public boolean canSpin() {
+        return outcome == RoundOutcome.IN_PROGRESS
+            && !roundTimer.timerEnded();
+    }
+
+    public int getSecondsRemaining() {
+        return roundTimer.getSecondsRemaining();
+    }
+
+    public float getRoundTarget() {
+        return roundTarget;
+    }
+
+    public RoundOutcome getOutcome() {
+        return outcome;
+    }
+
+    private float calculateTarget(int round) {
+        double rawTarget = FIRST_ROUND_TARGET * Math.pow(
+            ROUND_TARGET_GROWTH,
+            Math.max(0, round - 1)
+        );
+        return EconomyScaling.roundPrice(rawTarget);
     }
 
     private void setCurrentRound(int currentRound) {

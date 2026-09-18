@@ -12,6 +12,8 @@ public class FabledText {
         new ArrayList<>();
 
     private float renderScale = 1f;
+    private float animationScale = 1f;
+    private float opacity = 1f;
 
     public FabledText(
         FabledWord... words
@@ -29,8 +31,9 @@ public class FabledText {
                 word ->
                     word.draw(
                         delta,
-                        renderScale,
-                        scaleOriginX
+                        renderScale * animationScale,
+                        scaleOriginX,
+                        opacity
                     )
             );
     }
@@ -64,7 +67,16 @@ public class FabledText {
     }
 
     public float getRenderedWidth() {
-        return getNaturalWidth() * renderScale;
+        return getNaturalWidth() * renderScale * animationScale;
+    }
+
+    /** Animation scale is independent of the width constraint. */
+    public void setAnimationScale(float scale) {
+        animationScale = Math.max(0.01f, scale);
+    }
+
+    public void setOpacity(float opacity) {
+        this.opacity = Math.max(0f, Math.min(1f, opacity));
     }
 
     /*

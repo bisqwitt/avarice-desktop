@@ -67,11 +67,14 @@ public class SlotMachineResultRunner {
 //                buttonBoard.setVisible(true);
                 slotMachine.playEmptySpinSweep(() -> {
                     slotMachine.setStale(true);
+                    TicketPressSystem.I().finishSpin();
+                    SlotScreen screen = ScreenManager.I().getScreen(SlotScreen.class);
+                    if (screen.onSpinResolved()) return;
                     if (
                         Automations.I().getAutoSpin().isActive() ||
                             Automations.I().getFullAutoSpin().isActive()
                     ) {
-                        ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+                        screen.onSpinButtonPressed();
                     }
                 });
             }, 0f);
@@ -177,15 +180,15 @@ public class SlotMachineResultRunner {
             slotMachine.setStale(true);
             EffectManager.endStreak();
             TicketPressSystem.I().finishSpin();
-            if (ScoreDisplay.I().reachedRoundGoal())
-                ScreenManager.I().getScreen(SlotScreen.class).onRoundEnd();
+            SlotScreen screen = ScreenManager.I().getScreen(SlotScreen.class);
+            if (screen.onSpinResolved()) return;
 //            buttonBoard.setVisible(true);
 //            ScoreDisplay.I().updateScoreNumber();
             if (
                 Automations.I().getAutoSpin().isActive() ||
                     Automations.I().getFullAutoSpin().isActive()
             )
-                ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+                screen.onSpinButtonPressed();
         });
 
         scheduler.runTasks(

@@ -27,7 +27,7 @@ public class RunManager {
         runId = UUID.randomUUID().toString();
         opponentsRun = RunDataFileManager.I().findOpponentsRun();
 
-        roundsManager.nextRound();
+        roundsManager.startNewRun();
     }
 
     public RoundsManager getRoundsManager() {

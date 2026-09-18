@@ -1,7 +1,5 @@
 package com.avaricious.components;
 
-import com.avaricious.screens.ScreenManager;
-import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.Pencil;
@@ -178,7 +176,6 @@ public class CompChipBar {
         shine = 1f;
         chipsRequired = calculateChipsRequired(level);
 
-        ScreenManager.I().getScreen(SlotScreen.class).getLevelUpWindow().show();
     }
 
     private int calculateChipsRequired(int level) {

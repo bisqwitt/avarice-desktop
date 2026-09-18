@@ -82,6 +82,11 @@ public class BouncingSymbolManager {
         );
     }
 
+    public void reset() {
+        bouncingSymbols.clear();
+        cashChips.clear();
+    }
+
     public void handleInput(
         Vector2 mouse,
         boolean touching,

@@ -53,6 +53,11 @@ public class FabledWord {
     }
 
     void draw(float delta, float renderScale, float scaleOriginX) {
+        draw(delta, renderScale, scaleOriginX, 1f);
+    }
+
+    void draw(float delta, float renderScale, float scaleOriginX, float opacity) {
+        if (opacity <= 0f) return;
         renderScale = Math.max(0.01f, renderScale);
 
         Seq.of(floatEffects).forEach(effect -> effect.update(delta));
@@ -66,13 +71,16 @@ public class FabledWord {
             float width = letter.getRegionWidth() / sizeRatio * renderScale;
             float height = letter.getRegionHeight() / sizeRatio * renderScale;
             float rotation = swayEffects.get(i).getValue();
-            Color color = this.color == null ? new Color(1f, 1f, 1f, 1f) : this.color;
+            Color color = this.color == null ? new Color(Color.WHITE) : new Color(this.color);
+            color.a *= opacity;
+            Color shadowColor = new Color(Assets.I().shadowColor());
+            shadowColor.a *= opacity;
 
             if (extendsBelowBaseline(letter)) y -= height / 3.5f;
 
             Pencil.I().addDrawing(new TextureDrawing(letterShadowTextures.get(i),
                 x, y - 0.1f, width, height,
-                1f, rotation, zIndex, Assets.I().shadowColor()));
+                1f, rotation, zIndex, shadowColor));
 
             Pencil.I().addDrawing(new TextureDrawing(letter,
                 x, y, width, height, 1f, rotation, zIndex, color));

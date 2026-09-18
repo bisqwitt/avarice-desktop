@@ -4,7 +4,6 @@ import com.avaricious.audio.AudioManager;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.automations.Luck;
 import com.avaricious.components.automations.SlotMachineSpeed;
-import com.avaricious.components.automations.XpMultiplier;
 import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.SlotMachineResultRunner;
 import com.avaricious.components.texts.*;
@@ -31,15 +30,21 @@ public class LevelUpWindow {
      * How long the entire selection payoff lasts before
      * normal gameplay resumes.
      */
-    private static final float SELECTION_DURATION = 0.66f;
-
-    private final TextureRegion background =
-        Assets.I().get(AssetKey.CHARCOAL_PIXEL);
+    private static final float SELECTION_DURATION = 0.72f;
+    private static final Color GOLD = new Color(1f, 0.82f, 0.44f, 1f);
+    private static final Color MUTED = new Color(0.63f, 0.71f, 0.76f, 1f);
 
     private final TextureRegion whitePixel =
         Assets.I().get(AssetKey.WHITE_PIXEL);
 
-    private final LevelUpText title = new LevelUpText();
+    private final GeneratedFabledText title = new GeneratedFabledText(
+        "ROUND REWARD",
+        21f,
+        0.04f,
+        0.20f,
+        ZIndex.SHOP_CARD,
+        true
+    );
     private final GeneratedFabledText prompt = new GeneratedFabledText(
         "CHOOSE AN UPGRADE",
         39f,
@@ -51,6 +56,9 @@ public class LevelUpWindow {
 
     private final List<LevelUpChoice> choices =
         new ArrayList<>();
+    private final GeneratedFabledText controls = label("CLICK A CARD OR PRESS ITS NUMBER", 62f, MUTED);
+    private float windowOpacity = 1f;
+    private Runnable onRewardSelected;
 
     /*
      * These are completely separate from ParticleManager.
@@ -90,12 +98,9 @@ public class LevelUpWindow {
     private final Color selectionColor = new Color(Color.WHITE);
 
     private static final Color[] CELEBRATION_COLORS = {
-        new Color(1f, 0.32f, 0.72f, 1f),
-        new Color(0.42f, 0.82f, 1f, 1f),
-        new Color(0.72f, 0.46f, 1f, 1f),
-        new Color(1f, 0.82f, 0.24f, 1f),
-        new Color(0.50f, 1f, 0.66f, 1f),
-        Color.WHITE
+        GOLD,
+        new Color(0.48f, 0.83f, 0.86f, 1f),
+        new Color(1f, 0.94f, 0.75f, 1f)
     };
 
     /*
@@ -110,16 +115,34 @@ public class LevelUpWindow {
             WORLD_WIDTH / 2f -
                 Math.min(prompt.getNaturalWidth(), 4.25f) / 2f
         );
-        prompt.setY(6.43f);
-        prompt.setFloatEffects(0.012f, 0.85f);
+        prompt.setY(6.67f);
+        prompt.setFloatEffects(0f, 0f);
         prompt.getWords().forEach(word ->
-            word.setColor(Assets.I().silver())
+            word.setColor(MUTED)
         );
+        title.fitWithinWidth(5.5f);
+        title.setAbsoluteX((WORLD_WIDTH - title.getRenderedWidth()) / 2f);
+        title.setY(7.31f);
+        title.getWords().forEach(word -> word.setColor(GOLD));
+    }
+
+    private static GeneratedFabledText label(String text, float size, Color color) {
+        GeneratedFabledText result = new GeneratedFabledText(
+            text, size, 0.018f, 0.10f, ZIndex.SHOP_CARD
+        );
+        result.setFloatEffects(0f, 0f);
+        result.getWords().forEach(word -> word.setColor(color));
+        return result;
     }
 
     public void show() {
+        show(null);
+    }
+
+    public void show(Runnable onRewardSelected) {
         if (showing) return;
 
+        this.onRewardSelected = onRewardSelected;
         showing = true;
         selecting = false;
         selectedChoice = null;
@@ -129,6 +152,7 @@ public class LevelUpWindow {
         selectionTimer = 0f;
         screenFlash = 0f;
         revealTimer = 0f;
+        windowOpacity = 1f;
         selectionColor.set(Color.WHITE);
 
         burstParticles.clear();
@@ -141,7 +165,7 @@ public class LevelUpWindow {
         }
 
         title.setY(titleStartY);
-        title.setFloatEffects(0.10f, 1.15f);
+        title.setFloatEffects(0.018f, 0.85f);
 
         AudioManager.I().stopPayout();
         AudioManager.I().playLevelUp();
@@ -149,16 +173,18 @@ public class LevelUpWindow {
         /*
          * Freeze the result scheduler.
          */
-        SlotMachineResultRunner.I()
-            .getScheduler()
-            .pause();
+        if (SlotMachineResultRunner.I().getScheduler() != null) {
+            SlotMachineResultRunner.I()
+                .getScheduler()
+                .pause();
+        }
 
         generateChoices();
         if (choices.isEmpty()) {
-            hide();
+            completeReward();
             return;
         }
-        spawnBurst(WORLD_WIDTH / 2f, 7.05f, 52, 1.12f);
+        spawnBurst(WORLD_WIDTH / 2f, 7.55f, 18, 0.58f);
     }
 
     public void hide() {
@@ -175,6 +201,7 @@ public class LevelUpWindow {
         selectionTimer = 0f;
         screenFlash = 0f;
         revealTimer = 0f;
+        onRewardSelected = null;
 
         /*
          * Restore title position so repeated level-ups
@@ -184,9 +211,11 @@ public class LevelUpWindow {
             title.setY(titleStartY);
         }
 
-        SlotMachineResultRunner.I()
-            .getScheduler()
-            .resume();
+        if (SlotMachineResultRunner.I().getScheduler() != null) {
+            SlotMachineResultRunner.I()
+                .getScheduler()
+                .resume();
+        }
     }
 
     private void generateChoices() {
@@ -200,11 +229,6 @@ public class LevelUpWindow {
         SlotMachineSpeed speed = stats.getSlotMachineSpeed();
         if (!speed.isMaxSpeedReached()) {
             possibleChoices.add(createSpeedChoice(speed));
-        }
-
-        XpMultiplier xpMultiplier = stats.getXpMultiplier();
-        if (!xpMultiplier.isMaxMultiplierReached()) {
-            possibleChoices.add(createXpMultiplierChoice(xpMultiplier));
         }
 
         if (
@@ -329,7 +353,7 @@ public class LevelUpWindow {
              * pop in one after another.
              */
             choice.setEntranceDelay(
-                i * 0.075f
+                0.13f + i * 0.10f
             );
             choice.setShortcutNumber(i + 1);
 
@@ -350,21 +374,6 @@ public class LevelUpWindow {
             retrigger,
             Assets.I().get(AssetKey.RETRIGGER_SHADOW),
             retrigger,
-            rarity
-        );
-    }
-
-    private LevelUpChoice createXpMultiplierChoice(XpMultiplier multiplier) {
-        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-        int upgradeCount = rarity.scaleLevelUpAmount(1);
-        TextureRegion spade = Assets.I().get(AssetKey.SPADE);
-        return new LevelUpChoice(
-            createChoiceTitle("XP MULTIPLIER"),
-            new XpMultiplierDescriptionText(upgradeCount),
-            () -> multiplier.increaseMultiplier(upgradeCount),
-            spade,
-            spade,
-            spade,
             rarity
         );
     }
@@ -467,10 +476,10 @@ public class LevelUpWindow {
     }
 
     private void updateChoiceBounds() {
-        float width = 4f;
-        float height = 4.5f;
+        float width = 3.72f;
+        float height = 4.42f;
 
-        float gap = 0.5f;
+        float gap = 0.36f;
 
         float totalWidth =
             width * choices.size() +
@@ -479,7 +488,7 @@ public class LevelUpWindow {
         float startX =
             (WORLD_WIDTH - totalWidth) / 2f;
 
-        float y = 1.72f;
+        float y = 1.80f;
 
         for (int i = 0; i < choices.size(); i++) {
             choices.get(i).setBounds(
@@ -625,7 +634,7 @@ public class LevelUpWindow {
     private void beginSelection(
         LevelUpChoice choice
     ) {
-        if (selecting) return;
+        if (selecting || !choice.isReady()) return;
 
         selecting = true;
         selectedChoice = choice;
@@ -679,13 +688,7 @@ public class LevelUpWindow {
          * Reward explosion around the lower symbol
          * portion of the selected card.
          */
-        spawnBurst(
-            choice.getCenterX(),
-            choice.getCenterY() - 1f,
-            64,
-            1.25f,
-            selectionColor
-        );
+        spawnBurst(choice.getCenterX(), choice.getIconCenterY(), 14, 0.58f, selectionColor);
     }
 
     private void spawnBurst(
@@ -722,7 +725,6 @@ public class LevelUpWindow {
         if (!selecting) return;
 
         selectionTimer += delta;
-
         /*
          * Short background flash.
          */
@@ -748,15 +750,21 @@ public class LevelUpWindow {
 
         title.setY(
             titleStartY +
-                titleProgress * 0.38f
+                titleProgress * 0.06f
         );
 
         if (
             selectionTimer >=
                 SELECTION_DURATION
         ) {
-            hide();
+            completeReward();
         }
+    }
+
+    private void completeReward() {
+        Runnable next = onRewardSelected;
+        hide();
+        if (next != null) next.run();
     }
 
     private void updateBurstParticles(
@@ -781,171 +789,60 @@ public class LevelUpWindow {
 
     public void draw(float delta) {
         if (!showing) return;
-
         revealTimer += delta;
-
         updateSelection(delta);
-
-        /*
-         * updateSelection may hide the window.
-         */
         if (!showing) return;
-
         updateBurstParticles(delta);
+        windowOpacity = selecting
+            ? 1f - smoothStep(MathUtils.clamp((selectionTimer - 0.57f) / 0.15f, 0f, 1f))
+            : 1f;
 
-        float backgroundAlpha =
-            selecting
-                ? 0.48f
-                : 0.39f;
-
-        Pencil.I().addDrawing(
-            new TextureDrawing(
-                background,
-                0f,
-                0f,
-                WORLD_WIDTH,
-                WORLD_HEIGHT,
-                ZIndex.SHOP,
-                new Color(
-                    1f,
-                    1f,
-                    1f,
-                    backgroundAlpha
-                )
-            )
-        );
-
-        drawEnergyRays();
-        drawHeaderFrame();
-
-        /*
-         * Very fast full-screen white hit.
-         *
-         * Keep this subtle. The symbol/card itself carries
-         * most of the actual flash.
-         */
+        float reveal = smoothStep(MathUtils.clamp(revealTimer / 0.25f, 0f, 1f));
+        drawBackdrop(reveal);
         if (screenFlash > 0f) {
-            Pencil.I().addDrawing(
-                new TextureDrawing(
-                    whitePixel,
-                    0f,
-                    0f,
-                    WORLD_WIDTH,
-                    WORLD_HEIGHT,
-                    ZIndex.SHOP,
-                    new Color(
-                        selectionColor.r,
-                        selectionColor.g,
-                        selectionColor.b,
-                        screenFlash * 0.11f
-                    )
-                )
-            );
+            rect(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT,
+                selectionColor, screenFlash * 0.06f, ZIndex.SHOP);
         }
 
+        float titleReveal = smoothStep(MathUtils.clamp(revealTimer / 0.38f, 0f, 1f));
+        title.setOpacity(titleReveal * windowOpacity);
+        title.setAnimationScale(0.94f + 0.06f * titleReveal);
+        title.setAbsoluteX((WORLD_WIDTH - title.getRenderedWidth()) / 2f);
         title.draw(delta);
-        if (!selecting && revealTimer >= 0.10f) {
-            prompt.draw(delta);
+        if (!selecting) {
+            drawCentered(prompt, 6.67f, reveal, delta);
+            drawCentered(controls, 0.82f, reveal * 0.66f, delta);
         }
 
         for (LevelUpChoice choice : choices) {
-            choice.draw(delta);
+            choice.setWindowOpacity(windowOpacity);
+            if (choice != selectedChoice) choice.draw(delta);
         }
-
-        /*
-         * Reward burst is drawn after the cards so it
-         * visually sprays out over them.
-         */
-        for (
-            BurstParticle particle :
-            burstParticles
-        ) {
-            particle.draw();
-        }
+        if (selectedChoice != null) selectedChoice.draw(delta);
+        for (BurstParticle particle : burstParticles) particle.draw();
     }
 
     public boolean isShowing() {
         return showing;
     }
 
-    private void drawEnergyRays() {
-        float reveal = MathUtils.clamp(revealTimer / 0.42f, 0f, 1f);
-        reveal = smoothStep(reveal);
-
-        float centerX = WORLD_WIDTH / 2f;
-        float centerY = selecting && selectedChoice != null
-            ? MathUtils.lerp(5.3f, selectedChoice.getCenterY() - 0.8f,
-                smoothStep(MathUtils.clamp(selectionTimer / 0.28f, 0f, 1f)))
-            : 5.3f;
-
-        for (int i = 0; i < 18; i++) {
-            float angle = i * (360f / 18f) + revealTimer * 6f;
-            float shimmer = (MathUtils.sin(revealTimer * 4f + i * 1.7f) + 1f) * 0.5f;
-            float length = MathUtils.lerp(2.7f, 5.8f, shimmer) * reveal;
-            float thickness = MathUtils.lerp(0.018f, 0.055f, shimmer);
-            Color base;
-            if (selecting) {
-                base = new Color(selectionColor).lerp(
-                    Color.WHITE,
-                    0.18f + (i % 4) * 0.11f
-                );
-            } else {
-                base = CELEBRATION_COLORS[i % CELEBRATION_COLORS.length];
-            }
-
-            Pencil.I().addDrawing(
-                new TextureDrawing(
-                    whitePixel,
-                    centerX - length / 2f,
-                    centerY - thickness / 2f,
-                    length,
-                    thickness,
-                    1f,
-                    angle,
-                    ZIndex.SHOP,
-                    new Color(base.r, base.g, base.b,
-                        reveal * (0.035f + shimmer * 0.055f))
-                )
-            );
-        }
+    private void drawBackdrop(float reveal) {
+        rect(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT,
+            new Color(0.018f, 0.030f, 0.041f, 1f), 0.92f * reveal, ZIndex.SHOP);
+        rect(2.05f, 6.39f, 11.90f, 0.012f, GOLD, 0.16f * reveal, ZIndex.SHOP);
     }
 
-    private void drawHeaderFrame() {
-        float reveal = smoothStep(
-            MathUtils.clamp(revealTimer / 0.32f, 0f, 1f)
-        );
-        float pulse = 0.72f + MathUtils.sin(revealTimer * 2.6f) * 0.12f;
-        float lineWidth = 3.55f * reveal;
-        float lineY = 6.74f;
-        Color lineColor = selecting
-            ? new Color(
-                selectionColor.r,
-                selectionColor.g,
-                selectionColor.b,
-                0.34f * reveal
-            )
-            : new Color(1f, 0.80f, 0.28f, 0.28f * pulse * reveal);
-
-        Pencil.I().addDrawing(new TextureDrawing(
-            whitePixel,
-            5.35f - lineWidth,
-            lineY,
-            lineWidth,
-            0.025f,
-            ZIndex.SHOP,
-            lineColor
-        ));
-        Pencil.I().addDrawing(new TextureDrawing(
-            whitePixel,
-            10.65f,
-            lineY,
-            lineWidth,
-            0.025f,
-            ZIndex.SHOP,
-            lineColor
-        ));
+    private void drawCentered(FabledText text, float y, float alpha, float delta) {
+        text.setAbsoluteX((WORLD_WIDTH - text.getRenderedWidth()) / 2f);
+        text.setY(y);
+        text.setOpacity(alpha * windowOpacity);
+        text.draw(delta);
     }
 
+    private void rect(float x, float y, float width, float height, Color color, float alpha, ZIndex layer) {
+        Pencil.I().addDrawing(new TextureDrawing(whitePixel, x, y, width, height, layer,
+            new Color(color.r, color.g, color.b, alpha * windowOpacity)));
+    }
     private static float smoothStep(
         float value
     ) {
@@ -1117,12 +1014,12 @@ public class LevelUpWindow {
                     1f,
                     rotation +
                         rotationVelocity * age,
-                    ZIndex.SHOP,
+                    ZIndex.SHOP_CARD_TOUCHING,
                     new Color(
                         color.r,
                         color.g,
                         color.b,
-                        alpha
+                        alpha * windowOpacity
                     )
                 )
             );

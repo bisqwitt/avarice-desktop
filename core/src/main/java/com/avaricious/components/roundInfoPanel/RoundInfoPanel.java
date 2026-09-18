@@ -1,17 +1,20 @@
 package com.avaricious.components.roundInfoPanel;
 
-import com.avaricious.CreditScore;
+import com.avaricious.CreditNumber;
+import com.avaricious.RoundsManager;
 import com.avaricious.components.DigitalNumber;
-import com.avaricious.components.texts.CreditsWord;
-import com.avaricious.components.texts.FabledWord;
-import com.avaricious.components.texts.ReachWord;
+import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.Pencil;
+import com.avaricious.utility.RunManager;
+import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.math.Vector2;
 
+/** Compact HUD for the current round target and countdown. */
 public class RoundInfoPanel {
 
     private static RoundInfoPanel instance;
@@ -20,50 +23,135 @@ public class RoundInfoPanel {
         return instance == null ? instance = new RoundInfoPanel() : instance;
     }
 
-    private final CreditsWord creditsText = new CreditsWord(new Vector2(6.75f, 19.1f), 30f, 0.05f, ZIndex.PATTERN_DISPLAY);
-    private final CreditScore creditScore = new CreditScore(new Rectangle(0f, 18.35f, 7 / 23f, 11 / 23f), 0.4f);
+    private static final float PANEL_X = 6.62f;
+    private static final float PANEL_Y = 7.72f;
+    private static final float PANEL_WIDTH = 7.75f;
+    private static final float PANEL_HEIGHT = 0.84f;
 
-    private final ReachWord reachText = new ReachWord(new Vector2(0.5f, 19.1f), 30f, 0.05f, ZIndex.PATTERN_DISPLAY);
-    private final DigitalNumber reachNumber = new DigitalNumber(300, Assets.I().lightColor(), new Rectangle(0, 18.35f, 7 / 23f, 11 / 23f), 0.4f);
+    private static final float ROUND_LEFT = PANEL_X + 0.14f;
+    private static final float ROUND_WIDTH = 1.58f;
+    private static final float TARGET_LEFT = PANEL_X + 2.02f;
+    private static final float TARGET_WIDTH = 3.05f;
+    private static final float TIME_LEFT = PANEL_X + 5.40f;
+    private static final float TIME_WIDTH = 1.76f;
 
-    private final TextureRegion black = Assets.I().get(AssetKey.BLACK_PIXEL);
-    private final TextureRegion white = Assets.I().get(AssetKey.WHITE_PIXEL);
+    private static final Color MUTED = new Color(0.63f, 0.71f, 0.76f, 1f);
+    private static final Color PANEL_COLOR = new Color(0.025f, 0.043f, 0.055f, 1f);
+
+    private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
+    private final GeneratedFabledText roundLabel = label("ROUND");
+    private final GeneratedFabledText targetLabel = label("NEXT BILL");
+    private final GeneratedFabledText timeLabel = label("TIME");
+
+    private final DigitalNumber roundNumber = new DigitalNumber(
+        1, Assets.I().lightColor(),
+        new Rectangle(0f, PANEL_Y + 0.12f, 0.18f, 0.29f), 0.22f
+    ).setZIndex(ZIndex.BUTTON_BOARD);
+    private final CreditNumber targetRemaining = new CreditNumber(
+        0f, new Rectangle(0f, PANEL_Y + 0.10f, 0.18f, 0.29f), 0.22f
+    ).setZIndex(ZIndex.BUTTON_BOARD);
+    private final DigitalNumber timeRemaining = new DigitalNumber(
+        (int) RoundTimer.ROUND_DURATION_SECONDS, Assets.I().lightColor(),
+        new Rectangle(0f, PANEL_Y + 0.12f, 0.18f, 0.29f), 0.22f
+    ).setZIndex(ZIndex.BUTTON_BOARD);
+
+    private int displayedRound = Integer.MIN_VALUE;
+    private int displayedTime = Integer.MIN_VALUE;
+    private float displayedTarget = Float.NaN;
 
     private RoundInfoPanel() {
-//        RoundsManager.I().onChange(currentRoundNumber::setValue);
+        positionLabel(roundLabel, ROUND_LEFT, ROUND_WIDTH);
+        positionLabel(targetLabel, TARGET_LEFT, TARGET_WIDTH);
+        positionLabel(timeLabel, TIME_LEFT, TIME_WIDTH);
+        roundNumber.getIdleScaleEffect().setAllowed(false);
+        targetRemaining.getIdleScaleEffect().setAllowed(false);
+        timeRemaining.getIdleScaleEffect().setAllowed(false);
     }
 
-    public void update(float delta) {
-        centerRoundInfoNumbers();
+    private static GeneratedFabledText label(String text) {
+        GeneratedFabledText result = new GeneratedFabledText(
+            text, 51f, 0.018f, 0.10f, ZIndex.BUTTON_BOARD
+        );
+        result.setFloatEffects(0f, 0f);
+        result.getWords().forEach(word -> word.setColor(MUTED));
+        return result;
+    }
+
+    private static void positionLabel(
+        GeneratedFabledText label,
+        float left,
+        float width
+    ) {
+        label.fitWithinWidth(width);
+        label.setAbsoluteX(left + (width - label.getRenderedWidth()) / 2f);
+        label.setY(PANEL_Y + 0.56f);
     }
 
     public void draw(float delta) {
-//        update(delta);
-//
-//        reachText.draw(delta);
-//        reachNumber.draw(delta);
-//
-//        creditsText.draw(delta);
-//        creditScore.draw(delta);
-//
-//        Pencil.I().addDrawing(new TextureDrawing(white,
-//            0, 18f, 9f, 0.05f, ZIndex.PATTERN_DISPLAY));
+        updateValues();
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            PANEL_X,
+            PANEL_Y,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            ZIndex.BUTTON_BOARD,
+            new Color(PANEL_COLOR.r, PANEL_COLOR.g, PANEL_COLOR.b, 0.78f)
+        ));
+
+        drawDivider(PANEL_X + 1.86f);
+        drawDivider(PANEL_X + 5.24f);
+
+        roundLabel.draw(delta);
+        targetLabel.draw(delta);
+        timeLabel.draw(delta);
+        roundNumber.draw(delta);
+        targetRemaining.draw(delta);
+        timeRemaining.draw(delta);
     }
 
-    private void centerRoundInfoNumbers() {
-        centerNumberToText(creditsText, creditScore);
-        centerNumberToText(reachText, reachNumber);
+    private void updateValues() {
+        RoundsManager rounds = RunManager.I().getRoundsManager();
+        int round = rounds.getCurrentRound();
+        int seconds = rounds.getSecondsRemaining();
+        float target = rounds.getRoundTarget();
+
+        if (displayedRound != round) {
+            displayedRound = round;
+            roundNumber.setValue(round);
+        }
+        if (displayedTime != seconds) {
+            displayedTime = seconds;
+            timeRemaining.setValue(seconds);
+        }
+        if (Float.compare(displayedTarget, target) != 0) {
+            displayedTarget = target;
+            targetRemaining.setValue(target);
+        }
+
+        timeRemaining.setColor(seconds <= 10
+            ? Assets.I().healthRedColor()
+            : Assets.I().lightColor());
+
+        centerNumber(roundNumber, ROUND_LEFT, ROUND_WIDTH);
+        centerNumber(targetRemaining, TARGET_LEFT, TARGET_WIDTH);
+        centerNumber(timeRemaining, TIME_LEFT, TIME_WIDTH);
     }
 
-    private void centerNumberToText(FabledWord text, DigitalNumber number) {
-        float textX = text.getStartingPos().x;
-        float textWidth = text.getWidth();
-        float numberWidth = number.getWidth();
-
-        number.getFirstDigitBounds().x = textX + (textWidth / 2f) - (numberWidth / 2f);
+    private void centerNumber(DigitalNumber number, float left, float width) {
+        number.getFirstDigitBounds().x = left + (width - number.getWidth()) / 2f;
     }
 
-    public DigitalNumber getReachNumber() {
-        return reachNumber;
+    private void drawDivider(float x) {
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            x,
+            PANEL_Y + 0.12f,
+            0.018f,
+            PANEL_HEIGHT - 0.24f,
+            ZIndex.BUTTON_BOARD,
+            new Color(0.48f, 0.56f, 0.60f, 0.22f)
+        ));
     }
 }

@@ -3,6 +3,7 @@ package com.avaricious.screens;
 import com.avaricious.DevTools;
 import com.avaricious.Main;
 import com.avaricious.Profiler;
+import com.avaricious.RoundsManager;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.*;
 import com.avaricious.components.automations.Automations;
@@ -13,7 +14,6 @@ import com.avaricious.components.roundInfoPanel.PlayerScores;
 import com.avaricious.components.roundInfoPanel.RoundInfoPanel;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.shop.Shop;
-import com.avaricious.components.shop.QuickShop;
 import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.CollectorManager;
@@ -53,9 +53,9 @@ public class SlotScreen extends ScreenAdapter {
 
     private final Shop shop = new Shop(this::onReturnedFromShop);
 
-    private final QuickShop quickShop = new QuickShop();
-
     private final LevelUpWindow levelUpWindow = new LevelUpWindow();
+
+    private final RoundResultWindow roundResultWindow = new RoundResultWindow();
 
     private final ButtonBoard buttonBoard = ButtonBoard.I()
         .init(
@@ -70,9 +70,9 @@ public class SlotScreen extends ScreenAdapter {
         new VfxManager(Pixmap.Format.RGBA8888);
 
     private final Vector2 mouse = new Vector2();
-    private final Vector2 scrollMouse = new Vector2();
 
     private boolean leftClickWasPressed = false;
+    private boolean roundClockActive = false;
 
     private int symbolsHitLastSpin = 0;
 
@@ -82,16 +82,7 @@ public class SlotScreen extends ScreenAdapter {
             if (shop.isShowing()) {
                 return shop.scrollItems(amountY);
             }
-            if (levelUpWindow.isShowing()) {
-                return false;
-            }
-
-            scrollMouse.set(
-                Gdx.input.getX(),
-                Gdx.input.getY()
-            );
-            app.getViewport().unproject(scrollMouse);
-            return quickShop.scroll(amountY, scrollMouse);
+            return false;
         }
     };
 
@@ -221,10 +212,7 @@ public class SlotScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-        RunManager.I().newRun();
-        ChestManager.I().reset();
-        CollectorManager.I().reset();
-        TicketPressSystem.I().reset();
+        resetRunState();
         drawStartingHand();
 
         Timer.schedule(
@@ -232,10 +220,22 @@ public class SlotScreen extends ScreenAdapter {
                 @Override
                 public void run() {
                     buttonBoard.setVisible(true);
+                    roundClockActive = true;
                 }
             },
             1
         );
+    }
+
+    private void resetRunState() {
+        roundClockActive = false;
+        ScoreDisplay.I().setScoreNumber(0f);
+        RunManager.I().newRun();
+        ChestManager.I().reset();
+        CollectorManager.I().reset();
+        BouncingSymbolManager.I().reset();
+        TicketPressSystem.I().reset();
+        roundResultWindow.hide();
     }
 
 
@@ -286,6 +286,22 @@ public class SlotScreen extends ScreenAdapter {
         levelUpWasShowing = levelUpShowing;
 
 
+        // The clock runs through spins, but pauses for decision overlays.
+        if (
+                !levelUpShowing &&
+                !roundResultWindow.isShowing() &&
+                !shop.isShowing() &&
+                roundClockActive
+        ) {
+            boolean timerExpired = RunManager.I()
+                .getRoundsManager()
+                .updateTimer(delta);
+            if (timerExpired && SlotMachine.I().isStale()) {
+                onSpinResolved();
+            }
+        }
+
+
         // ------------------------------------------------------------
         // GAMEPLAY UPDATE
         // ------------------------------------------------------------
@@ -306,14 +322,17 @@ public class SlotScreen extends ScreenAdapter {
          * That means the exact chaotic frame that caused the
          * level-up stays visible behind the menu.
          */
-        if (!levelUpShowing) {
+        if (
+            !levelUpShowing &&
+            !roundResultWindow.isShowing() &&
+            !shop.isShowing()
+        ) {
 
             SlotMachine.I().update(delta);
 
             BouncingSymbolManager.I()
                 .updateFallingSymbols(
                     delta,
-                    quickShop.getCollisionBounds(),
                     ScoreDisplay.I().getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
@@ -413,14 +432,6 @@ public class SlotScreen extends ScreenAdapter {
 
         ScoreDisplay.I().draw(delta);
 
-//        if (!shop.isShowing()) quickShop.draw(delta);
-
-        RunManager.I()
-            .getRoundsManager()
-            .getRoundTimer()
-            .draw(delta);
-
-
         if (!SlotMachine.I().isStale()) {
             buttonBoard.draw(delta);
         }
@@ -455,7 +466,6 @@ public class SlotScreen extends ScreenAdapter {
         CompChipBar.I().draw(delta);
 
         shop.drawPostProcessedItems(delta);
-        quickShop.drawPostProcessedItems(delta);
 
 
 //        bossLootWindow.draw(delta);
@@ -544,7 +554,6 @@ public class SlotScreen extends ScreenAdapter {
         }
 
         shop.draw(delta);
-        quickShop.draw(delta);
 
         BouncingSymbolManager.I()
             .drawFallingSymbols(delta);
@@ -557,14 +566,11 @@ public class SlotScreen extends ScreenAdapter {
         /*
          * Finish the gameplay foreground before queuing the modal.
          *
-         * The quick shop uses a higher drawing layer than the level-up
-         * backdrop, so keeping both in the same Pencil pass allowed the shop
-         * to appear on top of the dimming overlay. Flushing here gives the
-         * level-up window a real compositing boundary: the entire gameplay
-         * scene (including the shop) is drawn first, then the modal backdrop
-         * and choices are drawn over it.
+         * Flushing here gives decision overlays a real compositing boundary:
+         * the gameplay scene is drawn first, then the modal backdrop and
+         * choices are drawn over it.
          */
-        if (levelUpWindow.isShowing()) {
+        if (levelUpWindow.isShowing() || roundResultWindow.isShowing()) {
             Pencil.I().draw(
                 batch,
                 delta,
@@ -582,6 +588,8 @@ public class SlotScreen extends ScreenAdapter {
 
 
         levelUpWindow.draw(delta);
+
+        roundResultWindow.draw(delta);
 
 
         Pencil.I().draw(
@@ -817,6 +825,14 @@ public class SlotScreen extends ScreenAdapter {
                 delta
             );
 
+        } else if (roundResultWindow.isShowing()) {
+
+            roundResultWindow.handleInput(
+                mouse,
+                leftClickPressed,
+                leftClickWasPressed
+            );
+
         } else if (
             levelUpWindow.isShowing()
         ) {
@@ -859,12 +875,6 @@ public class SlotScreen extends ScreenAdapter {
 
 
                 buttonBoard.handleInput(
-                    mouse,
-                    leftClickPressed,
-                    leftClickWasPressed
-                );
-
-                quickShop.handleInput(
                     mouse,
                     leftClickPressed,
                     leftClickWasPressed
@@ -923,6 +933,11 @@ public class SlotScreen extends ScreenAdapter {
             return;
         }
 
+        if (!RunManager.I().getRoundsManager().tryStartSpin()) {
+            AudioManager.I().playMiss();
+            return;
+        }
+
 
         SlotMachine.I().setAlpha(1f);
 
@@ -960,7 +975,65 @@ public class SlotScreen extends ScreenAdapter {
     // ============================================================
 
     public void onRoundEnd() {
+        onSpinResolved();
+    }
 
+    public boolean onSpinResolved() {
+        RoundsManager rounds = RunManager.I().getRoundsManager();
+        float cash = ScoreDisplay.I().getScoreNumber();
+        float bill = rounds.getRoundTarget();
+        RoundsManager.RoundOutcome outcome = rounds.resolveRound(cash);
+
+        if (outcome == RoundsManager.RoundOutcome.IN_PROGRESS) {
+            return false;
+        }
+        if (roundResultWindow.isShowing()) {
+            return true;
+        }
+
+        if (outcome == RoundsManager.RoundOutcome.CLEARED) {
+            AudioManager.I().playUpgradeSelected();
+            ScreenShake.I().addTrauma(0.16f);
+            roundResultWindow.showCleared(
+                cash,
+                bill,
+                () -> payBillAndShowRoundReward(bill)
+            );
+        } else {
+            AudioManager.I().playMiss();
+            ScreenShake.I().addTrauma(0.22f);
+            roundResultWindow.showFailed(cash, bill, this::restartFailedRun);
+        }
+        return true;
+    }
+
+    private void restartFailedRun() {
+        resetRunState();
+        buttonBoard.setVisible(true);
+        roundClockActive = true;
+    }
+
+    private void showRoundReward() {
+        levelUpWindow.show(shop::show);
+    }
+
+    private void payBillAndShowRoundReward(float bill) {
+        ScoreDisplay.I().removeFromScore(bill);
+        showRoundReward();
+    }
+
+    private void startNextRound() {
+        RunManager.I()
+            .getRoundsManager()
+            .nextRound();
+        roundClockActive = true;
+
+        if (
+            Automations.I().getAutoSpin().isActive() ||
+                Automations.I().getFullAutoSpin().isActive()
+        ) {
+            onSpinButtonPressed();
+        }
     }
 
 
@@ -1004,8 +1077,7 @@ public class SlotScreen extends ScreenAdapter {
 
                 @Override
                 public void run() {
-
-                    shop.show();
+                    showRoundReward();
                 }
 
             },
@@ -1045,19 +1117,7 @@ public class SlotScreen extends ScreenAdapter {
     // ============================================================
 
     private void onReturnedFromShop() {
-
-        RunManager.I()
-            .getRoundsManager()
-            .nextRound();
-
-
-        if (
-            Automations.I().getAutoSpin().isActive() ||
-                Automations.I().getFullAutoSpin().isActive()
-        ) {
-
-            onSpinButtonPressed();
-        }
+        startNextRound();
     }
 
     public boolean isShopShowing() {

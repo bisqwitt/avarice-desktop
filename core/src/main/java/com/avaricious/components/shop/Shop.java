@@ -2,15 +2,23 @@ package com.avaricious.components.shop;
 
 import com.avaricious.CreditNumber;
 import com.avaricious.DevTools;
+import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ButtonBoard;
 import com.avaricious.components.ScreenShake;
+import com.avaricious.components.automations.AbstractAutomation;
+import com.avaricious.components.automations.AbstractAutomationUpgrade;
 import com.avaricious.components.automations.Automations;
-import com.avaricious.components.buttons.Button;
-import com.avaricious.components.buttons.ExitShopButton;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.Symbol;
-import com.avaricious.components.texts.*;
-import com.avaricious.utility.*;
+import com.avaricious.components.slot.pattern.PatternUnlocks;
+import com.avaricious.components.texts.GeneratedFabledText;
+import com.avaricious.utility.AssetKey;
+import com.avaricious.utility.Assets;
+import com.avaricious.utility.Pencil;
+import com.avaricious.utility.SymbolValues;
+import com.avaricious.utility.TextureDrawing;
+import com.avaricious.utility.ZIndex;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -19,155 +27,272 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
-/** Full-screen store for symbol values, run stats, and feature unlocks. */
-public class Shop {
-    private static final float WIDTH = 16f;
-    private static final float HEIGHT = 9f;
-    private static final float CARD_WIDTH = 6.55f;
-    private static final float CARD_HEIGHT = 2.20f;
-    private static final float UPGRADE_ROW_STEP = 2.53f;
-    private static final int VISIBLE_UPGRADE_ROWS = 2;
-    private static final float SYMBOL_CARD_WIDTH = 3.15f;
-    private static final float SYMBOL_CARD_HEIGHT = 2.20f;
-    private static final float ENTER_DURATION = 0.28f;
+/**
+ * Between-round shop presented as a small persistent skill tree.
+ *
+ * Roots are always available. Buying a root once unlocks the next node in
+ * that branch, while repeatable upgrades can still be bought on later visits.
+ */
+public final class Shop {
 
-    private final TextureRegion backdrop = Assets.I().get(AssetKey.CHARCOAL_PIXEL_DARKER);
-    private final TextureRegion panel = Assets.I().get(AssetKey.CHARCOAL_PIXEL);
-    private final GeneratedFabledText title = new GeneratedFabledText(
-        "SHOP", 12f, 0.07f, 0.30f, ZIndex.SHOP_CARD, true);
-    private final GeneratedFabledText symbolTabText = tabTitle("SYMBOLS");
-    private final GeneratedFabledText statsTabText = tabTitle("STATS");
-    private final GeneratedFabledText unlocksTabText = tabTitle("UNLOCKS");
-    private final GeneratedFabledText freeShopOnText =
-        developerStatus("FREE SHOP ON", Assets.I().yellow());
-    private final GeneratedFabledText freeShopOffText =
-        developerStatus("FREE SHOP OFF", Assets.I().silver());
-    private final Rectangle symbolTabBounds = new Rectangle(1.25f, 6.58f, 4.15f, 0.62f);
-    private final Rectangle statsTabBounds = new Rectangle(5.58f, 6.58f, 4.15f, 0.62f);
-    private final Rectangle unlocksTabBounds = new Rectangle(9.91f, 6.58f, 4.15f, 0.62f);
-    private final Rectangle itemViewport = new Rectangle(1.10f, 1.20f, 13.70f, 5.13f);
-    private final Vector2 blockedMouse = new Vector2(-100f, -100f);
-    private final CreditNumber balance;
-    private final Button exitButton;
-    private final List<ShopItem> symbolItems;
-    private final List<ShopItem> statsItems;
-    private final List<ShopItem> unlockItems;
+    private static final float WORLD_WIDTH = 16f;
+    private static final float WORLD_HEIGHT = 9f;
+    private static final float ENTER_DURATION = 0.24f;
+    private static final float NODE_WIDTH = 2.34f;
+    private static final float NODE_HEIGHT = 0.91f;
+
+    private static final Color BACKDROP = new Color(0.012f, 0.021f, 0.029f, 1f);
+    private static final Color PANEL = new Color(0.038f, 0.061f, 0.078f, 1f);
+    private static final Color NODE = new Color(0.085f, 0.125f, 0.150f, 1f);
+    private static final Color NODE_HOVER = new Color(0.13f, 0.19f, 0.22f, 1f);
+    private static final Color NODE_LOCKED = new Color(0.045f, 0.065f, 0.078f, 1f);
+    private static final Color GOLD = new Color(1f, 0.82f, 0.44f, 1f);
+    private static final Color MUTED = new Color(0.54f, 0.62f, 0.67f, 1f);
+
+    private static final Rectangle NEXT_ROUND_BOUNDS =
+        new Rectangle(11.56f, 0.34f, 3.70f, 0.76f);
+
+    private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
+    private final GeneratedFabledText title = text("SKILL TREE", 16f, GOLD, true);
+    private final GeneratedFabledText prompt = text(
+        "INVEST YOUR CASH THEN START THE NEXT ROUND", 43f, MUTED, false
+    );
+    private final GeneratedFabledText balanceLabel = text("CASH", 39f, MUTED, true);
+    private final GeneratedFabledText nextRoundText = text(
+        "START NEXT ROUND", 39f, GOLD, true
+    );
+    private final GeneratedFabledText controlsText = text(
+        "ENTER TO CONTINUE", 48f, MUTED, false
+    );
+    private final GeneratedFabledText fruitBranch = branchText("FRUIT");
+    private final GeneratedFabledText luckyBranch = branchText("LUCKY");
+    private final GeneratedFabledText metalBranch = branchText("METAL");
+    private final GeneratedFabledText machineBranch = branchText("MACHINE");
+    private final GeneratedFabledText utilityBranch = branchText("UTILITY");
+
+    private final CreditNumber balance = new CreditNumber(
+        ScoreDisplay.I().getScoreNumber(),
+        new Rectangle(13.05f, 7.82f, 0.24f, 0.38f),
+        0.32f
+    ).setZIndex(ZIndex.SHOP_CARD);
+
+    private final List<SkillNode> nodes = new ArrayList<>();
     private final Runnable onReturnedFromShop;
 
     private enum State { HIDDEN, ENTERING, SHOWN, EXITING }
-    private enum Tab { SYMBOLS, STATS, UNLOCKS }
 
     private State state = State.HIDDEN;
-    private Tab selectedTab = Tab.SYMBOLS;
-    private Tab pressedTab;
+    private SkillNode pressedNode;
+    private boolean nextRoundHovered;
+    private boolean nextRoundPressed;
+    private boolean inputArmed;
     private float transition;
-    private float statsScrollOffset;
-    private float statsScrollTarget;
-    private float unlocksScrollOffset;
-    private float unlocksScrollTarget;
 
     public Shop(Runnable onReturnedFromShop) {
         this.onReturnedFromShop = onReturnedFromShop;
-        title.setAbsoluteX(1.2f);
-        positionTabText(symbolTabText, symbolTabBounds);
-        positionTabText(statsTabText, statsTabBounds);
-        positionTabText(unlocksTabText, unlocksTabBounds);
-        freeShopOnText.setAbsoluteX(1.25f);
-        freeShopOffText.setAbsoluteX(1.25f);
-
-        balance = new CreditNumber(ScoreDisplay.I().getScoreNumber(),
-            new Rectangle(12.0f, 7.72f, 7 / 18f, 11 / 18f), 0.52f)
-            .setZIndex(ZIndex.SHOP_CARD);
-        ScoreDisplay.I().addScoreChangeListener(evt -> balance.setValue((Float) evt.getNewValue()));
-        exitButton = new ExitShopButton(new Rectangle(12.0f, 0.42f, 79 / 27f, 25 / 27f));
-
-        Automations upgrades = Automations.I();
-        statsItems = Arrays.asList(
-            new ShopItem(cardTitle("SLOT SPEED"), new SlotMachineSpeedDescriptionText(),
-                upgrades.getSlotMachineSpeed(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_1),
-            new ShopItem(cardTitle("XP MULTIPLIER"), new XpMultiplierDescriptionText(),
-                upgrades.getXpMultiplier(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_2),
-            new ShopItem(cardTitle("EXTRA COLLECTIBLE CHANCE"), new ExtraCollectibleChanceDescription(),
-                upgrades.getExtraCollectibleChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
-            new ShopItem(cardTitle("EXTRA SPADE CHANCE"), new ExtraSpadeChanceDescription(),
-                upgrades.getExtraSpadeChance(), Assets.I().get(AssetKey.SPADE), Input.Keys.NUM_4),
-            new ShopItem(cardTitle("CRIT CHANCE"), new CriticalHitChanceDescription(),
-                upgrades.getCriticalHitChance(), Assets.I().get(AssetKey.CRITICAL_HIT), Input.Keys.NUM_5),
-            new ShopItem(cardTitle("CRIT DAMAGE"), new CriticalDamageDescription(),
-                upgrades.getCriticalDamage(), Assets.I().get(AssetKey.MULTI), Input.Keys.NUM_6),
-            new ShopItem(cardTitle("DOUBLE HIT CHANCE"), new DoubleHitChanceDescription(),
-                upgrades.getDoubleHitChance(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_7),
-            new ShopItem(cardTitle("CASH CHIP DROP CHANCE"), new CashChipChanceDescription(),
-                upgrades.getCashChipChance(), Assets.I().get(AssetKey.POKER_CHIP), Input.Keys.NUM_8),
-            new ShopItem(cardTitle("CHEST DROP CHANCE"), new ChestDropChanceDescriptionText(),
-                upgrades.getChestDropChance(), Assets.I().get(AssetKey.CHEST_CLOSED), Input.Keys.NUM_9),
-            new ShopItem(cardTitle("LUCK"), new LuckDescriptionText(),
-                upgrades.getLuck(), Assets.I().get(AssetKey.LUCK), Input.Keys.NUM_0)
+        balance.setCompactThreshold(1_000f);
+        balance.setDigitSpacing(0.20f);
+        balance.getIdleScaleEffect().setAllowed(false);
+        ScoreDisplay.I().addScoreChangeListener(
+            event -> balance.setValue(((Number) event.getNewValue()).floatValue())
         );
 
-        unlockItems = Arrays.asList(
-            new ShopItem(cardTitle("SPIN QUEUER"), label("QUEUE SPINS"),
-                upgrades.getSpinQueuer(), Assets.I().get(AssetKey.SPIN_BUTTON), Input.Keys.NUM_1),
-            new ShopItem(cardTitle("SPIN QUEUER CAPACITY"), new AutoSpinCapacityDescriptionText(),
-                upgrades.getAutoSpinCapacity(), Assets.I().get(AssetKey.SHOPPING_CART), Input.Keys.NUM_2),
-            new ShopItem(cardTitle("AUTOSPIN"), label("FULLY AUTOMATIC"),
-                upgrades.getFullAutoSpin(), Assets.I().get(AssetKey.RETRIGGER), Input.Keys.NUM_3),
-            new ShopItem(cardTitle("COLLECTORS"), new CollectorCountDescriptionText(),
-                upgrades.getCollectorCapacity(), Assets.I().get(AssetKey.COLLECTOR), Input.Keys.NUM_4),
-            ShopItem.unavailable(cardTitle("CHEST OPENER"), label("COMING SOON"),
-                Assets.I().get(AssetKey.CHEST_CLOSED)),
-            new ShopItem(cardTitle("NEW PATTERNS"), new PatternUnlockDescriptionText(),
-                upgrades.getPatternUnlock(), Assets.I().get(AssetKey.PLUS_SYMBOL), Input.Keys.NUM_6)
+        buildTree();
+    }
+
+    private void buildTree() {
+        SkillNode lemon = symbolNode("LEMON", Symbol.LEMON, 2f, 3.22f, 6.32f, null);
+        symbolNode("CHERRY", Symbol.CHERRY, 2f, 6.12f, 6.32f, lemon);
+
+        SkillNode clover = symbolNode("CLOVER", Symbol.CLOVER, 3f, 3.22f, 5.15f, null);
+        SkillNode bell = symbolNode("BELL", Symbol.BELL, 3f, 6.12f, 5.15f, clover);
+        symbolNode("SEVEN", Symbol.SEVEN, 7f, 9.02f, 5.15f, bell);
+
+        SkillNode iron = symbolNode("IRON", Symbol.IRON, 5f, 3.22f, 3.98f, null);
+        symbolNode("DIAMOND", Symbol.DIAMOND, 5f, 6.12f, 3.98f, iron);
+
+        Automations automations = Automations.I();
+        SkillNode speed = upgradeNode(
+            "SPEED", AssetKey.RETRIGGER, automations.getSlotMachineSpeed(),
+            () -> automations.getSlotMachineSpeed().getSpeedPercent() != 100,
+            automations.getSlotMachineSpeed()::isMaxSpeedReached,
+            3.22f, 2.81f, null
+        );
+        SkillNode spinQueue = automationNode(
+            "SPIN QUEUE", AssetKey.SPIN_BUTTON, automations.getSpinQueuer(),
+            6.12f, 2.81f, speed
+        );
+        SkillNode queueSize = upgradeNode(
+            "QUEUE LIMIT", AssetKey.SHOPPING_CART, automations.getAutoSpinCapacity(),
+            () -> automations.getAutoSpinCapacity().getCapacity() > 3,
+            () -> false,
+            9.02f, 2.81f, spinQueue
+        );
+        automationNode(
+            "AUTO SPIN", AssetKey.RETRIGGER, automations.getFullAutoSpin(),
+            11.92f, 2.81f, queueSize
         );
 
-        symbolItems = Arrays.asList(
-            symbolItem(Symbol.LEMON, Input.Keys.NUM_1),
-            symbolItem(Symbol.CHERRY, Input.Keys.NUM_2),
-            symbolItem(Symbol.CLOVER, Input.Keys.NUM_3),
-            symbolItem(Symbol.BELL, Input.Keys.NUM_4),
-            symbolItem(Symbol.IRON, Input.Keys.NUM_5),
-            symbolItem(Symbol.DIAMOND, Input.Keys.NUM_6),
-            symbolItem(Symbol.SEVEN, Input.Keys.NUM_7)
+        SkillNode collectors = upgradeNode(
+            "COLLECTORS", AssetKey.COLLECTOR, automations.getCollectorCapacity(),
+            () -> automations.getCollectorCapacity().getCount() > 0,
+            () -> false,
+            3.22f, 1.64f, null
+        );
+        upgradeNode(
+            "PATTERNS", AssetKey.PLUS_SYMBOL, automations.getPatternUnlock(),
+            () -> PatternUnlocks.I().getUnlockedCount() > 0,
+            () -> PatternUnlocks.I().getLockedPatterns().isEmpty(),
+            6.12f, 1.64f, collectors
         );
     }
 
-    private static void positionTabText(FabledText text, Rectangle bounds) {
-        text.fitWithinWidth(bounds.width - 0.56f);
-        text.setAbsoluteX(
-            bounds.x + (bounds.width - text.getRenderedWidth()) / 2f
+    private SkillNode symbolNode(
+        String name,
+        Symbol symbol,
+        float initialValue,
+        float x,
+        float y,
+        SkillNode prerequisite
+    ) {
+        PurchaseTarget target = new PurchaseTarget() {
+            @Override
+            public float price() {
+                return SymbolValues.I().getPrice(symbol);
+            }
+
+            @Override
+            public boolean canBuy() {
+                return DevTools.freeShopPurchases()
+                    || ScoreDisplay.I().getScoreNumber() >= price();
+            }
+
+            @Override
+            public void purchase() {
+                SymbolValues.I().increaseValue(symbol);
+            }
+
+            @Override
+            public boolean invested() {
+                return SymbolValues.I().getValue(symbol) > initialValue;
+            }
+
+            @Override
+            public boolean complete() {
+                return false;
+            }
+        };
+        return addNode(name, Assets.I().get(symbol.textureKey()), target,
+            false, x, y, prerequisite);
+    }
+
+    private SkillNode automationNode(
+        String name,
+        AssetKey icon,
+        AbstractAutomation automation,
+        float x,
+        float y,
+        SkillNode prerequisite
+    ) {
+        PurchaseTarget target = new PurchaseTarget() {
+            @Override
+            public float price() {
+                return automation.price();
+            }
+
+            @Override
+            public boolean canBuy() {
+                return automation.isBuyable();
+            }
+
+            @Override
+            public void purchase() {
+                automation.activate();
+            }
+
+            @Override
+            public boolean invested() {
+                return automation.isActive();
+            }
+
+            @Override
+            public boolean complete() {
+                return automation.isActive();
+            }
+        };
+        return addNode(name, Assets.I().get(icon), target, true, x, y, prerequisite);
+    }
+
+    private SkillNode upgradeNode(
+        String name,
+        AssetKey icon,
+        AbstractAutomationUpgrade upgrade,
+        BooleanSupplier invested,
+        BooleanSupplier complete,
+        float x,
+        float y,
+        SkillNode prerequisite
+    ) {
+        PurchaseTarget target = new PurchaseTarget() {
+            @Override
+            public float price() {
+                return upgrade.price();
+            }
+
+            @Override
+            public boolean canBuy() {
+                return upgrade.isBuyable();
+            }
+
+            @Override
+            public void purchase() {
+                upgrade.upgrade();
+            }
+
+            @Override
+            public boolean invested() {
+                return invested.getAsBoolean();
+            }
+
+            @Override
+            public boolean complete() {
+                return complete.getAsBoolean();
+            }
+        };
+        return addNode(name, Assets.I().get(icon), target, true, x, y, prerequisite);
+    }
+
+    private SkillNode addNode(
+        String name,
+        TextureRegion icon,
+        PurchaseTarget target,
+        boolean majorPurchase,
+        float x,
+        float y,
+        SkillNode prerequisite
+    ) {
+        SkillNode node = new SkillNode(
+            name,
+            icon,
+            target,
+            majorPurchase,
+            new Rectangle(x, y, NODE_WIDTH, NODE_HEIGHT),
+            prerequisite
         );
-    }
-
-    private ShopItem symbolItem(Symbol symbol, int key) {
-        return new ShopItem(cardTitle(symbol.toString()), symbol,
-            Assets.I().get(symbol.textureKey()), key);
-    }
-
-    private static GeneratedFabledText tabTitle(String text) {
-        return new GeneratedFabledText(text, 30f, 0.035f, 0.18f, ZIndex.SHOP_CARD, true);
-    }
-
-    private static GeneratedFabledText developerStatus(String text, Color color) {
-        GeneratedFabledText status = new GeneratedFabledText(
-            text, 42f, 0.025f, 0.12f, ZIndex.SHOP_CARD, true);
-        status.getWords().forEach(word -> word.setColor(color));
-        return status;
-    }
-
-    private FabledText cardTitle(String text) {
-        return new GeneratedFabledText(text, 25f, 0.04f, 0.20f, ZIndex.SHOP_CARD, true);
-    }
-
-    private FabledText label(String text) {
-        return new GeneratedFabledText(text, 30f, 0.035f, 0.16f, ZIndex.SHOP_CARD);
+        nodes.add(node);
+        return node;
     }
 
     public void show() {
         if (state != State.HIDDEN) return;
         transition = 0f;
+        inputArmed = false;
+        pressedNode = null;
+        nextRoundPressed = false;
         state = State.ENTERING;
         ButtonBoard.I().moveOut();
     }
@@ -176,165 +301,155 @@ public class Shop {
         if (state == State.HIDDEN || state == State.EXITING) return;
         transition = 1f;
         state = State.EXITING;
+        pressedNode = null;
+        nextRoundPressed = false;
         ButtonBoard.I().moveIn();
     }
 
     public void draw(float delta) {
         if (state == State.HIDDEN) return;
-        float eased = Interpolation.pow3Out.apply(transition);
-        float offsetY = (1f - eased) * HEIGHT;
 
-        title.setY(7.65f + offsetY);
-        title.draw(delta);
-        drawTabs(delta, offsetY, false);
-        balance.getFirstDigitBounds().setY(7.72f + offsetY);
-        exitButton.getBounds().setY(0.38f + offsetY);
-        balance.draw(delta);
-        exitButton.draw(delta);
-        drawDeveloperStatus(delta, offsetY);
-
-        if (selectedTab == Tab.SYMBOLS) {
-            drawSymbolItems(delta, offsetY, null);
-        } else {
-            drawUpgradeScrollbar(offsetY);
-            drawUpgradeItems(delta, offsetY, null);
-        }
+        float offsetY = screenOffsetY();
+        drawHeader(delta, offsetY);
+        drawConnectors(offsetY);
+        drawBranchLabels(delta, offsetY);
+        for (SkillNode node : nodes) node.draw(delta, offsetY);
+        drawNextRoundButton(delta, offsetY);
     }
 
-    /** Draws the shop surface and disabled cards into the CRT capture. */
+    /** Draw the opaque shop surface as part of the CRT capture. */
     public void drawPostProcessedItems(float delta) {
         if (state == State.HIDDEN) return;
         update(delta);
-        float eased = Interpolation.pow3Out.apply(transition);
-        float offsetY = (1f - eased) * HEIGHT;
 
+        float eased = Interpolation.pow3Out.apply(transition);
+        float offsetY = (1f - eased) * WORLD_HEIGHT;
         Pencil.I().beginPostProcessedOnlyDrawings();
         try {
-            Pencil.I().addDrawing(new TextureDrawing(backdrop, 0f, 0f, WIDTH, HEIGHT,
-                ZIndex.SHOP, new Color(1f, 1f, 1f, 0.96f * eased)));
-            Pencil.I().addDrawing(new TextureDrawing(panel, 0.65f, 0.25f + offsetY,
-                14.7f, 8.25f, ZIndex.SHOP));
-            drawTabs(delta, offsetY, true);
-            if (selectedTab == Tab.SYMBOLS) {
-                drawSymbolItems(delta, offsetY, true);
-            } else {
-                drawUpgradeItems(delta, offsetY, true);
-            }
+            rect(0f, 0f, WORLD_WIDTH, WORLD_HEIGHT, BACKDROP,
+                0.96f * eased, ZIndex.SHOP);
+            rect(0.55f, 0.24f + offsetY, 14.90f, 8.30f,
+                PANEL, 1f, ZIndex.SHOP);
+            rect(0.55f, 8.49f + offsetY, 14.90f, 0.05f,
+                GOLD, 0.78f, ZIndex.SHOP_CARD);
         } finally {
             Pencil.I().endPostProcessedOnlyDrawings();
         }
     }
 
-    private void drawDeveloperStatus(float delta, float offsetY) {
-        FabledText status = DevTools.freeShopPurchases() ? freeShopOnText : freeShopOffText;
-        status.setY(0.53f + offsetY);
-        status.draw(delta);
+    private void drawHeader(float delta, float offsetY) {
+        title.setAbsoluteX(0.92f);
+        title.setY(7.77f + offsetY);
+        title.draw(delta);
+
+        prompt.setAbsoluteX(0.94f);
+        prompt.setY(7.30f + offsetY);
+        prompt.draw(delta);
+
+        balanceLabel.setAbsoluteX(11.75f);
+        balanceLabel.setY(7.96f + offsetY);
+        balanceLabel.draw(delta);
+        balance.getFirstDigitBounds().setY(7.72f + offsetY);
+        balance.getFirstDigitBounds().setX(12.88f);
+        balance.draw(delta);
     }
 
-    private void drawTabs(float delta, float offsetY, boolean inactiveOnly) {
-        symbolTabBounds.y = 6.58f + offsetY;
-        statsTabBounds.y = 6.58f + offsetY;
-        unlocksTabBounds.y = 6.58f + offsetY;
-        drawTabFor(Tab.SYMBOLS, symbolTabBounds, symbolTabText, delta, inactiveOnly);
-        drawTabFor(Tab.STATS, statsTabBounds, statsTabText, delta, inactiveOnly);
-        drawTabFor(Tab.UNLOCKS, unlocksTabBounds, unlocksTabText, delta, inactiveOnly);
+    private void drawBranchLabels(float delta, float offsetY) {
+        drawBranchLabel(fruitBranch, 6.58f + offsetY, delta);
+        drawBranchLabel(luckyBranch, 5.41f + offsetY, delta);
+        drawBranchLabel(metalBranch, 4.24f + offsetY, delta);
+        drawBranchLabel(machineBranch, 3.07f + offsetY, delta);
+        drawBranchLabel(utilityBranch, 1.90f + offsetY, delta);
     }
 
-    private void drawTabFor(Tab tab, Rectangle bounds, FabledText text,
-                            float delta, boolean inactiveOnly) {
-        boolean selected = selectedTab == tab;
-        if (inactiveOnly && selected) return;
-        drawTab(bounds, text, selected, selected ? delta : 0f);
+    private void drawBranchLabel(GeneratedFabledText label, float y, float delta) {
+        label.setAbsoluteX(0.88f);
+        label.setY(y);
+        label.draw(delta);
     }
 
-    private void drawTab(Rectangle bounds, FabledText text, boolean selected, float delta) {
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.BLACK_PIXEL),
-            bounds.x + 0.06f, bounds.y - 0.08f, bounds.width, bounds.height,
-            ZIndex.SHOP_CARD, Assets.I().shadowColor()));
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.DARK_SLATE_PIXEL),
-            bounds.x, bounds.y, bounds.width, bounds.height, ZIndex.SHOP_CARD,
-            selected ? Color.WHITE : new Color(0.55f, 0.55f, 0.55f, 1f)));
-        if (selected) Pencil.I().addDrawing(new TextureDrawing(
-            Assets.I().get(AssetKey.YELLOW_PIXEL), bounds.x, bounds.y,
-            bounds.width, 0.08f, ZIndex.SHOP_CARD));
-        text.setY(bounds.y + 0.18f);
-        text.draw(delta);
+    private void drawConnectors(float offsetY) {
+        for (SkillNode node : nodes) {
+            if (node.prerequisite == null) continue;
+            Rectangle from = node.prerequisite.bounds;
+            Rectangle to = node.bounds;
+            float x = from.x + from.width;
+            float y = from.y + from.height / 2f + offsetY;
+            float width = Math.max(0f, to.x - x);
+            Color color = node.unlocked() ? GOLD : MUTED;
+            rect(x, y - 0.035f, width, 0.07f, color,
+                node.unlocked() ? 0.70f : 0.24f, ZIndex.SHOP_CARD);
+        }
     }
 
-    private void drawUpgradeItems(float delta, float offsetY, Boolean disabledFilter) {
-        List<ShopItem> items = selectedUpgradeItems();
-        float top = 4.05f + selectedScrollOffset() + offsetY;
-        for (int index = 0; index < items.size(); index++) {
-            int row = index / 2;
-            float x = index % 2 == 0 ? 1.25f : 8.2f;
-            items.get(index).setBounds(new Rectangle(
-                x, top - row * UPGRADE_ROW_STEP, CARD_WIDTH, CARD_HEIGHT));
+    private void drawNextRoundButton(float delta, float offsetY) {
+        Rectangle bounds = movedBounds(NEXT_ROUND_BOUNDS, offsetY);
+        Color fill = nextRoundHovered && inputArmed ? NODE_HOVER : NODE;
+        rect(bounds.x + 0.06f, bounds.y - 0.07f, bounds.width, bounds.height,
+            Color.BLACK, 0.52f, ZIndex.SHOP_CARD);
+        rect(bounds.x, bounds.y, bounds.width, bounds.height,
+            fill, 1f, ZIndex.SHOP_CARD);
+        rect(bounds.x, bounds.y, bounds.width, 0.05f,
+            GOLD, 0.95f, ZIndex.SHOP_CARD);
+
+        centerText(nextRoundText, bounds, 0.25f, delta);
+        controlsText.setAbsoluteX(0.92f);
+        controlsText.setY(0.59f + offsetY);
+        controlsText.draw(delta);
+    }
+
+    public void handleInput(
+        Vector2 mouse,
+        boolean pressed,
+        boolean wasPressed,
+        float delta
+    ) {
+        if (state != State.SHOWN) return;
+
+        nextRoundHovered = NEXT_ROUND_BOUNDS.contains(mouse);
+        for (SkillNode node : nodes) node.hovered = node.bounds.contains(mouse);
+
+        boolean enterDown = Gdx.input.isKeyPressed(Input.Keys.ENTER);
+        if (!inputArmed) {
+            if (!pressed && !enterDown) inputArmed = true;
+            return;
         }
 
-        itemViewport.y = 1.20f + offsetY;
-        Pencil.I().startScissors(GameContext.I().viewport.getCamera(),
-            GameContext.I().batch.getTransformMatrix(), itemViewport);
-        for (ShopItem item : items) drawItem(item, delta, disabledFilter);
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.WHITE_PIXEL),
-            itemViewport.x, itemViewport.y, 0.001f, 0.001f,
-            ZIndex.SHOP_CARD_TOUCHING, new Color(1f, 1f, 1f, 0f)));
-        Pencil.I().endScissors();
-    }
-
-    private void drawUpgradeScrollbar(float offsetY) {
-        int rows = selectedUpgradeRowCount();
-        if (rows <= VISIBLE_UPGRADE_ROWS) return;
-        float trackX = 14.93f;
-        float trackY = 1.45f + offsetY;
-        float trackWidth = 0.10f;
-        float trackHeight = 4.55f;
-        float thumbHeight = Math.max(0.65f, trackHeight * VISIBLE_UPGRADE_ROWS / rows);
-        float maxScroll = maxSelectedUpgradeScroll();
-        float progress = maxScroll <= 0f ? 0f : selectedScrollOffset() / maxScroll;
-        float thumbY = trackY + trackHeight - thumbHeight
-            - progress * (trackHeight - thumbHeight);
-
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.BLACK_PIXEL),
-            trackX, trackY, trackWidth, trackHeight, ZIndex.SHOP_CARD,
-            new Color(1f, 1f, 1f, 0.22f)));
-        Pencil.I().addDrawing(new TextureDrawing(Assets.I().get(AssetKey.YELLOW_PIXEL),
-            trackX - 0.025f, thumbY, trackWidth + 0.05f, thumbHeight, ZIndex.SHOP_CARD));
-    }
-
-    private void drawSymbolItems(float delta, float offsetY, Boolean disabledFilter) {
-        float gap = 0.28f;
-        float topY = 4.05f + offsetY;
-        float bottomY = 1.45f + offsetY;
-        float topLeft = 1.28f;
-        for (int index = 0; index < 4; index++) {
-            symbolItems.get(index).setCompactBounds(new Rectangle(
-                topLeft + index * (SYMBOL_CARD_WIDTH + gap), topY,
-                SYMBOL_CARD_WIDTH, SYMBOL_CARD_HEIGHT));
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            exit();
+            return;
         }
-        float bottomLeft = (WIDTH - (3 * SYMBOL_CARD_WIDTH + 2 * gap)) / 2f;
-        for (int index = 0; index < 3; index++) {
-            symbolItems.get(index + 4).setCompactBounds(new Rectangle(
-                bottomLeft + index * (SYMBOL_CARD_WIDTH + gap), bottomY,
-                SYMBOL_CARD_WIDTH, SYMBOL_CARD_HEIGHT));
+
+        if (pressed && !wasPressed) {
+            pressedNode = hoveredNode();
+            nextRoundPressed = nextRoundHovered;
+        } else if (!pressed && wasPressed) {
+            SkillNode releasedNode = hoveredNode();
+            if (pressedNode != null && pressedNode == releasedNode) {
+                pressedNode.tryPurchase();
+            } else if (nextRoundPressed && nextRoundHovered) {
+                exit();
+            }
+            pressedNode = null;
+            nextRoundPressed = false;
         }
-        for (ShopItem item : symbolItems) drawItem(item, delta, disabledFilter);
     }
 
-    private void drawItem(ShopItem item, float delta, Boolean disabledFilter) {
-        boolean disabled = item.isDisabled();
-        if (disabledFilter != null && disabled != disabledFilter) return;
-        item.draw(disabledFilter == null && disabled ? 0f : delta);
+    private SkillNode hoveredNode() {
+        for (SkillNode node : nodes) {
+            if (node.hovered) return node;
+        }
+        return null;
     }
 
     private void update(float delta) {
-        statsScrollOffset = approachScroll(statsScrollOffset, statsScrollTarget, delta);
-        unlocksScrollOffset = approachScroll(unlocksScrollOffset, unlocksScrollTarget, delta);
+        for (SkillNode node : nodes) node.update(delta);
         float step = delta / ENTER_DURATION;
         if (state == State.ENTERING) {
             transition = Math.min(1f, transition + step);
             if (transition >= 1f) {
                 state = State.SHOWN;
-                ScreenShake.I().addTrauma(0.08f);
+                ScreenShake.I().addTrauma(0.06f);
             }
         } else if (state == State.EXITING) {
             transition = Math.max(0f, transition - step);
@@ -345,86 +460,213 @@ public class Shop {
         }
     }
 
-    private float approachScroll(float current, float target, float delta) {
-        float result = Interpolation.fade.apply(current, target, Math.min(1f, delta * 13f));
-        return Math.abs(result - target) < 0.002f ? target : result;
-    }
-
-    public void handleInput(Vector2 mouse, boolean pressed, boolean wasPressed, float delta) {
-        if (state != State.SHOWN) return;
-        handleTabInput(mouse, pressed, wasPressed);
-        if (selectedTab == Tab.SYMBOLS) {
-            for (ShopItem item : symbolItems) item.handleInput(mouse, pressed, wasPressed);
-        } else {
-            Vector2 listMouse = itemViewport.contains(mouse) ? mouse : blockedMouse;
-            for (ShopItem item : selectedUpgradeItems()) {
-                if (item.intersects(itemViewport)) {
-                    item.handleInput(listMouse, pressed, wasPressed);
-                }
-            }
-        }
-        exitButton.handleInput(mouse, pressed, wasPressed);
+    private float screenOffsetY() {
+        return (1f - Interpolation.pow3Out.apply(transition)) * WORLD_HEIGHT;
     }
 
     public boolean scrollItems(float amountY) {
-        if (state != State.SHOWN || selectedTab == Tab.SYMBOLS || amountY == 0f) return false;
-        float target = MathUtils.clamp(
-            selectedScrollTarget() + Math.signum(amountY) * UPGRADE_ROW_STEP,
-            0f, maxSelectedUpgradeScroll());
-        setSelectedScrollTarget(target);
-        return true;
+        return false;
     }
 
-    /** Kept for callers compiled against the former two-tab shop. */
+    /** Kept for callers compiled against the previous store. */
     public boolean scrollAutomations(float amountY) {
-        return scrollItems(amountY);
-    }
-
-    private List<ShopItem> selectedUpgradeItems() {
-        return selectedTab == Tab.STATS ? statsItems : unlockItems;
-    }
-
-    private int selectedUpgradeRowCount() {
-        return (selectedUpgradeItems().size() + 1) / 2;
-    }
-
-    private float maxSelectedUpgradeScroll() {
-        return Math.max(0f, (selectedUpgradeRowCount() - VISIBLE_UPGRADE_ROWS)
-            * UPGRADE_ROW_STEP);
-    }
-
-    private float selectedScrollOffset() {
-        return selectedTab == Tab.STATS ? statsScrollOffset : unlocksScrollOffset;
-    }
-
-    private float selectedScrollTarget() {
-        return selectedTab == Tab.STATS ? statsScrollTarget : unlocksScrollTarget;
-    }
-
-    private void setSelectedScrollTarget(float target) {
-        if (selectedTab == Tab.STATS) statsScrollTarget = target;
-        else unlocksScrollTarget = target;
-    }
-
-    private void handleTabInput(Vector2 mouse, boolean pressed, boolean wasPressed) {
-        if (pressed && !wasPressed) {
-            if (symbolTabBounds.contains(mouse)) pressedTab = Tab.SYMBOLS;
-            else if (statsTabBounds.contains(mouse)) pressedTab = Tab.STATS;
-            else if (unlocksTabBounds.contains(mouse)) pressedTab = Tab.UNLOCKS;
-            else pressedTab = null;
-        } else if (!pressed && wasPressed) {
-            if (pressedTab == Tab.SYMBOLS && symbolTabBounds.contains(mouse)) {
-                selectedTab = Tab.SYMBOLS;
-            } else if (pressedTab == Tab.STATS && statsTabBounds.contains(mouse)) {
-                selectedTab = Tab.STATS;
-            } else if (pressedTab == Tab.UNLOCKS && unlocksTabBounds.contains(mouse)) {
-                selectedTab = Tab.UNLOCKS;
-            }
-            pressedTab = null;
-        }
+        return false;
     }
 
     public boolean isShowing() {
         return state != State.HIDDEN;
+    }
+
+    private void purchase(PurchaseTarget target, boolean major) {
+        if (!DevTools.freeShopPurchases()) {
+            ScoreDisplay.I().removeFromScore(target.price());
+        }
+        target.purchase();
+        AudioManager.I().playShopPurchase(major);
+        ScreenShake.I().addTrauma(major ? 0.15f : 0.08f);
+    }
+
+    private static GeneratedFabledText text(
+        String value,
+        float size,
+        Color color,
+        boolean bigFirstLetter
+    ) {
+        GeneratedFabledText result = new GeneratedFabledText(
+            value, size, 0.025f, 0.14f, ZIndex.SHOP_CARD, bigFirstLetter
+        );
+        result.setFloatEffects(0f, 0f);
+        result.getWords().forEach(word -> word.setColor(color));
+        return result;
+    }
+
+    private static GeneratedFabledText branchText(String value) {
+        GeneratedFabledText result = text(value, 31f, MUTED, true);
+        result.fitWithinWidth(1.72f);
+        return result;
+    }
+
+    private void centerText(
+        GeneratedFabledText text,
+        Rectangle bounds,
+        float yInset,
+        float delta
+    ) {
+        text.setAbsoluteX(bounds.x + (bounds.width - text.getRenderedWidth()) / 2f);
+        text.setY(bounds.y + yInset);
+        text.draw(delta);
+    }
+
+    private static Rectangle movedBounds(Rectangle source, float offsetY) {
+        return new Rectangle(source.x, source.y + offsetY, source.width, source.height);
+    }
+
+    private void rect(
+        float x,
+        float y,
+        float width,
+        float height,
+        Color color,
+        float alpha,
+        ZIndex layer
+    ) {
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel, x, y, width, height, layer,
+            new Color(color.r, color.g, color.b, alpha)
+        ));
+    }
+
+    private interface PurchaseTarget {
+        float price();
+        boolean canBuy();
+        void purchase();
+        boolean invested();
+        boolean complete();
+    }
+
+    private final class SkillNode {
+        private final Rectangle bounds;
+        private final TextureRegion icon;
+        private final PurchaseTarget target;
+        private final boolean majorPurchase;
+        private final SkillNode prerequisite;
+        private final GeneratedFabledText name;
+        private final GeneratedFabledText lockedText = text("LOCKED", 43f, MUTED, false);
+        private final GeneratedFabledText ownedText = text("OWNED", 43f, GOLD, false);
+        private final GeneratedFabledText maxedText = text("MAXED", 43f, GOLD, false);
+        private final CreditNumber price;
+
+        private boolean hovered;
+        private boolean purchasedHere;
+        private float purchaseFlash;
+
+        private SkillNode(
+            String name,
+            TextureRegion icon,
+            PurchaseTarget target,
+            boolean majorPurchase,
+            Rectangle bounds,
+            SkillNode prerequisite
+        ) {
+            this.bounds = bounds;
+            this.icon = icon;
+            this.target = target;
+            this.majorPurchase = majorPurchase;
+            this.prerequisite = prerequisite;
+            this.name = text(name, 32f, Color.WHITE, true);
+            this.name.fitWithinWidth(bounds.width - 0.82f);
+            price = new CreditNumber(
+                target.price(),
+                new Rectangle(bounds.x + 0.72f, bounds.y + 0.12f, 0.14f, 0.23f),
+                0.19f
+            ).setZIndex(ZIndex.SHOP_CARD);
+            price.setCompactThreshold(1_000f);
+            price.setDigitSpacing(0.13f);
+            price.getIdleScaleEffect().setAllowed(false);
+        }
+
+        private boolean unlocked() {
+            return prerequisite == null || prerequisite.invested();
+        }
+
+        private boolean invested() {
+            return purchasedHere || target.invested();
+        }
+
+        private void tryPurchase() {
+            if (!unlocked() || target.complete() || !target.canBuy()) {
+                AudioManager.I().playMiss();
+                return;
+            }
+            purchase(target, majorPurchase);
+            purchasedHere = true;
+            purchaseFlash = majorPurchase ? 0.55f : 0.38f;
+        }
+
+        private void update(float delta) {
+            purchaseFlash = Math.max(0f, purchaseFlash - delta);
+        }
+
+        private void draw(float delta, float offsetY) {
+            Rectangle moved = movedBounds(bounds, offsetY);
+            boolean unlocked = unlocked();
+            boolean complete = target.complete();
+            boolean affordable = target.canBuy();
+            Color fill = !unlocked
+                ? NODE_LOCKED
+                : hovered && state == State.SHOWN ? NODE_HOVER : NODE;
+
+            rect(moved.x + 0.05f, moved.y - 0.06f, moved.width, moved.height,
+                Color.BLACK, 0.48f, ZIndex.SHOP_CARD);
+            rect(moved.x, moved.y, moved.width, moved.height,
+                fill, unlocked ? 1f : 0.82f, ZIndex.SHOP_CARD);
+            rect(moved.x, moved.y + moved.height - 0.045f, moved.width, 0.045f,
+                unlocked ? GOLD : MUTED, unlocked ? 0.76f : 0.20f,
+                ZIndex.SHOP_CARD);
+
+            Color iconColor = unlocked
+                ? Color.WHITE
+                : new Color(0.38f, 0.42f, 0.44f, 0.62f);
+            Pencil.I().addDrawing(new TextureDrawing(
+                icon, moved.x + 0.16f, moved.y + 0.18f,
+                0.54f, 0.54f, ZIndex.SHOP_CARD, iconColor
+            ));
+
+            name.setAbsoluteX(moved.x + 0.80f);
+            name.setY(moved.y + 0.55f);
+            name.setOpacity(unlocked ? 1f : 0.45f);
+            name.draw(delta);
+
+            if (!unlocked) {
+                drawNodeStatus(lockedText, moved, delta);
+            } else if (complete) {
+                drawNodeStatus(majorPurchase ? ownedText : maxedText, moved, delta);
+            } else {
+                if (Float.compare(price.getValue(), target.price()) != 0) {
+                    price.setValue(target.price());
+                }
+                price.getFirstDigitBounds().set(moved.x + 0.80f, moved.y + 0.13f,
+                    0.14f, 0.23f);
+                price.setColor(affordable ? Assets.I().yellow() : MUTED);
+                price.draw(delta);
+            }
+
+            if (purchaseFlash > 0f) {
+                float duration = majorPurchase ? 0.55f : 0.38f;
+                float alpha = MathUtils.clamp(purchaseFlash / duration, 0f, 1f);
+                rect(moved.x, moved.y, moved.width, moved.height,
+                    GOLD, alpha * alpha * 0.24f, ZIndex.SHOP_CARD_TOUCHING);
+            }
+        }
+
+        private void drawNodeStatus(
+            GeneratedFabledText status,
+            Rectangle moved,
+            float delta
+        ) {
+            status.setAbsoluteX(moved.x + 0.80f);
+            status.setY(moved.y + 0.15f);
+            status.draw(delta);
+        }
     }
 }

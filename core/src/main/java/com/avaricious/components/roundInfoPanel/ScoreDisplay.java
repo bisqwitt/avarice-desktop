@@ -39,7 +39,7 @@ public class ScoreDisplay {
         scoreNumber.getIdleScaleEffect().setAllowed(false);
 //        scoreNumber.getPulseEffect().setStrength(0.5f);
         scoreNumber.getPulseEffect().setSpeed(0.15f);
-        setScoreNumber(300);
+        setScoreNumber(0);
     }
 
     public void draw(float delta) {
@@ -87,10 +87,6 @@ public class ScoreDisplay {
             contentWidth + padding * 2f,
             top - bottom
         );
-    }
-
-    public boolean reachedRoundGoal() {
-        return scoreNumber.getValue() >= RoundInfoPanel.I().getReachNumber().getValue();
     }
 
     public void addScoreChangeListener(PropertyChangeListener listener) {
