@@ -25,6 +25,11 @@ public abstract class DisablableButton extends Button {
     private float animSpeed = 10f;           // higher = faster
     private float overshootScale = 1.06f;    // Balatro-ish pop
 
+    private static final float READY_PULSE_DURATION = 0.42f;
+    private float readyPulseTime = 0f;
+    private boolean availabilityInitialized = false;
+    private boolean wasFunctionallyDisabled = true;
+
     private final TextureRegion buttonShadow = Assets.I().get(AssetKey.BUTTON_SHADOW);
     private TextureRegion disabledTexture = null;
 
@@ -74,6 +79,22 @@ public abstract class DisablableButton extends Button {
         // When fully shown, enable input. When fully hidden, keep disabled.
         if (vis >= 0.999f) disabled = false;
         if (vis <= 0.001f) disabled = true;
+
+        boolean functionallyDisabled = disabled();
+        if (animateWhenEnabled()) {
+            if (
+                availabilityInitialized &&
+                    wasFunctionallyDisabled &&
+                    !functionallyDisabled &&
+                    visTarget > 0f
+            ) {
+                readyPulseTime = READY_PULSE_DURATION;
+            }
+            wasFunctionallyDisabled = functionallyDisabled;
+            availabilityInitialized = true;
+        }
+
+        readyPulseTime = Math.max(0f, readyPulseTime - delta);
     }
 
     @Override
@@ -102,6 +123,9 @@ public abstract class DisablableButton extends Button {
         float pop = (vis > 0.7f) ? (vis - 0.7f) / 0.3f : 0f; // 0..1
         float scale = 1f + (overshootScale - 1f) * Interpolation.swingOut.apply(pop);
 
+        float readyStrength = readyPulseStrength();
+        scale *= 1f + readyStrength * 0.11f;
+
         // Draw with transform around center
         Rectangle r = buttonRectangle;
 
@@ -114,12 +138,44 @@ public abstract class DisablableButton extends Button {
         float drawX = cx - w * 0.5f;
         float drawY = (cy - h * 0.5f) - yOffset;
 
+        if (readyStrength > 0f) {
+            float glowGrowth = 0.10f + readyStrength * 0.08f;
+            float glowW = w * (1f + glowGrowth);
+            float glowH = h * (1f + glowGrowth);
+            Color readyColor = Assets.I().yellow();
+            Pencil.I().addDrawing(new TextureDrawing(
+                buttonShadow,
+                cx - glowW * 0.5f,
+                cy - glowH * 0.5f - yOffset,
+                glowW,
+                glowH,
+                layer,
+                new Color(
+                    readyColor.r,
+                    readyColor.g,
+                    readyColor.b,
+                    readyStrength * 0.42f
+                )
+            ));
+        }
+
         // Optional: fade in (uncomment if you want)
         // batch.setColor(1f, 1f, 1f, t);
 
         drawWithShadow(new Rectangle(drawX, drawY, w, h));
 
         // batch.setColor(1f, 1f, 1f, 1f);
+    }
+
+    protected boolean animateWhenEnabled() {
+        return false;
+    }
+
+    private float readyPulseStrength() {
+        if (readyPulseTime <= 0f) return 0f;
+
+        float progress = 1f - readyPulseTime / READY_PULSE_DURATION;
+        return (float) Math.sin(progress * Math.PI) * (1f - progress * 0.35f);
     }
 
     private void drawWithShadow(Rectangle bounds) {

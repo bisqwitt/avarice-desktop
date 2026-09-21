@@ -1,12 +1,15 @@
 package com.avaricious.components.slot;
 
 import com.avaricious.audio.AudioManager;
+import com.avaricious.RoundStats;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.popups.LostSymbolPopup;
+import com.avaricious.components.popups.NumberPopup;
 import com.avaricious.components.popups.PopupManager;
 import com.avaricious.components.popups.SpadePopup;
+import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
@@ -254,6 +257,22 @@ public class BouncingSymbol implements CollectorTarget {
 
         disappearTime = 0f;
         claimed = true;
+        RoundStats.I().recordCollectibleClaim(spawnAge);
+
+        float cashReward = SymbolValues.I().getValue(symbol);
+        ScoreDisplay.I().addToScore(cashReward);
+        PopupManager.I().spawnNumber(new NumberPopup(
+            cashReward,
+            Assets.I().getSymbolColor(symbol),
+            new Rectangle(
+                getCenterX() - 0.22f,
+                getCenterY() + 0.20f,
+                7 / 18f,
+                11 / 18f
+            ),
+            false,
+            false
+        ));
 
         ParticleManager.I().create(
             x,
@@ -692,6 +711,10 @@ public class BouncingSymbol implements CollectorTarget {
 
     public boolean isFinished() {
         return finished;
+    }
+
+    boolean isUnclaimed() {
+        return !claimed && !finished;
     }
 
     /*

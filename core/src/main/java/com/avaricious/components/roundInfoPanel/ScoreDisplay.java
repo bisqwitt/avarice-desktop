@@ -2,8 +2,7 @@ package com.avaricious.components.roundInfoPanel;
 
 import com.avaricious.CreditNumber;
 import com.avaricious.DevTools;
-import com.avaricious.components.texts.GeneratedFabledText;
-import com.avaricious.utility.Assets;
+import com.avaricious.RoundStats;
 import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.Rectangle;
@@ -19,35 +18,31 @@ public class ScoreDisplay {
         return instance == null ? instance = new ScoreDisplay() : instance;
     }
 
-    private static final float DIGIT_Y = 7.08f + GameplayLayout.HUD_Y_OFFSET;
-    private static final float LABEL_Y = 8.17f + GameplayLayout.HUD_Y_OFFSET;
+    private static final float DIGIT_Y = GameplayLayout.CASH_Y + 0.035f;
 
-    private final GeneratedFabledText scoreLabel = new GeneratedFabledText(
-        "CASH", 46f, 0.022f, 0.11f, ZIndex.BUTTON_BOARD, false);
-
-    private final CreditNumber scoreNumber = new CreditNumber(0,
-        new Rectangle(GameplayLayout.HUD_LEFT, DIGIT_Y, 7 / 12f, 11 / 12f), 0.75f)
+    private final CreditNumber scoreNumber = new CreditNumber(
+        0,
+        new Rectangle(GameplayLayout.CASH_LEFT, DIGIT_Y, 0.32f, 0.50f),
+        0.38f
+    )
         .setZIndex(ZIndex.BUTTON_BOARD);
 
     private final PropertyChangeSupport scoreChangeSupport = new PropertyChangeSupport(this);
 
     private ScoreDisplay() {
-        scoreLabel.setAbsoluteX(GameplayLayout.HUD_LEFT);
-        scoreLabel.setY(LABEL_Y);
-        scoreLabel.getWords().forEach(word -> word.setColor(Assets.I().silver()));
-        scoreNumber.setColor(Assets.I().lightColor());
+        scoreNumber.setCompactThreshold(1_000f);
         scoreNumber.getIdleScaleEffect().setAllowed(false);
-//        scoreNumber.getPulseEffect().setStrength(0.5f);
-        scoreNumber.getPulseEffect().setSpeed(0.15f);
+        scoreNumber.getPulseEffect().setStrength(0.35f);
+        scoreNumber.getPulseEffect().setSpeed(0.09f);
         setScoreNumber(0);
     }
 
     public void draw(float delta) {
-        scoreLabel.draw(delta);
         scoreNumber.draw(delta);
     }
 
     public void addToScore(float value) {
+        RoundStats.I().recordMoneyGained(value);
         setScoreNumber(getScoreNumber() + value);
     }
 
@@ -59,7 +54,6 @@ public class ScoreDisplay {
     public void setScoreNumber(float value) {
         float oldScore = getScoreNumber();
         scoreNumber.setValue(value);
-        updateScoreXLayout();
 
         scoreChangeSupport.firePropertyChange("score", oldScore, scoreNumber.getValue());
     }
@@ -68,24 +62,14 @@ public class ScoreDisplay {
         return scoreNumber.getValue();
     }
 
-    private void updateScoreXLayout() {
-        scoreNumber.getFirstDigitBounds().x = GameplayLayout.HUD_LEFT;
-    }
-
     public Rectangle getCollisionBounds() {
         float padding = 0.10f;
-        float contentWidth = Math.max(
-            scoreLabel.getNaturalWidth(),
-            scoreNumber.getWidth()
-        );
-        float bottom = DIGIT_Y - padding;
-        float top = LABEL_Y + 0.32f;
 
         return new Rectangle(
-            GameplayLayout.HUD_LEFT - padding,
-            bottom,
-            contentWidth + padding * 2f,
-            top - bottom
+            GameplayLayout.CASH_LEFT - padding,
+            GameplayLayout.CASH_Y - padding,
+            GameplayLayout.CASH_WIDTH + padding * 2f,
+            0.56f + padding * 2f
         );
     }
 

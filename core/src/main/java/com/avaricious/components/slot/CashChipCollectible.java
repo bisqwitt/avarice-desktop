@@ -1,5 +1,6 @@
 package com.avaricious.components.slot;
 
+import com.avaricious.RoundStats;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.popups.CreditNumberPopup;
@@ -96,6 +97,7 @@ public class CashChipCollectible implements CollectorTarget {
 
         claimed = true;
         disappearTime = 0f;
+        RoundStats.I().recordCollectibleClaim(age);
         ScoreDisplay.I().addToScore(reward);
         PopupManager.I().spawnNumber(new CreditNumberPopup(
             reward,
@@ -227,6 +229,10 @@ public class CashChipCollectible implements CollectorTarget {
 
     public boolean isFinished() {
         return finished;
+    }
+
+    boolean isUnclaimed() {
+        return !claimed && !finished;
     }
 
     @Override

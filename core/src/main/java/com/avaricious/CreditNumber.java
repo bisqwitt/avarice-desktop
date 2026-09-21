@@ -29,27 +29,29 @@ public class CreditNumber extends DigitalNumber {
         super.draw(delta, scale, rotation);
         float x = firstDigitBounds.x + super.getWidth() + currencyGap();
         float y = calcNumberY();
+        float width = getGlyphWidth(dollarSymbol);
+        float height = getGlyphHeight(dollarSymbol);
 
         Pencil.I().addDrawing(new TextureDrawing(
             dollarSymbolShadow,
-            x, y - 0.1f, firstDigitBounds.width, firstDigitBounds.height,
+            x, y - 0.1f, width, height,
             scale, rotation, getZIndex(), new Color(color.r, color.g, color.b, Assets.I().shadowColor().a)
         ));
 
         Pencil.I().addDrawing(new TextureDrawing(
             dollarSymbol,
-            x, y, firstDigitBounds.width, firstDigitBounds.height,
+            x, y, width, height,
             scale, rotation,
             getZIndex(), color));
     }
 
     @Override
     public float getWidth() {
-        return super.getWidth() + currencyGap() + firstDigitBounds.width;
+        return super.getWidth() + currencyGap() + getGlyphWidth(dollarSymbol);
     }
 
     private float currencyGap() {
-        return Math.max(0.05f, offset - firstDigitBounds.width);
+        return Math.max(0.05f, getGlyphTracking());
     }
 
     @Override

@@ -19,6 +19,7 @@ import java.util.List;
 public class DigitalNumber {
 
     private static final float DEFAULT_COMPACT_THRESHOLD = 1_000f;
+    private static final float SUFFIX_GAP = 0.05f;
     private static final AssetKey[] COMPACT_SUFFIXES = {
         AssetKey.K, AssetKey.M, AssetKey.B, AssetKey.T, AssetKey.Q
     };
@@ -85,58 +86,64 @@ public class DigitalNumber {
         float numberY = calcNumberY();
         int decimalPlaces = displayedDecimalPlaces;
         int intDigitCount = numberTextures.size() - decimalPlaces;
-        float dotOffset = offset * 0.5f;
+        float x = firstDigitBounds.x;
 
         for (int i = 0; i < numberTextures.size(); i++) {
-            // Decimal digits shift right by dotOffset (half) instead of a full offset
-            float extraOffset = decimalPlaces > 0 && i >= intDigitCount ? dotOffset : 0;
+            TextureRegion numberTexture = numberTextures.get(i);
+            float width = getGlyphWidth(numberTexture);
+            float height = getGlyphHeight(numberTexture);
 
             Pencil.I().addDrawing(new TextureDrawing(
                 numberShadowTextures.get(i),
-                firstDigitBounds.x + (i * offset) + extraOffset, numberY - 0.1f, firstDigitBounds.width, firstDigitBounds.height,
+                x, numberY - 0.1f, width, height,
                 scale, rotation, getZIndex(), Assets.I().shadowColor()
             ));
             Pencil.I().addDrawing(new TextureDrawing(
-                numberTextures.get(i),
-                firstDigitBounds.x + (i * offset) + extraOffset, numberY, firstDigitBounds.width, firstDigitBounds.height,
+                numberTexture,
+                x, numberY, width, height,
                 scale, rotation, getZIndex(), color
             ));
-        }
 
-        if (decimalPlaces > 0) {
-            // Dot sits at half-offset after the last integer digit
-            float dotX = firstDigitBounds.x + (intDigitCount * offset);
-            Pencil.I().addDrawing(new TextureDrawing(
-                dotSymbol,
-                dotX, numberY, firstDigitBounds.width, firstDigitBounds.height,
-                scale, rotation, getZIndex(), color
-            ));
+            if (i < numberTextures.size() - 1) {
+                x += width + getGlyphTracking();
+                if (decimalPlaces > 0 && i + 1 == intDigitCount) {
+                    Pencil.I().addDrawing(new TextureDrawing(
+                        dotSymbol,
+                        x, numberY, getGlyphWidth(dotSymbol), getGlyphHeight(dotSymbol),
+                        scale, rotation, getZIndex(), color
+                    ));
+                    x += getDecimalPointAdvance();
+                }
+            }
         }
 
         if (compactSuffix != null) {
-            float suffixX = firstDigitBounds.x + getNumericWidth() + 0.05f;
+            float suffixX = firstDigitBounds.x + getNumericWidth() + SUFFIX_GAP;
+            float suffixWidth = getGlyphWidth(compactSuffix);
+            float suffixHeight = getGlyphHeight(compactSuffix);
             Pencil.I().addDrawing(new TextureDrawing(
                 compactSuffixShadow,
                 suffixX, numberY - 0.1f,
-                firstDigitBounds.width, firstDigitBounds.height,
+                suffixWidth, suffixHeight,
                 scale, rotation, getZIndex(), Assets.I().shadowColor()
             ));
             Pencil.I().addDrawing(new TextureDrawing(
                 compactSuffix,
                 suffixX, numberY,
-                firstDigitBounds.width, firstDigitBounds.height,
+                suffixWidth, suffixHeight,
                 scale, rotation, getZIndex(), color
             ));
         }
 
         boolean isNegative = value < 0;
         if (isNegative) {
+            float minusWidth = getGlyphWidth(minusSymbol);
             Pencil.I().addDrawing(new TextureDrawing(
                 minusSymbol,
-                firstDigitBounds.x - offset,
+                firstDigitBounds.x - getGlyphTracking() - minusWidth,
                 numberY,
-                firstDigitBounds.width,
-                firstDigitBounds.height,
+                minusWidth,
+                getGlyphHeight(minusSymbol),
                 scale,
                 rotation,
                 getZIndex(),
@@ -254,15 +261,46 @@ public class DigitalNumber {
 
     public float getWidth() {
         float width = getNumericWidth();
-        if (compactSuffix != null) width += 0.05f + firstDigitBounds.width;
+        if (compactSuffix != null) width += SUFFIX_GAP + getGlyphWidth(compactSuffix);
         return width;
     }
 
     protected float getNumericWidth() {
-        float dotOffset = offset * 0.5f;
-        float extraWidth = displayedDecimalPlaces > 0 ? dotOffset : 0f;
-        return ((numberTextures.size() - 1) * offset)
-            + extraWidth + firstDigitBounds.width;
+        float width = 0f;
+        int intDigitCount = numberTextures.size() - displayedDecimalPlaces;
+
+        for (int i = 0; i < numberTextures.size(); i++) {
+            width += getGlyphWidth(numberTextures.get(i));
+            if (i < numberTextures.size() - 1) {
+                width += getGlyphTracking();
+                if (displayedDecimalPlaces > 0 && i + 1 == intDigitCount) {
+                    width += getDecimalPointAdvance();
+                }
+            }
+        }
+        return width;
+    }
+
+    /** Uses the same native-texture sizing rule as FabledWord. */
+    protected float getGlyphWidth(TextureRegion glyph) {
+        return glyph.getRegionWidth() * getGlyphScale();
+    }
+
+    protected float getGlyphHeight(TextureRegion glyph) {
+        return glyph.getRegionHeight() * getGlyphScale();
+    }
+
+    private float getGlyphScale() {
+        int referenceHeight = Assets.I().getDigitalNumber(0).getRegionHeight();
+        return referenceHeight == 0 ? 0f : firstDigitBounds.height / referenceHeight;
+    }
+
+    protected float getGlyphTracking() {
+        return offset - getGlyphWidth(Assets.I().getDigitalNumber(0));
+    }
+
+    private float getDecimalPointAdvance() {
+        return offset * 0.5f;
     }
 
     public float getValue() {

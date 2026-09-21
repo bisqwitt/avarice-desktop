@@ -21,6 +21,7 @@ public class Automations {
     private final SpinBuyerSpeed spinBuyerSpeed = new SpinBuyerSpeed();
 
     private final SlotMachineSpeed slotMachineSpeed = new SlotMachineSpeed();
+    private final QuickSpinAutomation quickSpin = new QuickSpinAutomation();
     private final Luck luck = new Luck();
     private final XpMultiplier xpMultiplier = new XpMultiplier();
     private final CollectorCapacity collectorCapacity = new CollectorCapacity();
@@ -115,6 +116,10 @@ public class Automations {
 
     public SlotMachineSpeed getSlotMachineSpeed() {
         return slotMachineSpeed;
+    }
+
+    public QuickSpinAutomation getQuickSpin() {
+        return quickSpin;
     }
 
     public Luck getLuck() {

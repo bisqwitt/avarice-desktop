@@ -87,6 +87,16 @@ public class BouncingSymbolManager {
         cashChips.clear();
     }
 
+    public boolean hasUnclaimedCollectibles() {
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            if (symbol.isUnclaimed()) return true;
+        }
+        for (CashChipCollectible cashChip : cashChips) {
+            if (cashChip.isUnclaimed()) return true;
+        }
+        return false;
+    }
+
     public void handleInput(
         Vector2 mouse,
         boolean touching,

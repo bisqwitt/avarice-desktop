@@ -1,6 +1,7 @@
 package com.avaricious.components;
 
 import com.avaricious.CreditNumber;
+import com.avaricious.RoundStats;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
@@ -19,7 +20,7 @@ public final class RoundResultWindow {
 
     private static final float WORLD_WIDTH = 16f;
     private static final Rectangle ACTION_BUTTON_BOUNDS =
-        new Rectangle(6.05f, 2.82f, 3.90f, 0.82f);
+        new Rectangle(6.05f, 1.72f, 3.90f, 0.82f);
     private static final Color GOLD = new Color(1f, 0.82f, 0.44f, 1f);
     private static final Color MUTED = new Color(0.63f, 0.71f, 0.76f, 1f);
 
@@ -30,15 +31,34 @@ public final class RoundResultWindow {
     );
     private final GeneratedFabledText cashLabel = text("CASH", 48f, MUTED);
     private final GeneratedFabledText billLabel = text("BILL", 48f, MUTED);
+    private final GeneratedFabledText spinsLabel = statText("SPINS");
+    private final GeneratedFabledText symbolsHitLabel = statText("SYMBOLS HIT");
+    private final GeneratedFabledText moneyGainedLabel = statText("MONEY GAINED");
+    private final GeneratedFabledText averageClaimLabel = statText("AVG CLAIM SEC");
     private final GeneratedFabledText payBillButton = text("PAY BILL", 39f, GOLD);
     private final GeneratedFabledText restartButton = text("START NEW RUN", 39f, MUTED);
 
     private final CreditNumber cashNumber = new CreditNumber(
-        0f, new Rectangle(0f, 3.83f, 0.28f, 0.44f), 0.34f
+        0f, new Rectangle(0f, 5.05f, 0.28f, 0.44f), 0.34f
     ).setZIndex(ZIndex.SHOP_CARD);
     private final CreditNumber billNumber = new CreditNumber(
-        0f, new Rectangle(0f, 3.83f, 0.28f, 0.44f), 0.34f
+        0f, new Rectangle(0f, 5.05f, 0.28f, 0.44f), 0.34f
     ).setZIndex(ZIndex.SHOP_CARD);
+    private final DigitalNumber spinsNumber = new DigitalNumber(
+        0f, Assets.I().lightColor(),
+        new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
+    ).setZIndex(ZIndex.SHOP_CARD);
+    private final DigitalNumber symbolsHitNumber = new DigitalNumber(
+        0f, Assets.I().lightColor(),
+        new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
+    ).setZIndex(ZIndex.SHOP_CARD);
+    private final CreditNumber moneyGainedNumber = new CreditNumber(
+        0f, new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
+    ).setZIndex(ZIndex.SHOP_CARD);
+    private final DigitalNumber averageClaimNumber = new DigitalNumber(
+        0f, Assets.I().lightColor(),
+        new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
+    ).setAsDecimal().setZIndex(ZIndex.SHOP_CARD);
 
     private boolean showing;
     private boolean cleared;
@@ -50,6 +70,10 @@ public final class RoundResultWindow {
     public RoundResultWindow() {
         cashNumber.getIdleScaleEffect().setAllowed(false);
         billNumber.getIdleScaleEffect().setAllowed(false);
+        spinsNumber.getIdleScaleEffect().setAllowed(false);
+        symbolsHitNumber.getIdleScaleEffect().setAllowed(false);
+        moneyGainedNumber.getIdleScaleEffect().setAllowed(false);
+        averageClaimNumber.getIdleScaleEffect().setAllowed(false);
     }
 
     private static GeneratedFabledText text(String value, float size, Color color) {
@@ -58,6 +82,12 @@ public final class RoundResultWindow {
         );
         result.setFloatEffects(0f, 0f);
         result.getWords().forEach(word -> word.setColor(color));
+        return result;
+    }
+
+    private static GeneratedFabledText statText(String value) {
+        GeneratedFabledText result = text(value, 47f, MUTED);
+        result.fitWithinWidth(1.72f);
         return result;
     }
 
@@ -74,6 +104,14 @@ public final class RoundResultWindow {
         this.action = action;
         cashNumber.setValue(cash);
         billNumber.setValue(bill);
+        RoundStats stats = RoundStats.I();
+        spinsNumber.setValue(stats.getSpins());
+        symbolsHitNumber.setValue(stats.getSymbolsHit());
+        moneyGainedNumber.setValue(stats.getMoneyGained());
+        float averageClaim = Math.round(
+            stats.getAverageCollectibleClaimTime() * 10f
+        ) / 10f;
+        averageClaimNumber.setValue(averageClaim);
         showing = true;
         inputArmed = false;
         buttonHovered = false;
@@ -129,21 +167,43 @@ public final class RoundResultWindow {
 
         rect(0f, 0f, WORLD_WIDTH, 9f,
             new Color(0.012f, 0.021f, 0.029f, 1f), 0.94f, ZIndex.SHOP);
-        rect(4.35f, 2.55f, 7.30f, 3.90f,
+        rect(3.25f, 1.42f, 9.50f, 6.15f,
             new Color(0.045f, 0.072f, 0.090f, 1f), 1f, ZIndex.SHOP);
-        rect(4.35f, 6.40f, 7.30f, 0.05f,
+        rect(3.25f, 7.52f, 9.50f, 0.05f,
             cleared ? GOLD : Assets.I().healthRedColor(), 0.85f, ZIndex.SHOP_CARD);
 
-        drawCentered(cleared ? clearedTitle : failedTitle, 5.61f, delta);
-        drawCentered(cashLabel, 4.76f, -1.65f, delta);
-        drawCentered(billLabel, 4.76f, 1.65f, delta);
+        drawCentered(cleared ? clearedTitle : failedTitle, 6.82f, delta);
+        drawCentered(cashLabel, 5.85f, -2.0f, delta);
+        drawCentered(billLabel, 5.85f, 2.0f, delta);
 
-        cashNumber.getFirstDigitBounds().x = 6.35f - cashNumber.getWidth() / 2f;
-        billNumber.getFirstDigitBounds().x = 9.65f - billNumber.getWidth() / 2f;
+        cashNumber.getFirstDigitBounds().x = 6f - cashNumber.getWidth() / 2f;
+        billNumber.getFirstDigitBounds().x = 10f - billNumber.getWidth() / 2f;
         cashNumber.draw(delta);
         billNumber.draw(delta);
 
+        rect(3.65f, 4.65f, 8.70f, 0.018f,
+            MUTED, 0.20f, ZIndex.SHOP_CARD);
+        drawStat(spinsLabel, spinsNumber, 4.70f, delta);
+        drawStat(symbolsHitLabel, symbolsHitNumber, 6.90f, delta);
+        drawStat(moneyGainedLabel, moneyGainedNumber, 9.10f, delta);
+        drawStat(averageClaimLabel, averageClaimNumber, 11.30f, delta);
+
         drawActionButton(delta);
+    }
+
+    private void drawStat(
+        GeneratedFabledText label,
+        DigitalNumber number,
+        float centerX,
+        float delta
+    ) {
+        rect(centerX - 1.02f, 2.92f, 2.04f, 1.42f,
+            new Color(0.026f, 0.046f, 0.060f, 1f), 0.88f, ZIndex.SHOP_CARD);
+        label.setAbsoluteX(centerX - label.getRenderedWidth() / 2f);
+        label.setY(3.91f);
+        label.draw(delta);
+        number.getFirstDigitBounds().x = centerX - number.getWidth() / 2f;
+        number.draw(delta);
     }
 
     private void drawActionButton(float delta) {
@@ -179,7 +239,7 @@ public final class RoundResultWindow {
             0.95f,
             ZIndex.SHOP_CARD
         );
-        drawCentered(cleared ? payBillButton : restartButton, 3.08f, delta);
+        drawCentered(cleared ? payBillButton : restartButton, 1.98f, delta);
     }
 
     private void drawCentered(GeneratedFabledText text, float y, float delta) {

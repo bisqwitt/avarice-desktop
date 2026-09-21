@@ -1,5 +1,7 @@
 package com.avaricious.components.buttons;
 
+import com.avaricious.components.automations.Automations;
+import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
@@ -20,6 +22,13 @@ public class SpinButton extends DisablableButton {
     @Override
     public boolean disabled() {
         return !SlotMachine.I().isStale()
+            || !Automations.I().getQuickSpin().isActive()
+                && BouncingSymbolManager.I().hasUnclaimedCollectibles()
             || !RunManager.I().getRoundsManager().canSpin();
+    }
+
+    @Override
+    protected boolean animateWhenEnabled() {
+        return true;
     }
 }

@@ -14,6 +14,7 @@ import com.avaricious.components.slot.pattern.PatternUnlocks;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.TextureDrawing;
@@ -31,43 +32,53 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 
-/**
- * Between-round shop presented as a small persistent skill tree.
- *
- * Roots are always available. Buying a root once unlocks the next node in
- * that branch, while repeatable upgrades can still be bought on later visits.
- */
+/** A pannable, zoomable skill tree shown between successful rounds. */
 public final class Shop {
 
     private static final float WORLD_WIDTH = 16f;
     private static final float WORLD_HEIGHT = 9f;
     private static final float ENTER_DURATION = 0.24f;
+
     private static final float NODE_WIDTH = 2.34f;
     private static final float NODE_HEIGHT = 0.91f;
+    private static final Rectangle HUB_BOUNDS =
+        new Rectangle(-1.30f, -0.55f, 2.60f, 1.10f);
+    private static final Rectangle TREE_VIEWPORT =
+        new Rectangle(0.70f, 1.30f, 14.60f, 5.85f);
+    private static final float CANVAS_CENTER_X = 8f;
+    private static final float CANVAS_CENTER_Y = 4.225f;
+    private static final float INITIAL_ZOOM = 0.82f;
+    private static final float MIN_ZOOM = 0.42f;
+    private static final float MAX_ZOOM = 1.65f;
+    private static final float DRAG_THRESHOLD = 0.08f;
+    private static final float BALANCE_RIGHT = 14.92f;
+
+    private static final Rectangle NEXT_ROUND_BOUNDS =
+        new Rectangle(11.56f, 0.34f, 3.70f, 0.76f);
 
     private static final Color BACKDROP = new Color(0.012f, 0.021f, 0.029f, 1f);
     private static final Color PANEL = new Color(0.038f, 0.061f, 0.078f, 1f);
+    private static final Color CANVAS = new Color(0.021f, 0.037f, 0.049f, 1f);
     private static final Color NODE = new Color(0.085f, 0.125f, 0.150f, 1f);
     private static final Color NODE_HOVER = new Color(0.13f, 0.19f, 0.22f, 1f);
     private static final Color NODE_LOCKED = new Color(0.045f, 0.065f, 0.078f, 1f);
     private static final Color GOLD = new Color(1f, 0.82f, 0.44f, 1f);
     private static final Color MUTED = new Color(0.54f, 0.62f, 0.67f, 1f);
 
-    private static final Rectangle NEXT_ROUND_BOUNDS =
-        new Rectangle(11.56f, 0.34f, 3.70f, 0.76f);
-
     private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
+    private final TextureRegion spade = Assets.I().get(AssetKey.SPADE);
+
     private final GeneratedFabledText title = text("SKILL TREE", 16f, GOLD, true);
     private final GeneratedFabledText prompt = text(
-        "INVEST YOUR CASH THEN START THE NEXT ROUND", 43f, MUTED, false
+        "BUILD YOUR PATH BETWEEN ROUNDS", 43f, MUTED, false
     );
-    private final GeneratedFabledText balanceLabel = text("CASH", 39f, MUTED, true);
     private final GeneratedFabledText nextRoundText = text(
         "START NEXT ROUND", 39f, GOLD, true
     );
     private final GeneratedFabledText controlsText = text(
-        "ENTER TO CONTINUE", 48f, MUTED, false
+        "DRAG TO MOVE   WHEEL TO SCALE   C TO CENTER", 48f, MUTED, false
     );
+    private final GeneratedFabledText hubText = text("CORE", 27f, GOLD, true);
     private final GeneratedFabledText fruitBranch = branchText("FRUIT");
     private final GeneratedFabledText luckyBranch = branchText("LUCKY");
     private final GeneratedFabledText metalBranch = branchText("METAL");
@@ -76,11 +87,16 @@ public final class Shop {
 
     private final CreditNumber balance = new CreditNumber(
         ScoreDisplay.I().getScoreNumber(),
-        new Rectangle(13.05f, 7.82f, 0.24f, 0.38f),
-        0.32f
+        new Rectangle(0f, 0f, 0.32f, 0.50f),
+        0.38f
     ).setZIndex(ZIndex.SHOP_CARD);
 
     private final List<SkillNode> nodes = new ArrayList<>();
+    private final List<Branch> branches = new ArrayList<>();
+    private final Vector2 pan = new Vector2();
+    private final Vector2 lastMouse = new Vector2(CANVAS_CENTER_X, CANVAS_CENTER_Y);
+    private final Vector2 dragStart = new Vector2();
+    private final Vector2 lastDragMouse = new Vector2();
     private final Runnable onReturnedFromShop;
 
     private enum State { HIDDEN, ENTERING, SHOWN, EXITING }
@@ -89,66 +105,78 @@ public final class Shop {
     private SkillNode pressedNode;
     private boolean nextRoundHovered;
     private boolean nextRoundPressed;
+    private boolean dragCandidate;
+    private boolean dragging;
     private boolean inputArmed;
     private float transition;
+    private float zoom = INITIAL_ZOOM;
 
     public Shop(Runnable onReturnedFromShop) {
         this.onReturnedFromShop = onReturnedFromShop;
         balance.setCompactThreshold(1_000f);
-        balance.setDigitSpacing(0.20f);
         balance.getIdleScaleEffect().setAllowed(false);
+        balance.getPulseEffect().setStrength(0.35f);
+        balance.getPulseEffect().setSpeed(0.09f);
         ScoreDisplay.I().addScoreChangeListener(
             event -> balance.setValue(((Number) event.getNewValue()).floatValue())
         );
-
         buildTree();
     }
 
     private void buildTree() {
-        SkillNode lemon = symbolNode("LEMON", Symbol.LEMON, 2f, 3.22f, 6.32f, null);
-        symbolNode("CHERRY", Symbol.CHERRY, 2f, 6.12f, 6.32f, lemon);
+        SkillNode lemon = symbolNode("LEMON", Symbol.LEMON, 2f, -4.0f, 1.9f, null);
+        symbolNode("CHERRY", Symbol.CHERRY, 2f, -7.2f, 3.8f, lemon);
+        branches.add(new Branch(fruitBranch, lemon, -2.65f, 1.18f));
 
-        SkillNode clover = symbolNode("CLOVER", Symbol.CLOVER, 3f, 3.22f, 5.15f, null);
-        SkillNode bell = symbolNode("BELL", Symbol.BELL, 3f, 6.12f, 5.15f, clover);
-        symbolNode("SEVEN", Symbol.SEVEN, 7f, 9.02f, 5.15f, bell);
+        SkillNode clover = symbolNode("CLOVER", Symbol.CLOVER, 3f, 2.4f, 2.2f, null);
+        SkillNode bell = symbolNode("BELL", Symbol.BELL, 3f, 4.8f, 4.3f, clover);
+        symbolNode("SEVEN", Symbol.SEVEN, 7f, 7.2f, 6.4f, bell);
+        branches.add(new Branch(luckyBranch, clover, 1.30f, 1.48f));
 
-        SkillNode iron = symbolNode("IRON", Symbol.IRON, 5f, 3.22f, 3.98f, null);
-        symbolNode("DIAMOND", Symbol.DIAMOND, 5f, 6.12f, 3.98f, iron);
+        SkillNode iron = symbolNode("IRON", Symbol.IRON, 5f, 3.4f, -0.7f, null);
+        symbolNode("DIAMOND", Symbol.DIAMOND, 5f, 6.8f, -1.6f, iron);
+        branches.add(new Branch(metalBranch, iron, 1.65f, -0.18f));
 
         Automations automations = Automations.I();
         SkillNode speed = upgradeNode(
             "SPEED", AssetKey.RETRIGGER, automations.getSlotMachineSpeed(),
             () -> automations.getSlotMachineSpeed().getSpeedPercent() != 100,
             automations.getSlotMachineSpeed()::isMaxSpeedReached,
-            3.22f, 2.81f, null
+            -4.0f, -2.2f, null
+        );
+        SkillNode quickSpin = automationNode(
+            "QUICK SPIN", AssetKey.SPIN_BUTTON, automations.getQuickSpin(),
+            -6.8f, -3.4f, speed
         );
         SkillNode spinQueue = automationNode(
             "SPIN QUEUE", AssetKey.SPIN_BUTTON, automations.getSpinQueuer(),
-            6.12f, 2.81f, speed
+            -9.6f, -4.5f, quickSpin
         );
-        SkillNode queueSize = upgradeNode(
+        SkillNode queueLimit = upgradeNode(
             "QUEUE LIMIT", AssetKey.SHOPPING_CART, automations.getAutoSpinCapacity(),
             () -> automations.getAutoSpinCapacity().getCapacity() > 3,
             () -> false,
-            9.02f, 2.81f, spinQueue
+            -12.4f, -5.4f, spinQueue
         );
         automationNode(
             "AUTO SPIN", AssetKey.RETRIGGER, automations.getFullAutoSpin(),
-            11.92f, 2.81f, queueSize
+            -15.2f, -6.3f, queueLimit
         );
+        branches.add(new Branch(machineBranch, speed, -2.85f, -1.45f));
 
         SkillNode collectors = upgradeNode(
             "COLLECTORS", AssetKey.COLLECTOR, automations.getCollectorCapacity(),
             () -> automations.getCollectorCapacity().getCount() > 0,
             () -> false,
-            3.22f, 1.64f, null
+            -1.15f, -3.0f, null
         );
         upgradeNode(
             "PATTERNS", AssetKey.PLUS_SYMBOL, automations.getPatternUnlock(),
             () -> PatternUnlocks.I().getUnlockedCount() > 0,
             () -> PatternUnlocks.I().getLockedPatterns().isEmpty(),
-            6.12f, 1.64f, collectors
+            -1.0f, -5.9f, collectors
         );
+        branches.add(new Branch(utilityBranch, collectors, -0.82f, -1.72f));
     }
 
     private SkillNode symbolNode(
@@ -291,8 +319,7 @@ public final class Shop {
         if (state != State.HIDDEN) return;
         transition = 0f;
         inputArmed = false;
-        pressedNode = null;
-        nextRoundPressed = false;
+        clearPointerState();
         state = State.ENTERING;
         ButtonBoard.I().moveOut();
     }
@@ -300,9 +327,8 @@ public final class Shop {
     public void exit() {
         if (state == State.HIDDEN || state == State.EXITING) return;
         transition = 1f;
+        clearPointerState();
         state = State.EXITING;
-        pressedNode = null;
-        nextRoundPressed = false;
         ButtonBoard.I().moveIn();
     }
 
@@ -310,14 +336,12 @@ public final class Shop {
         if (state == State.HIDDEN) return;
 
         float offsetY = screenOffsetY();
+        drawCanvas(delta, offsetY);
         drawHeader(delta, offsetY);
-        drawConnectors(offsetY);
-        drawBranchLabels(delta, offsetY);
-        for (SkillNode node : nodes) node.draw(delta, offsetY);
         drawNextRoundButton(delta, offsetY);
     }
 
-    /** Draw the opaque shop surface as part of the CRT capture. */
+    /** Draw the shop surface as part of the CRT capture. */
     public void drawPostProcessedItems(float delta) {
         if (state == State.HIDDEN) return;
         update(delta);
@@ -330,6 +354,9 @@ public final class Shop {
                 0.96f * eased, ZIndex.SHOP);
             rect(0.55f, 0.24f + offsetY, 14.90f, 8.30f,
                 PANEL, 1f, ZIndex.SHOP);
+            rect(TREE_VIEWPORT.x, TREE_VIEWPORT.y + offsetY,
+                TREE_VIEWPORT.width, TREE_VIEWPORT.height,
+                CANVAS, 1f, ZIndex.SHOP);
             rect(0.55f, 8.49f + offsetY, 14.90f, 0.05f,
                 GOLD, 0.78f, ZIndex.SHOP_CARD);
         } finally {
@@ -346,40 +373,133 @@ public final class Shop {
         prompt.setY(7.30f + offsetY);
         prompt.draw(delta);
 
-        balanceLabel.setAbsoluteX(11.75f);
-        balanceLabel.setY(7.96f + offsetY);
-        balanceLabel.draw(delta);
-        balance.getFirstDigitBounds().setY(7.72f + offsetY);
-        balance.getFirstDigitBounds().setX(12.88f);
+        balance.getFirstDigitBounds().set(
+            BALANCE_RIGHT - balance.getWidth(),
+            7.855f + offsetY,
+            0.32f,
+            0.50f
+        );
         balance.draw(delta);
     }
 
-    private void drawBranchLabels(float delta, float offsetY) {
-        drawBranchLabel(fruitBranch, 6.58f + offsetY, delta);
-        drawBranchLabel(luckyBranch, 5.41f + offsetY, delta);
-        drawBranchLabel(metalBranch, 4.24f + offsetY, delta);
-        drawBranchLabel(machineBranch, 3.07f + offsetY, delta);
-        drawBranchLabel(utilityBranch, 1.90f + offsetY, delta);
+    private void drawCanvas(float delta, float offsetY) {
+        Rectangle viewport = movedBounds(TREE_VIEWPORT, offsetY);
+        Pencil.I().startScissors(
+            GameContext.I().viewport.getCamera(),
+            GameContext.I().batch.getTransformMatrix(),
+            viewport
+        );
+        drawCanvasGrid(offsetY);
+        drawConnectors(offsetY);
+        drawBranchLabels(delta, offsetY);
+        drawHub(delta, offsetY);
+        for (SkillNode node : nodes) node.draw(delta, offsetY);
+        Pencil.I().endScissors();
     }
 
-    private void drawBranchLabel(GeneratedFabledText label, float y, float delta) {
-        label.setAbsoluteX(0.88f);
-        label.setY(y);
-        label.draw(delta);
+    private void drawCanvasGrid(float offsetY) {
+        float spacing = 2.5f;
+        for (float localX = -30f; localX <= 30f; localX += spacing) {
+            Vector2 screen = canvasToScreen(localX, 0f, offsetY);
+            if (screen.x < TREE_VIEWPORT.x || screen.x > TREE_VIEWPORT.x + TREE_VIEWPORT.width) {
+                continue;
+            }
+            rect(screen.x - 0.008f, TREE_VIEWPORT.y + offsetY,
+                0.016f, TREE_VIEWPORT.height, MUTED, 0.055f, ZIndex.SHOP);
+        }
+        for (float localY = -25f; localY <= 25f; localY += spacing) {
+            Vector2 screen = canvasToScreen(0f, localY, offsetY);
+            if (screen.y < TREE_VIEWPORT.y + offsetY
+                || screen.y > TREE_VIEWPORT.y + TREE_VIEWPORT.height + offsetY) {
+                continue;
+            }
+            rect(TREE_VIEWPORT.x, screen.y - 0.008f,
+                TREE_VIEWPORT.width, 0.016f, MUTED, 0.055f, ZIndex.SHOP);
+        }
     }
 
     private void drawConnectors(float offsetY) {
+        Vector2 hubCenter = canvasToScreen(0f, 0f, offsetY);
+        for (Branch branch : branches) {
+            Vector2 rootCenter = branch.root.screenCenter(offsetY);
+            drawLine(hubCenter, rootCenter, GOLD, 0.58f, offsetY);
+        }
+
         for (SkillNode node : nodes) {
             if (node.prerequisite == null) continue;
-            Rectangle from = node.prerequisite.bounds;
-            Rectangle to = node.bounds;
-            float x = from.x + from.width;
-            float y = from.y + from.height / 2f + offsetY;
-            float width = Math.max(0f, to.x - x);
             Color color = node.unlocked() ? GOLD : MUTED;
-            rect(x, y - 0.035f, width, 0.07f, color,
-                node.unlocked() ? 0.70f : 0.24f, ZIndex.SHOP_CARD);
+            drawLine(
+                node.prerequisite.screenCenter(offsetY),
+                node.screenCenter(offsetY),
+                color,
+                node.unlocked() ? 0.70f : 0.22f,
+                offsetY
+            );
         }
+    }
+
+    private void drawLine(
+        Vector2 start,
+        Vector2 end,
+        Color color,
+        float alpha,
+        float offsetY
+    ) {
+        float dx = end.x - start.x;
+        float dy = end.y - start.y;
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        float angle = MathUtils.atan2(dy, dx) * MathUtils.radiansToDegrees;
+        float thickness = Math.max(0.025f, 0.065f * zoom);
+        float midX = (start.x + end.x) / 2f;
+        float midY = (start.y + end.y) / 2f;
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            midX - length / 2f,
+            midY - thickness / 2f,
+            length,
+            thickness,
+            1f,
+            angle,
+            ZIndex.SHOP_CARD,
+            new Color(color.r, color.g, color.b, alpha)
+        ));
+    }
+
+    private void drawBranchLabels(float delta, float offsetY) {
+        for (Branch branch : branches) {
+            Vector2 position = canvasToScreen(branch.labelX, branch.labelY, offsetY);
+            branch.label.setAnimationScale(zoom * 0.86f);
+            branch.label.setAbsoluteX(position.x);
+            branch.label.setY(position.y);
+            branch.label.setOpacity(0.72f);
+            branch.label.draw(delta);
+        }
+    }
+
+    private void drawHub(float delta, float offsetY) {
+        Rectangle bounds = canvasBoundsToScreen(HUB_BOUNDS, offsetY);
+        rect(bounds.x + 0.07f * zoom, bounds.y - 0.08f * zoom,
+            bounds.width, bounds.height, Color.BLACK, 0.58f, ZIndex.SHOP_CARD);
+        rect(bounds.x, bounds.y, bounds.width, bounds.height,
+            new Color(0.12f, 0.13f, 0.10f, 1f), 1f, ZIndex.SHOP_CARD);
+        rect(bounds.x, bounds.y + bounds.height - 0.07f * zoom,
+            bounds.width, 0.07f * zoom, GOLD, 1f, ZIndex.SHOP_CARD);
+
+        float iconSize = 0.68f * zoom;
+        Pencil.I().addDrawing(new TextureDrawing(
+            spade,
+            bounds.x + 0.20f * zoom,
+            bounds.y + 0.19f * zoom,
+            iconSize,
+            iconSize,
+            ZIndex.SHOP_CARD
+        ));
+
+        hubText.setAnimationScale(zoom);
+        hubText.setAbsoluteX(bounds.x + 1.02f * zoom);
+        hubText.setY(bounds.y + 0.40f * zoom);
+        hubText.setOpacity(1f);
+        hubText.draw(delta);
     }
 
     private void drawNextRoundButton(float delta, float offsetY) {
@@ -406,8 +526,12 @@ public final class Shop {
     ) {
         if (state != State.SHOWN) return;
 
+        lastMouse.set(mouse);
+        boolean overCanvas = TREE_VIEWPORT.contains(mouse);
         nextRoundHovered = NEXT_ROUND_BOUNDS.contains(mouse);
-        for (SkillNode node : nodes) node.hovered = node.bounds.contains(mouse);
+        for (SkillNode node : nodes) {
+            node.hovered = overCanvas && !dragging && node.contains(mouse);
+        }
 
         boolean enterDown = Gdx.input.isKeyPressed(Input.Keys.ENTER);
         if (!inputArmed) {
@@ -419,19 +543,43 @@ public final class Shop {
             exit();
             return;
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
+            resetView();
+            AudioManager.I().playHover();
+        }
 
         if (pressed && !wasPressed) {
-            pressedNode = hoveredNode();
             nextRoundPressed = nextRoundHovered;
-        } else if (!pressed && wasPressed) {
+            if (!nextRoundPressed && overCanvas) {
+                dragCandidate = true;
+                dragging = false;
+                dragStart.set(mouse);
+                lastDragMouse.set(mouse);
+                pressedNode = hoveredNode();
+            }
+            return;
+        }
+
+        if (pressed && wasPressed && dragCandidate) {
+            if (!dragging && dragStart.dst2(mouse) >= DRAG_THRESHOLD * DRAG_THRESHOLD) {
+                dragging = true;
+                pressedNode = null;
+            }
+            if (dragging) {
+                pan.add(mouse.x - lastDragMouse.x, mouse.y - lastDragMouse.y);
+            }
+            lastDragMouse.set(mouse);
+            return;
+        }
+
+        if (!pressed && wasPressed) {
             SkillNode releasedNode = hoveredNode();
-            if (pressedNode != null && pressedNode == releasedNode) {
+            if (!dragging && pressedNode != null && pressedNode == releasedNode) {
                 pressedNode.tryPurchase();
             } else if (nextRoundPressed && nextRoundHovered) {
                 exit();
             }
-            pressedNode = null;
-            nextRoundPressed = false;
+            clearPointerState();
         }
     }
 
@@ -440,6 +588,49 @@ public final class Shop {
             if (node.hovered) return node;
         }
         return null;
+    }
+
+    public boolean scrollItems(float amountY, Vector2 anchor) {
+        if (state != State.SHOWN || amountY == 0f) return false;
+        Vector2 zoomAnchor = anchor == null ? lastMouse : anchor;
+        if (!TREE_VIEWPORT.contains(zoomAnchor)) return false;
+
+        float oldZoom = zoom;
+        float newZoom = MathUtils.clamp(
+            oldZoom * (float) Math.pow(0.86f, amountY),
+            MIN_ZOOM,
+            MAX_ZOOM
+        );
+        if (Float.compare(oldZoom, newZoom) == 0) return true;
+
+        float ratio = newZoom / oldZoom;
+        float relativeX = zoomAnchor.x - CANVAS_CENTER_X - pan.x;
+        float relativeY = zoomAnchor.y - CANVAS_CENTER_Y - pan.y;
+        pan.x += relativeX * (1f - ratio);
+        pan.y += relativeY * (1f - ratio);
+        zoom = newZoom;
+        return true;
+    }
+
+    public boolean scrollItems(float amountY) {
+        return scrollItems(amountY, lastMouse);
+    }
+
+    /** Kept for callers compiled against the previous store. */
+    public boolean scrollAutomations(float amountY) {
+        return scrollItems(amountY);
+    }
+
+    private void resetView() {
+        pan.setZero();
+        zoom = INITIAL_ZOOM;
+    }
+
+    private void clearPointerState() {
+        pressedNode = null;
+        nextRoundPressed = false;
+        dragCandidate = false;
+        dragging = false;
     }
 
     private void update(float delta) {
@@ -464,15 +655,6 @@ public final class Shop {
         return (1f - Interpolation.pow3Out.apply(transition)) * WORLD_HEIGHT;
     }
 
-    public boolean scrollItems(float amountY) {
-        return false;
-    }
-
-    /** Kept for callers compiled against the previous store. */
-    public boolean scrollAutomations(float amountY) {
-        return false;
-    }
-
     public boolean isShowing() {
         return state != State.HIDDEN;
     }
@@ -484,6 +666,23 @@ public final class Shop {
         target.purchase();
         AudioManager.I().playShopPurchase(major);
         ScreenShake.I().addTrauma(major ? 0.15f : 0.08f);
+    }
+
+    private Vector2 canvasToScreen(float x, float y, float offsetY) {
+        return new Vector2(
+            CANVAS_CENTER_X + pan.x + x * zoom,
+            CANVAS_CENTER_Y + pan.y + y * zoom + offsetY
+        );
+    }
+
+    private Rectangle canvasBoundsToScreen(Rectangle bounds, float offsetY) {
+        Vector2 position = canvasToScreen(bounds.x, bounds.y, offsetY);
+        return new Rectangle(
+            position.x,
+            position.y,
+            bounds.width * zoom,
+            bounds.height * zoom
+        );
     }
 
     private static GeneratedFabledText text(
@@ -544,8 +743,31 @@ public final class Shop {
         boolean complete();
     }
 
+    private static final class Branch {
+        private final GeneratedFabledText label;
+        private final SkillNode root;
+        private final float labelX;
+        private final float labelY;
+
+        private Branch(
+            GeneratedFabledText label,
+            SkillNode root,
+            float labelX,
+            float labelY
+        ) {
+            this.label = label;
+            this.root = root;
+            this.labelX = labelX;
+            this.labelY = labelY;
+        }
+    }
+
     private final class SkillNode {
-        private final Rectangle bounds;
+        private static final float PRICE_DIGIT_WIDTH = 0.14f;
+        private static final float PRICE_DIGIT_HEIGHT = 0.23f;
+        private static final float PRICE_DIGIT_SPACING = 0.13f;
+
+        private final Rectangle canvasBounds;
         private final TextureRegion icon;
         private final PurchaseTarget target;
         private final boolean majorPurchase;
@@ -565,23 +787,22 @@ public final class Shop {
             TextureRegion icon,
             PurchaseTarget target,
             boolean majorPurchase,
-            Rectangle bounds,
+            Rectangle canvasBounds,
             SkillNode prerequisite
         ) {
-            this.bounds = bounds;
+            this.canvasBounds = canvasBounds;
             this.icon = icon;
             this.target = target;
             this.majorPurchase = majorPurchase;
             this.prerequisite = prerequisite;
             this.name = text(name, 32f, Color.WHITE, true);
-            this.name.fitWithinWidth(bounds.width - 0.82f);
+            this.name.fitWithinWidth(canvasBounds.width - 0.82f);
             price = new CreditNumber(
                 target.price(),
-                new Rectangle(bounds.x + 0.72f, bounds.y + 0.12f, 0.14f, 0.23f),
-                0.19f
+                new Rectangle(0f, 0f, PRICE_DIGIT_WIDTH, PRICE_DIGIT_HEIGHT),
+                PRICE_DIGIT_SPACING
             ).setZIndex(ZIndex.SHOP_CARD);
             price.setCompactThreshold(1_000f);
-            price.setDigitSpacing(0.13f);
             price.getIdleScaleEffect().setAllowed(false);
         }
 
@@ -591,6 +812,18 @@ public final class Shop {
 
         private boolean invested() {
             return purchasedHere || target.invested();
+        }
+
+        private Vector2 screenCenter(float offsetY) {
+            return canvasToScreen(
+                canvasBounds.x + canvasBounds.width / 2f,
+                canvasBounds.y + canvasBounds.height / 2f,
+                offsetY
+            );
+        }
+
+        private boolean contains(Vector2 mouse) {
+            return canvasBoundsToScreen(canvasBounds, 0f).contains(mouse);
         }
 
         private void tryPurchase() {
@@ -608,7 +841,7 @@ public final class Shop {
         }
 
         private void draw(float delta, float offsetY) {
-            Rectangle moved = movedBounds(bounds, offsetY);
+            Rectangle bounds = canvasBoundsToScreen(canvasBounds, offsetY);
             boolean unlocked = unlocked();
             boolean complete = target.complete();
             boolean affordable = target.canBuy();
@@ -616,11 +849,12 @@ public final class Shop {
                 ? NODE_LOCKED
                 : hovered && state == State.SHOWN ? NODE_HOVER : NODE;
 
-            rect(moved.x + 0.05f, moved.y - 0.06f, moved.width, moved.height,
-                Color.BLACK, 0.48f, ZIndex.SHOP_CARD);
-            rect(moved.x, moved.y, moved.width, moved.height,
+            rect(bounds.x + 0.05f * zoom, bounds.y - 0.06f * zoom,
+                bounds.width, bounds.height, Color.BLACK, 0.48f, ZIndex.SHOP_CARD);
+            rect(bounds.x, bounds.y, bounds.width, bounds.height,
                 fill, unlocked ? 1f : 0.82f, ZIndex.SHOP_CARD);
-            rect(moved.x, moved.y + moved.height - 0.045f, moved.width, 0.045f,
+            rect(bounds.x, bounds.y + bounds.height - 0.045f * zoom,
+                bounds.width, 0.045f * zoom,
                 unlocked ? GOLD : MUTED, unlocked ? 0.76f : 0.20f,
                 ZIndex.SHOP_CARD);
 
@@ -628,25 +862,36 @@ public final class Shop {
                 ? Color.WHITE
                 : new Color(0.38f, 0.42f, 0.44f, 0.62f);
             Pencil.I().addDrawing(new TextureDrawing(
-                icon, moved.x + 0.16f, moved.y + 0.18f,
-                0.54f, 0.54f, ZIndex.SHOP_CARD, iconColor
+                icon,
+                bounds.x + 0.16f * zoom,
+                bounds.y + 0.18f * zoom,
+                0.54f * zoom,
+                0.54f * zoom,
+                ZIndex.SHOP_CARD,
+                iconColor
             ));
 
-            name.setAbsoluteX(moved.x + 0.80f);
-            name.setY(moved.y + 0.55f);
+            name.setAnimationScale(zoom);
+            name.setAbsoluteX(bounds.x + 0.80f * zoom);
+            name.setY(bounds.y + 0.55f * zoom);
             name.setOpacity(unlocked ? 1f : 0.45f);
             name.draw(delta);
 
             if (!unlocked) {
-                drawNodeStatus(lockedText, moved, delta);
+                drawNodeStatus(lockedText, bounds, delta);
             } else if (complete) {
-                drawNodeStatus(majorPurchase ? ownedText : maxedText, moved, delta);
+                drawNodeStatus(majorPurchase ? ownedText : maxedText, bounds, delta);
             } else {
                 if (Float.compare(price.getValue(), target.price()) != 0) {
                     price.setValue(target.price());
                 }
-                price.getFirstDigitBounds().set(moved.x + 0.80f, moved.y + 0.13f,
-                    0.14f, 0.23f);
+                price.setDigitSpacing(PRICE_DIGIT_SPACING * zoom);
+                price.getFirstDigitBounds().set(
+                    bounds.x + 0.80f * zoom,
+                    bounds.y + 0.13f * zoom,
+                    PRICE_DIGIT_WIDTH * zoom,
+                    PRICE_DIGIT_HEIGHT * zoom
+                );
                 price.setColor(affordable ? Assets.I().yellow() : MUTED);
                 price.draw(delta);
             }
@@ -654,18 +899,19 @@ public final class Shop {
             if (purchaseFlash > 0f) {
                 float duration = majorPurchase ? 0.55f : 0.38f;
                 float alpha = MathUtils.clamp(purchaseFlash / duration, 0f, 1f);
-                rect(moved.x, moved.y, moved.width, moved.height,
+                rect(bounds.x, bounds.y, bounds.width, bounds.height,
                     GOLD, alpha * alpha * 0.24f, ZIndex.SHOP_CARD_TOUCHING);
             }
         }
 
         private void drawNodeStatus(
             GeneratedFabledText status,
-            Rectangle moved,
+            Rectangle bounds,
             float delta
         ) {
-            status.setAbsoluteX(moved.x + 0.80f);
-            status.setY(moved.y + 0.15f);
+            status.setAnimationScale(zoom);
+            status.setAbsoluteX(bounds.x + 0.80f * zoom);
+            status.setY(bounds.y + 0.15f * zoom);
             status.draw(delta);
         }
     }

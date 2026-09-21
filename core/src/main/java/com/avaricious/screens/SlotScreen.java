@@ -3,6 +3,7 @@ package com.avaricious.screens;
 import com.avaricious.DevTools;
 import com.avaricious.Main;
 import com.avaricious.Profiler;
+import com.avaricious.RoundStats;
 import com.avaricious.RoundsManager;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.*;
@@ -70,9 +71,11 @@ public class SlotScreen extends ScreenAdapter {
         new VfxManager(Pixmap.Format.RGBA8888);
 
     private final Vector2 mouse = new Vector2();
+    private final Vector2 scrollMouse = new Vector2();
 
     private boolean leftClickWasPressed = false;
     private boolean roundClockActive = false;
+    private boolean autoSpinWaitingForCollectibles = false;
 
     private int symbolsHitLastSpin = 0;
 
@@ -80,7 +83,9 @@ public class SlotScreen extends ScreenAdapter {
         @Override
         public boolean scrolled(float amountX, float amountY) {
             if (shop.isShowing()) {
-                return shop.scrollItems(amountY);
+                scrollMouse.set(Gdx.input.getX(), Gdx.input.getY());
+                app.getViewport().unproject(scrollMouse);
+                return shop.scrollItems(amountY, scrollMouse);
             }
             return false;
         }
@@ -229,6 +234,7 @@ public class SlotScreen extends ScreenAdapter {
 
     private void resetRunState() {
         roundClockActive = false;
+        autoSpinWaitingForCollectibles = false;
         ScoreDisplay.I().setScoreNumber(0f);
         RunManager.I().newRun();
         ChestManager.I().reset();
@@ -338,6 +344,8 @@ public class SlotScreen extends ScreenAdapter {
                 );
 
             CollectorManager.I().update(delta);
+
+            resumeAutoSpinAfterCollecting();
 
             ChestManager.I().update(delta);
 
@@ -920,6 +928,17 @@ public class SlotScreen extends ScreenAdapter {
 
     public void onSpinButtonPressed() {
 
+        if (!SlotMachine.I().isStale()) {
+            return;
+        }
+
+        if (waitingForCollectibles()) {
+            autoSpinWaitingForCollectibles = autoSpinEnabled();
+            return;
+        }
+
+        autoSpinWaitingForCollectibles = false;
+
         if (
             Automations.I()
                 .getAutoSpin()
@@ -967,6 +986,31 @@ public class SlotScreen extends ScreenAdapter {
             AutoSpinDisplay.I()
                 .removeSpin();
         }
+    }
+
+    private boolean waitingForCollectibles() {
+        return !Automations.I().getQuickSpin().isActive()
+            && BouncingSymbolManager.I().hasUnclaimedCollectibles();
+    }
+
+    private boolean autoSpinEnabled() {
+        return Automations.I().getAutoSpin().isActive()
+            || Automations.I().getFullAutoSpin().isActive();
+    }
+
+    private void resumeAutoSpinAfterCollecting() {
+        if (!autoSpinWaitingForCollectibles
+            || waitingForCollectibles()
+            || !SlotMachine.I().isStale()) {
+            return;
+        }
+
+        if (!RunManager.I().getRoundsManager().canSpin()) {
+            autoSpinWaitingForCollectibles = false;
+            return;
+        }
+
+        onSpinButtonPressed();
     }
 
 
@@ -1177,6 +1221,7 @@ public class SlotScreen extends ScreenAdapter {
     public void addSymbolsHitLastSpin() {
 
         symbolsHitLastSpin++;
+        RoundStats.I().recordSymbolHit();
     }
 
 

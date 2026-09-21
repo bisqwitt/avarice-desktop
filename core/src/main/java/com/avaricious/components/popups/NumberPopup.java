@@ -153,28 +153,33 @@ public class NumberPopup implements IPopup {
 
         float xOffset = getRenderXOffset();
         float yOffset = getPulseYOffset();
+        TextureRegion sign = number < 0 ? minusTexture : plusTexture;
+        float signWidth = getGlyphWidth(sign);
 
         // Use alpha for main draw color
         Pencil.I().addDrawing(new TextureDrawing(
-            number < 0 ? minusTexture : plusTexture,
-            bounds.x - numberOffset + xOffset, bounds.y + yOffset, bounds.width, bounds.height,
+            sign,
+            bounds.x - getGlyphTracking() - signWidth + xOffset,
+            bounds.y + yOffset, signWidth, getGlyphHeight(sign),
             scale, rotation, zIndex, new Color(color.r, color.g, color.b, alpha)
         ));
 
-        for (int i = 0; i < digitalNumberTextures.size(); i++) {
-            int index = i;
+        float x = bounds.x;
+        for (TextureRegion numberTexture : digitalNumberTextures) {
             Pencil.I().addDrawing(new TextureDrawing(
-                digitalNumberTextures.get(index),
-                bounds.x + (numberOffset * index) + xOffset, bounds.y + yOffset, bounds.width, bounds.height,
+                numberTexture,
+                x + xOffset, bounds.y + yOffset,
+                getGlyphWidth(numberTexture), getGlyphHeight(numberTexture),
                 scale, rotation, zIndex, new Color(color.r, color.g, color.b, alpha)
             ));
+            x += getGlyphWidth(numberTexture) + getGlyphTracking();
         }
 
         if (asPercentage) {
             Pencil.I().addDrawing(new TextureDrawing(
                 percentageTexture,
-                bounds.x + numberOffset * digitalNumberTextures.size() + xOffset,
-                bounds.y + yOffset, 8 / 20f, 13 / 20f,
+                x + xOffset, bounds.y + yOffset,
+                getGlyphWidth(percentageTexture), getGlyphHeight(percentageTexture),
                 scale, rotation, zIndex
             ));
         }
@@ -191,6 +196,31 @@ public class NumberPopup implements IPopup {
 
     protected float getRenderXOffset() {
         return 0f;
+    }
+
+    protected float getTrailingSymbolX() {
+        float x = bounds.x;
+        for (TextureRegion numberTexture : digitalNumberTextures) {
+            x += getGlyphWidth(numberTexture) + getGlyphTracking();
+        }
+        return x;
+    }
+
+    protected float getGlyphWidth(TextureRegion glyph) {
+        return glyph.getRegionWidth() * getGlyphScale();
+    }
+
+    protected float getGlyphHeight(TextureRegion glyph) {
+        return glyph.getRegionHeight() * getGlyphScale();
+    }
+
+    private float getGlyphScale() {
+        int referenceHeight = Assets.I().getDigitalNumber(0).getRegionHeight();
+        return referenceHeight == 0 ? 0f : bounds.height / referenceHeight;
+    }
+
+    private float getGlyphTracking() {
+        return numberOffset - getGlyphWidth(Assets.I().getDigitalNumber(0));
     }
 
     protected float getAlpha() {

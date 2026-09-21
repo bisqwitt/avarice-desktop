@@ -38,6 +38,7 @@ public class RoundsManager extends Observable<Integer> {
 
     public void nextRound() {
         int nextRound = currentRound + 1;
+        RoundStats.I().reset();
         roundTarget = calculateTarget(nextRound);
         outcome = RoundOutcome.IN_PROGRESS;
         roundTimer.startTimer();
@@ -49,7 +50,9 @@ public class RoundsManager extends Observable<Integer> {
     }
 
     public boolean tryStartSpin() {
-        return canSpin();
+        if (!canSpin()) return false;
+        RoundStats.I().recordSpin();
+        return true;
     }
 
     public boolean updateTimer(float delta) {

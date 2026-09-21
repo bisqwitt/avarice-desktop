@@ -6,6 +6,7 @@ import com.avaricious.components.DigitalNumber;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.RunManager;
 import com.avaricious.utility.TextureDrawing;
@@ -23,17 +24,17 @@ public class RoundInfoPanel {
         return instance == null ? instance = new RoundInfoPanel() : instance;
     }
 
-    private static final float PANEL_X = 6.62f;
-    private static final float PANEL_Y = 7.72f;
-    private static final float PANEL_WIDTH = 7.75f;
+    private static final float PANEL_X = GameplayLayout.SLOT_X;
+    private static final float PANEL_Y = GameplayLayout.HUD_Y;
+    private static final float PANEL_WIDTH = GameplayLayout.SLOT_WIDTH;
     private static final float PANEL_HEIGHT = 0.84f;
 
     private static final float ROUND_LEFT = PANEL_X + 0.14f;
-    private static final float ROUND_WIDTH = 1.58f;
-    private static final float TARGET_LEFT = PANEL_X + 2.02f;
-    private static final float TARGET_WIDTH = 3.05f;
-    private static final float TIME_LEFT = PANEL_X + 5.40f;
-    private static final float TIME_WIDTH = 1.76f;
+    private static final float ROUND_WIDTH = 1.64f;
+    private static final float TARGET_LEFT = PANEL_X + 2.04f;
+    private static final float TARGET_WIDTH = 3.30f;
+    private static final float TIME_LEFT = PANEL_X + 5.66f;
+    private static final float TIME_WIDTH = 1.95f;
 
     private static final Color MUTED = new Color(0.63f, 0.71f, 0.76f, 1f);
     private static final Color PANEL_COLOR = new Color(0.025f, 0.043f, 0.055f, 1f);
@@ -92,6 +93,15 @@ public class RoundInfoPanel {
 
         Pencil.I().addDrawing(new TextureDrawing(
             whitePixel,
+            PANEL_X + 0.06f,
+            PANEL_Y - 0.07f,
+            PANEL_WIDTH,
+            PANEL_HEIGHT,
+            ZIndex.BUTTON_BOARD,
+            new Color(0f, 0f, 0f, 0.48f)
+        ));
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
             PANEL_X,
             PANEL_Y,
             PANEL_WIDTH,
@@ -100,8 +110,18 @@ public class RoundInfoPanel {
             new Color(PANEL_COLOR.r, PANEL_COLOR.g, PANEL_COLOR.b, 0.78f)
         ));
 
-        drawDivider(PANEL_X + 1.86f);
-        drawDivider(PANEL_X + 5.24f);
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            PANEL_X,
+            PANEL_Y + PANEL_HEIGHT - 0.035f,
+            PANEL_WIDTH,
+            0.035f,
+            ZIndex.BUTTON_BOARD,
+            new Color(1f, 0.82f, 0.44f, 0.42f)
+        ));
+
+        drawDivider(PANEL_X + 1.90f);
+        drawDivider(PANEL_X + 5.50f);
 
         roundLabel.draw(delta);
         targetLabel.draw(delta);
