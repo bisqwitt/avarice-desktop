@@ -13,6 +13,7 @@ public final class RoundStats {
     private int spins;
     private float moneyGained;
     private int collectiblesClaimed;
+    private int symbolsCollected;
     private float totalCollectibleClaimTime;
 
     private RoundStats() {
@@ -23,6 +24,7 @@ public final class RoundStats {
         spins = 0;
         moneyGained = 0f;
         collectiblesClaimed = 0;
+        symbolsCollected = 0;
         totalCollectibleClaimTime = 0f;
     }
 
@@ -43,6 +45,11 @@ public final class RoundStats {
         totalCollectibleClaimTime += Math.max(0f, secondsSinceSpawn);
     }
 
+    public void recordSymbolCollected(float secondsSinceSpawn) {
+        symbolsCollected++;
+        recordCollectibleClaim(secondsSinceSpawn);
+    }
+
     public int getSymbolsHit() {
         return symbolsHit;
     }
@@ -53,6 +60,10 @@ public final class RoundStats {
 
     public float getMoneyGained() {
         return moneyGained;
+    }
+
+    public int getSymbolsCollected() {
+        return symbolsCollected;
     }
 
     public float getAverageCollectibleClaimTime() {

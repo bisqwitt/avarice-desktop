@@ -25,7 +25,7 @@ public abstract class DisablableButton extends Button {
     private float animSpeed = 10f;           // higher = faster
     private float overshootScale = 1.06f;    // Balatro-ish pop
 
-    private static final float READY_PULSE_DURATION = 0.42f;
+    private static final float READY_PULSE_DURATION = 0.72f;
     private float readyPulseTime = 0f;
     private boolean availabilityInitialized = false;
     private boolean wasFunctionallyDisabled = true;
@@ -124,7 +124,11 @@ public abstract class DisablableButton extends Button {
         float scale = 1f + (overshootScale - 1f) * Interpolation.swingOut.apply(pop);
 
         float readyStrength = readyPulseStrength();
-        scale *= 1f + readyStrength * 0.11f;
+        float readyBounce = readyBounce();
+        float readyBaseScale = readyStrength * 0.035f;
+        float readyScaleX = 1f + readyBaseScale - readyBounce * 0.055f;
+        float readyScaleY = 1f + readyBaseScale + readyBounce * 0.16f;
+        float readyLift = readyBounce * 0.075f;
 
         // Draw with transform around center
         Rectangle r = buttonRectangle;
@@ -132,11 +136,11 @@ public abstract class DisablableButton extends Button {
         float cx = r.x + r.width * 0.5f;
         float cy = r.y + r.height * 0.5f;
 
-        float w = r.width * scale;
-        float h = r.height * scale;
+        float w = r.width * scale * readyScaleX;
+        float h = r.height * scale * readyScaleY;
 
         float drawX = cx - w * 0.5f;
-        float drawY = (cy - h * 0.5f) - yOffset;
+        float drawY = (cy - h * 0.5f) - yOffset + readyLift;
 
         if (readyStrength > 0f) {
             float glowGrowth = 0.10f + readyStrength * 0.08f;
@@ -146,7 +150,7 @@ public abstract class DisablableButton extends Button {
             Pencil.I().addDrawing(new TextureDrawing(
                 buttonShadow,
                 cx - glowW * 0.5f,
-                cy - glowH * 0.5f - yOffset,
+                cy - glowH * 0.5f - yOffset + readyLift,
                 glowW,
                 glowH,
                 layer,
@@ -175,7 +179,19 @@ public abstract class DisablableButton extends Button {
         if (readyPulseTime <= 0f) return 0f;
 
         float progress = 1f - readyPulseTime / READY_PULSE_DURATION;
-        return (float) Math.sin(progress * Math.PI) * (1f - progress * 0.35f);
+        float envelope = (float) Math.pow(1f - progress, 1.35f);
+        float shimmer = 0.72f + 0.28f * Math.abs(
+            (float) Math.sin(progress * Math.PI * 5f)
+        );
+        return envelope * shimmer;
+    }
+
+    private float readyBounce() {
+        if (readyPulseTime <= 0f) return 0f;
+
+        float progress = 1f - readyPulseTime / READY_PULSE_DURATION;
+        float envelope = (float) Math.pow(1f - progress, 1.45f);
+        return (float) Math.sin(progress * Math.PI * 5f) * envelope;
     }
 
     private void drawWithShadow(Rectangle bounds) {

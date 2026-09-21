@@ -11,7 +11,7 @@ public final class GameplayLayout {
     /** Standalone cash wallet, kept away from the round-status header. */
     public static final float CASH_LEFT = 0.78f;
     public static final float CASH_WIDTH = 3.00f;
-    public static final float CASH_Y = 7.82f;
+    public static final float CASH_Y = 7.48f;
 
     /** Legacy anchors retained for the retired QuickShop and draw-card layout. */
     public static final float HUD_LEFT = SLOT_X + 0.14f;

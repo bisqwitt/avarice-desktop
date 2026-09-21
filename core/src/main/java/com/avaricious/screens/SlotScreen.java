@@ -340,6 +340,7 @@ public class SlotScreen extends ScreenAdapter {
                 .updateFallingSymbols(
                     delta,
                     ScoreDisplay.I().getCollisionBounds(),
+                    RoundInfoPanel.I().getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
 
@@ -437,8 +438,6 @@ public class SlotScreen extends ScreenAdapter {
         PlayerScores.I().draw(delta);
 
         PlayerHealths.I().draw(delta);
-
-        ScoreDisplay.I().draw(delta);
 
         if (!SlotMachine.I().isStale()) {
             buttonBoard.draw(delta);
@@ -563,8 +562,14 @@ public class SlotScreen extends ScreenAdapter {
 
         shop.draw(delta);
 
+        // Keep the standalone wallet crisp and outside the screen-wide CRT pass.
+        // The full shop renders its own cash balance instead.
+        if (!fullShopShowing) {
+            ScoreDisplay.I().draw(delta);
+        }
+
         BouncingSymbolManager.I()
-            .drawFallingSymbols(delta);
+            .drawFallingSymbols(delta, mouse);
         CollectorManager.I().draw();
         ChestManager.I().draw();
         SlotMachine.I()
@@ -878,7 +883,8 @@ public class SlotScreen extends ScreenAdapter {
                     .handleInput(
                         mouse,
                         leftClickPressed,
-                        leftClickWasPressed
+                        leftClickWasPressed,
+                        delta
                     );
 
 

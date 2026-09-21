@@ -27,7 +27,7 @@ import java.util.List;
 public final class ChestManager {
 
     public static final String DROP_CHANCE = "chestDropChance";
-    public static final int BASE_DROP_CHANCE_PERCENT = 15;
+    public static final int BASE_DROP_CHANCE_PERCENT = 0;
     public static final int DROP_CHANCE_STEP = 5;
     public static final int MAX_DROP_CHANCE_PERCENT = 100;
 

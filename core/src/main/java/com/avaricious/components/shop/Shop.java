@@ -171,6 +171,13 @@ public final class Shop {
             -1.15f, -3.0f, null
         );
         upgradeNode(
+            "TARGET RANGE", AssetKey.CROSSHAIR,
+            automations.getCursorTargetRadius(),
+            () -> automations.getCursorTargetRadius().getUpgradeCount() > 0,
+            automations.getCursorTargetRadius()::isMaxRadiusReached,
+            1.8f, -4.8f, collectors
+        );
+        upgradeNode(
             "PATTERNS", AssetKey.PLUS_SYMBOL, automations.getPatternUnlock(),
             () -> PatternUnlocks.I().getUnlockedCount() > 0,
             () -> PatternUnlocks.I().getLockedPatterns().isEmpty(),

@@ -163,6 +163,16 @@ public class RoundInfoPanel {
         number.getFirstDigitBounds().x = left + (width - number.getWidth()) / 2f;
     }
 
+    public Rectangle getCollisionBounds() {
+        float padding = 0.06f;
+        return new Rectangle(
+            PANEL_X - padding,
+            PANEL_Y - padding,
+            PANEL_WIDTH + padding * 2f,
+            PANEL_HEIGHT + padding * 2f
+        );
+    }
+
     private void drawDivider(float x) {
         Pencil.I().addDrawing(new TextureDrawing(
             whitePixel,

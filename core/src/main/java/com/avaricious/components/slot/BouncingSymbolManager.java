@@ -2,10 +2,17 @@ package com.avaricious.components.slot;
 
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.components.automations.Automations;
+import com.avaricious.utility.AssetKey;
+import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
+import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
+import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -15,6 +22,10 @@ import java.util.List;
 
 public class BouncingSymbolManager {
 
+    private static final float CURSOR_LINE_THICKNESS = 0.014f;
+    private static final float CURSOR_LINE_START_INSET = 0.25f;
+    private static final float CURSOR_LINE_TARGET_GAP = 0.06f;
+
     private static BouncingSymbolManager instance;
 
     public static BouncingSymbolManager I() {
@@ -23,6 +34,8 @@ public class BouncingSymbolManager {
 
     private final List<BouncingSymbol> bouncingSymbols = new ArrayList<>();
     private final List<CashChipCollectible> cashChips = new ArrayList<>();
+    private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
+    private float cursorLineTime;
 
     private BouncingSymbolManager() {
     }
@@ -85,6 +98,7 @@ public class BouncingSymbolManager {
     public void reset() {
         bouncingSymbols.clear();
         cashChips.clear();
+        cursorLineTime = 0f;
     }
 
     public boolean hasUnclaimedCollectibles() {
@@ -100,27 +114,141 @@ public class BouncingSymbolManager {
     public void handleInput(
         Vector2 mouse,
         boolean touching,
-        boolean wasTouching
+        boolean wasTouching,
+        float delta
     ) {
+        float targetRadius = Automations.I().getCursorTargetRadius().getRadius();
+        BouncingSymbol clickedSymbol = touching && !wasTouching
+            ? findSymbolUnderCursor(mouse)
+            : null;
+
+        if (clickedSymbol != null) {
+            clickedSymbol.collectImmediately();
+        }
+
         for (BouncingSymbol symbol : bouncingSymbols) {
-            symbol.handleInput(
-                mouse,
-                touching,
-                wasTouching
+            float distance = Vector2.dst(
+                mouse.x,
+                mouse.y,
+                symbol.getCenterX(),
+                symbol.getCenterY()
             );
+            float hoverStrength = symbol.isUnclaimed() && distance <= targetRadius
+                ? 1f - MathUtils.clamp(distance / targetRadius, 0f, 1f)
+                : -1f;
+            symbol.updateHoverHealth(hoverStrength, delta);
         }
         for (CashChipCollectible cashChip : cashChips) {
             cashChip.handleInput(mouse, touching);
         }
     }
 
+    private BouncingSymbol findSymbolUnderCursor(Vector2 mouse) {
+        BouncingSymbol closest = null;
+        float closestDistanceSquared = Float.MAX_VALUE;
+
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            if (!symbol.isUnclaimed()) continue;
+
+            float deltaX = mouse.x - symbol.getCenterX();
+            float deltaY = mouse.y - symbol.getCenterY();
+            float distanceSquared = deltaX * deltaX + deltaY * deltaY;
+            float radius = symbol.getRadius();
+            if (distanceSquared > radius * radius ||
+                distanceSquared >= closestDistanceSquared) {
+                continue;
+            }
+
+            closest = symbol;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        return closest;
+    }
+
     public void drawFallingSymbols(float delta) {
+        drawFallingSymbols(delta, null);
+    }
+
+    public void drawFallingSymbols(float delta, Vector2 cursor) {
+        cursorLineTime += delta;
+        drawCursorLines(cursor);
+
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.draw();
         }
         for (CashChipCollectible cashChip : cashChips) {
             cashChip.draw();
         }
+    }
+
+    private void drawCursorLines(Vector2 cursor) {
+        if (cursor == null) return;
+
+        float targetRadius = Automations.I().getCursorTargetRadius().getRadius();
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            if (!symbol.isUnclaimed()) continue;
+
+            float distance = Vector2.dst(
+                cursor.x,
+                cursor.y,
+                symbol.getCenterX(),
+                symbol.getCenterY()
+            );
+            if (distance > targetRadius) continue;
+
+            drawCursorLine(cursor, symbol, distance, targetRadius);
+        }
+    }
+
+    private void drawCursorLine(
+        Vector2 cursor,
+        BouncingSymbol symbol,
+        float distance,
+        float targetRadius
+    ) {
+        if (distance <= 0.000001f) return;
+
+        float targetInset = symbol.getRadius() + CURSOR_LINE_TARGET_GAP;
+        float lineLength = distance - CURSOR_LINE_START_INSET - targetInset;
+        if (lineLength <= 0f) return;
+
+        float directionX = (symbol.getCenterX() - cursor.x) / distance;
+        float directionY = (symbol.getCenterY() - cursor.y) / distance;
+        float startX = cursor.x + directionX * CURSOR_LINE_START_INSET;
+        float startY = cursor.y + directionY * CURSOR_LINE_START_INSET;
+        float endX = symbol.getCenterX() - directionX * targetInset;
+        float endY = symbol.getCenterY() - directionY * targetInset;
+        float midpointX = (startX + endX) * 0.5f;
+        float midpointY = (startY + endY) * 0.5f;
+        float angle = MathUtils.atan2(directionY, directionX)
+            * MathUtils.radiansToDegrees;
+        float proximity = 1f - MathUtils.clamp(
+            distance / targetRadius,
+            0f,
+            1f
+        );
+        float pulse = 0.5f + 0.5f * MathUtils.sin(cursorLineTime * 5.5f);
+        float alpha = 0.34f
+            + proximity * 0.38f
+            + pulse * (0.12f + proximity * 0.10f);
+
+        Pencil.I().addDrawing(new TextureDrawing(
+            whitePixel,
+            midpointX - lineLength * 0.5f,
+            midpointY - CURSOR_LINE_THICKNESS * 0.5f,
+            lineLength,
+            CURSOR_LINE_THICKNESS,
+            1f,
+            angle,
+            ZIndex.SLOT_MACHINE,
+            new Color(
+                0.78f + proximity * 0.22f,
+                0.86f + proximity * 0.12f,
+                0.92f + proximity * 0.08f,
+                Math.min(1f, alpha)
+            )
+        ));
     }
 
     public void updateFallingSymbols(float delta) {

@@ -23,6 +23,9 @@ public final class RoundResultWindow {
         new Rectangle(6.05f, 1.72f, 3.90f, 0.82f);
     private static final Color GOLD = new Color(1f, 0.82f, 0.44f, 1f);
     private static final Color MUTED = new Color(0.63f, 0.71f, 0.76f, 1f);
+    private static final Color WHITE = new Color(1f, 1f, 1f, 1f);
+    private static final float STAT_CARD_WIDTH = 1.62f;
+    private static final float STAT_LABEL_WIDTH = 1.36f;
 
     private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
     private final GeneratedFabledText clearedTitle = text("ROUND CLEARED", 18f, GOLD);
@@ -33,6 +36,7 @@ public final class RoundResultWindow {
     private final GeneratedFabledText billLabel = text("BILL", 48f, MUTED);
     private final GeneratedFabledText spinsLabel = statText("SPINS");
     private final GeneratedFabledText symbolsHitLabel = statText("SYMBOLS HIT");
+    private final GeneratedFabledText symbolsCollectedLabel = statText("SYMBOLS COLLECTED");
     private final GeneratedFabledText moneyGainedLabel = statText("MONEY GAINED");
     private final GeneratedFabledText averageClaimLabel = statText("AVG CLAIM SEC");
     private final GeneratedFabledText payBillButton = text("PAY BILL", 39f, GOLD);
@@ -52,9 +56,13 @@ public final class RoundResultWindow {
         0f, Assets.I().lightColor(),
         new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
     ).setZIndex(ZIndex.SHOP_CARD);
+    private final DigitalNumber symbolsCollectedNumber = new DigitalNumber(
+        0f, Assets.I().lightColor(),
+        new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
+    ).setZIndex(ZIndex.SHOP_CARD);
     private final CreditNumber moneyGainedNumber = new CreditNumber(
         0f, new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
-    ).setZIndex(ZIndex.SHOP_CARD);
+    ).setZIndex(ZIndex.SHOP_CARD).setShowPositiveSign(true);
     private final DigitalNumber averageClaimNumber = new DigitalNumber(
         0f, Assets.I().lightColor(),
         new Rectangle(0f, 3.20f, 0.22f, 0.35f), 0.27f
@@ -70,9 +78,12 @@ public final class RoundResultWindow {
     public RoundResultWindow() {
         cashNumber.getIdleScaleEffect().setAllowed(false);
         billNumber.getIdleScaleEffect().setAllowed(false);
+        billNumber.setColor(Assets.I().healthRedColor());
         spinsNumber.getIdleScaleEffect().setAllowed(false);
         symbolsHitNumber.getIdleScaleEffect().setAllowed(false);
+        symbolsCollectedNumber.getIdleScaleEffect().setAllowed(false);
         moneyGainedNumber.getIdleScaleEffect().setAllowed(false);
+        moneyGainedNumber.setColor(WHITE);
         averageClaimNumber.getIdleScaleEffect().setAllowed(false);
     }
 
@@ -87,7 +98,7 @@ public final class RoundResultWindow {
 
     private static GeneratedFabledText statText(String value) {
         GeneratedFabledText result = text(value, 47f, MUTED);
-        result.fitWithinWidth(1.72f);
+        result.fitWithinWidth(STAT_LABEL_WIDTH);
         return result;
     }
 
@@ -103,10 +114,11 @@ public final class RoundResultWindow {
         this.cleared = cleared;
         this.action = action;
         cashNumber.setValue(cash);
-        billNumber.setValue(bill);
+        billNumber.setValue(-Math.abs(bill));
         RoundStats stats = RoundStats.I();
         spinsNumber.setValue(stats.getSpins());
         symbolsHitNumber.setValue(stats.getSymbolsHit());
+        symbolsCollectedNumber.setValue(stats.getSymbolsCollected());
         moneyGainedNumber.setValue(stats.getMoneyGained());
         float averageClaim = Math.round(
             stats.getAverageCollectibleClaimTime() * 10f
@@ -183,10 +195,11 @@ public final class RoundResultWindow {
 
         rect(3.65f, 4.65f, 8.70f, 0.018f,
             MUTED, 0.20f, ZIndex.SHOP_CARD);
-        drawStat(spinsLabel, spinsNumber, 4.70f, delta);
-        drawStat(symbolsHitLabel, symbolsHitNumber, 6.90f, delta);
-        drawStat(moneyGainedLabel, moneyGainedNumber, 9.10f, delta);
-        drawStat(averageClaimLabel, averageClaimNumber, 11.30f, delta);
+        drawStat(spinsLabel, spinsNumber, 4.56f, delta);
+        drawStat(symbolsHitLabel, symbolsHitNumber, 6.28f, delta);
+        drawStat(symbolsCollectedLabel, symbolsCollectedNumber, 8.00f, delta);
+        drawStat(moneyGainedLabel, moneyGainedNumber, 9.72f, delta);
+        drawStat(averageClaimLabel, averageClaimNumber, 11.44f, delta);
 
         drawActionButton(delta);
     }
@@ -197,7 +210,7 @@ public final class RoundResultWindow {
         float centerX,
         float delta
     ) {
-        rect(centerX - 1.02f, 2.92f, 2.04f, 1.42f,
+        rect(centerX - STAT_CARD_WIDTH / 2f, 2.92f, STAT_CARD_WIDTH, 1.42f,
             new Color(0.026f, 0.046f, 0.060f, 1f), 0.88f, ZIndex.SHOP_CARD);
         label.setAbsoluteX(centerX - label.getRenderedWidth() / 2f);
         label.setY(3.91f);

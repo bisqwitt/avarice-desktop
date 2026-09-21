@@ -728,7 +728,7 @@ public class SlotMachine {
     }
 
     public void setLuckBonus(float bonusChance) {
-        spinResultPolicy.setRescueChanceBonus(bonusChance);
+        spinResultPolicy.setLuckBonus(bonusChance);
     }
 
     public void setSpeedProfile(
