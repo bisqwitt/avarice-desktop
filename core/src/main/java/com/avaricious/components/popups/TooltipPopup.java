@@ -6,7 +6,7 @@ import com.avaricious.items.IItemWithType;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.FontDrawing;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;

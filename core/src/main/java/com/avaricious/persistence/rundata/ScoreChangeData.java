@@ -1,4 +1,4 @@
-package com.avaricious.utility.runData;
+package com.avaricious.persistence.rundata;
 
 public class ScoreChangeData {
 

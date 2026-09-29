@@ -2,22 +2,45 @@ package com.avaricious.components.roundInfoPanel;
 
 import com.avaricious.CreditNumber;
 import com.avaricious.DevTools;
-import com.avaricious.RoundStats;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.components.texts.GeneratedFabledText;
+import com.avaricious.game.run.CashBalance;
 import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Rectangle;
 
 import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeSupport;
 
 public class ScoreDisplay {
 
     private static ScoreDisplay instance;
+    private static CashBalance configuredBalance;
+    private static RoundStats configuredRoundStats;
+
+    public static void configure(
+        CashBalance balance,
+        RoundStats roundStats
+    ) {
+        if (instance != null) {
+            throw new IllegalStateException("ScoreDisplay is already initialized");
+        }
+        configuredBalance = balance;
+        configuredRoundStats = roundStats;
+    }
 
     public static ScoreDisplay I() {
-        return instance == null ? instance = new ScoreDisplay() : instance;
+        if (configuredBalance == null) {
+            throw new IllegalStateException(
+                "ScoreDisplay must be configured with a run cash balance"
+            );
+        }
+        return instance == null
+            ? instance = new ScoreDisplay(
+                configuredBalance,
+                configuredRoundStats
+            )
+            : instance;
     }
 
     private static final float DIGIT_WIDTH = 0.39f;
@@ -39,9 +62,12 @@ public class ScoreDisplay {
     )
         .setZIndex(ZIndex.BUTTON_BOARD);
 
-    private final PropertyChangeSupport scoreChangeSupport = new PropertyChangeSupport(this);
+    private final CashBalance balance;
+    private final RoundStats roundStats;
 
-    private ScoreDisplay() {
+    private ScoreDisplay(CashBalance balance, RoundStats roundStats) {
+        this.balance = balance;
+        this.roundStats = roundStats;
         cashLabel.setFloatEffects(0f, 0f);
         cashLabel.getWords().forEach(word -> word.setColor(LABEL_COLOR));
         cashLabel.setAbsoluteX(GameplayLayout.CASH_LEFT);
@@ -51,7 +77,10 @@ public class ScoreDisplay {
         scoreNumber.getIdleScaleEffect().setAllowed(false);
         scoreNumber.getPulseEffect().setStrength(0.35f);
         scoreNumber.getPulseEffect().setSpeed(0.09f);
-        setScoreNumber(0);
+        scoreNumber.setValue(balance.get());
+        balance.onChange(event -> scoreNumber.setValue(
+            ((Number) event.getNewValue()).floatValue()
+        ));
     }
 
     public void draw(float delta) {
@@ -60,24 +89,21 @@ public class ScoreDisplay {
     }
 
     public void addToScore(float value) {
-        RoundStats.I().recordMoneyGained(value);
-        setScoreNumber(getScoreNumber() + value);
+        roundStats.recordMoneyGained(value);
+        balance.add(value);
     }
 
     public void removeFromScore(float value) {
         if (DevTools.unlimitedMoney()) return;
-        setScoreNumber(getScoreNumber() - value);
+        balance.subtract(value);
     }
 
     public void setScoreNumber(float value) {
-        float oldScore = getScoreNumber();
-        scoreNumber.setValue(value);
-
-        scoreChangeSupport.firePropertyChange("score", oldScore, scoreNumber.getValue());
+        balance.set(value);
     }
 
     public float getScoreNumber() {
-        return scoreNumber.getValue();
+        return balance.get();
     }
 
     public Rectangle getCollisionBounds() {
@@ -92,7 +118,7 @@ public class ScoreDisplay {
     }
 
     public void addScoreChangeListener(PropertyChangeListener listener) {
-        scoreChangeSupport.addPropertyChangeListener(listener);
+        balance.onChange(listener);
     }
 
     public boolean isPulsing() {

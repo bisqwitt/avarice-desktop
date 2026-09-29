@@ -5,6 +5,7 @@ import com.avaricious.utility.Assets;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
+import com.avaricious.game.run.ChipProgress;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
@@ -13,26 +14,36 @@ import com.badlogic.gdx.math.MathUtils;
 public class CompChipBar {
 
     private static CompChipBar instance;
+    private static ChipProgress configuredProgress;
+
+    public static void configure(ChipProgress progress) {
+        if (instance != null) {
+            throw new IllegalStateException("CompChipBar is already initialized");
+        }
+        configuredProgress = progress;
+    }
 
     public static CompChipBar I() {
-        return instance == null ? instance = new CompChipBar() : instance;
+        if (configuredProgress == null) {
+            throw new IllegalStateException(
+                "CompChipBar must be configured with run progression"
+            );
+        }
+        return instance == null
+            ? instance = new CompChipBar(configuredProgress)
+            : instance;
     }
 
     private static final float X = 0f;
     private static final float Y = 8.82f;
     private static final float WIDTH = 16f;
     private static final float HEIGHT = 0.18f;
-    private static final float FIRST_LEVEL_REQUIREMENT = 12f;
-    private static final float LEVEL_REQUIREMENT_GROWTH = 1.27f;
-
     private static final Color BACKGROUND_COLOR =
         new Color(0.12f, 0.12f, 0.15f, 1f);
     private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
     private final TextureRegion spade = Assets.I().get(AssetKey.SPADE);
 
-    private int level = 1;
-    private int chips = 0;
-    private int chipsRequired = calculateChipsRequired(level);
+    private final ChipProgress progress;
 
     private float displayedProgress = 0f;
     private float gainPulse = 0f;
@@ -40,16 +51,17 @@ public class CompChipBar {
     private float shine = 0f;
     private float time = 0f;
 
-    private CompChipBar() {
+    private CompChipBar(ChipProgress progress) {
+        this.progress = progress;
     }
 
     public void draw(float delta) {
         time += delta;
 
-        float progress = Math.min(1f, (float) chips / chipsRequired);
+        float progressValue = Math.min(1f, progress.getProgress());
         displayedProgress = MathUtils.lerp(
             displayedProgress,
-            progress,
+            progressValue,
             Math.min(1f, delta * 12f)
         );
 
@@ -95,12 +107,12 @@ public class CompChipBar {
             chipBarColor
         ));
 
-        if (progress > displayedProgress) {
+        if (progressValue > displayedProgress) {
             Pencil.I().addDrawing(new TextureDrawing(
                 whitePixel,
                 X + WIDTH * displayedProgress,
                 renderY,
-                WIDTH * (progress - displayedProgress),
+                WIDTH * (progressValue - displayedProgress),
                 renderHeight,
                 ZIndex.SHOP,
                 new Color(0.95f, 0.82f, 1f, 0.72f)
@@ -159,52 +171,30 @@ public class CompChipBar {
     }
 
     public void addChips(int amount) {
-        chips += amount;
+        int levelsGained = progress.add(amount);
         gainPulse = 1f;
         shine = 1f;
 
-        while (chips >= chipsRequired) {
-            chips -= chipsRequired;
-            levelUp();
+        if (levelsGained > 0) {
+            displayedProgress = 0f;
+            levelUpPulse = 1f;
         }
     }
 
-    private void levelUp() {
-        level++;
-        displayedProgress = 0f;
-        levelUpPulse = 1f;
-        shine = 1f;
-        chipsRequired = calculateChipsRequired(level);
-
-    }
-
-    private int calculateChipsRequired(int level) {
-        double rawRequirement = FIRST_LEVEL_REQUIREMENT
-            * Math.pow(LEVEL_REQUIREMENT_GROWTH, Math.max(0, level - 1));
-        double roundingStep = rawRequirement < 50d
-            ? 1d : rawRequirement < 1_000d ? 5d : 50d;
-        return (int) Math.min(
-            Integer.MAX_VALUE,
-            Math.ceil(rawRequirement / roundingStep) * roundingStep
-        );
-    }
-
     public int getLevel() {
-        return level;
+        return progress.getLevel();
     }
 
     public int getChips() {
-        return chips;
+        return progress.getChips();
     }
 
     public int getChipsRequired() {
-        return chipsRequired;
+        return progress.getChipsRequired();
     }
 
     public void restore(int savedLevel, int savedChips) {
-        level = Math.max(1, savedLevel);
-        chipsRequired = calculateChipsRequired(level);
-        chips = MathUtils.clamp(savedChips, 0, chipsRequired - 1);
+        progress.restore(savedLevel, savedChips);
         displayedProgress = getProgress();
         gainPulse = 0f;
         levelUpPulse = 0f;
@@ -212,6 +202,6 @@ public class CompChipBar {
     }
 
     public float getProgress() {
-        return (float) chips / chipsRequired;
+        return progress.getProgress();
     }
 }

@@ -1,15 +1,15 @@
 package com.avaricious.components;
 
 import com.avaricious.CreditNumber;
-import com.avaricious.RoundStats;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.RunManager;
-import com.avaricious.utility.RunSaveManager;
+import com.avaricious.game.run.RunManager;
+import com.avaricious.persistence.RunSaveManager;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.VaultManager;
 import com.avaricious.utility.ZIndex;
@@ -22,6 +22,10 @@ import com.badlogic.gdx.math.Vector2;
 
 /** A short acknowledgement between rounds or before restarting a failed run. */
 public final class RoundResultWindow {
+
+    private final RunSaveManager runSaves;
+    private final RoundStats roundStats;
+    private final RunManager runManager;
 
     private static final float WORLD_WIDTH = 16f;
     private static final Rectangle ACTION_BUTTON_BOUNDS =
@@ -157,7 +161,14 @@ public final class RoundResultWindow {
         LOCK
     }
 
-    public RoundResultWindow() {
+    public RoundResultWindow(
+        RunSaveManager runSaves,
+        RoundStats roundStats,
+        RunManager runManager
+    ) {
+        this.runSaves = runSaves;
+        this.roundStats = roundStats;
+        this.runManager = runManager;
         cashNumber.getIdleScaleEffect().setAllowed(false);
         billNumber.getIdleScaleEffect().setAllowed(false);
         billNumber.setColor(Assets.I().healthRedColor());
@@ -201,7 +212,7 @@ public final class RoundResultWindow {
         reservedBill = cleared ? Math.abs(bill) : 0f;
         cashNumber.setValue(cash);
         billNumber.setValue(-Math.abs(bill));
-        RoundStats stats = RoundStats.I();
+        RoundStats stats = roundStats;
         spinsNumber.setValue(stats.getSpins());
         symbolsHitNumber.setValue(stats.getSymbolsHit());
         symbolsCollectedNumber.setValue(stats.getSymbolsCollected());
@@ -383,7 +394,7 @@ public final class RoundResultWindow {
         boolean deposited = VaultManager.I().deposit(
             selectedAmount,
             selectedTerm,
-            RunManager.I().getRoundsManager().getCurrentRound()
+            runManager.getRoundsManager().getCurrentRound()
         );
         if (!deposited) {
             AudioManager.I().playMiss();
@@ -392,7 +403,7 @@ public final class RoundResultWindow {
 
         cashNumber.setValue(ScoreDisplay.I().getScoreNumber());
         updateVaultNumbers();
-        RunSaveManager.I().saveNow();
+        runSaves.saveNow();
         AudioManager.I().playUpgradeSelected();
     }
 
@@ -424,7 +435,7 @@ public final class RoundResultWindow {
             vaultAmountNumber.setValue(vault.getPrincipal());
             vaultReturnNumber.setValue(vault.getProjectedPayout());
             roundsLeftNumber.setValue(vault.getRoundsRemaining(
-                RunManager.I().getRoundsManager().getCurrentRound()
+                runManager.getRoundsManager().getCurrentRound()
             ));
             return;
         }

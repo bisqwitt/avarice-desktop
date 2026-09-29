@@ -1,5 +1,6 @@
 package com.avaricious.utility;
 
+import com.avaricious.app.GameContext;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;

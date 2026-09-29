@@ -1,5 +1,6 @@
 package com.avaricious.utility;
 
+import com.avaricious.app.GameContext;
 import com.badlogic.gdx.math.Vector2;
 
 public class UiUtility {

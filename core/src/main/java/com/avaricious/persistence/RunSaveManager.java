@@ -1,14 +1,20 @@
-package com.avaricious.utility;
+package com.avaricious.persistence;
 
-import com.avaricious.RoundsManager;
-import com.avaricious.RoundStats;
-import com.avaricious.components.CompChipBar;
+import com.avaricious.game.run.RoundsManager;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.components.ItemBag;
 import com.avaricious.components.automations.Automations;
-import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.slot.pattern.PatternUnlocks;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
+import com.avaricious.game.run.GameSession;
+import com.avaricious.utility.CollectibleValues;
+import com.avaricious.utility.CriticalHitValues;
+import com.avaricious.utility.DoubleHitValues;
+import com.avaricious.utility.SymbolValues;
+import com.avaricious.utility.VaultManager;
 import com.avaricious.items.AbstractItem;
 import com.avaricious.items.upgrades.Deck;
 import com.avaricious.items.upgrades.Hand;
@@ -26,17 +32,13 @@ public final class RunSaveManager {
     private static final int SAVE_VERSION = 1;
     private static final float AUTOSAVE_INTERVAL = 1f;
 
-    private static RunSaveManager instance;
-
-    public static RunSaveManager I() {
-        return instance == null ? instance = new RunSaveManager() : instance;
-    }
-
+    private final GameSession session;
     private final Preferences preferences;
     private float autosaveTimer;
     private boolean trackingRun;
 
-    private RunSaveManager() {
+    public RunSaveManager(GameSession session) {
+        this.session = session;
         preferences = Gdx.app.getPreferences(PREFERENCES);
     }
 
@@ -54,7 +56,7 @@ public final class RunSaveManager {
         if (!hasSave()) return false;
 
         try {
-            RunManager.I().continueRun(
+            session.runManager().continueRun(
                 preferences.getInteger("round", 1),
                 preferences.getFloat(
                     "secondsRemaining",
@@ -66,7 +68,7 @@ public final class RunSaveManager {
                     RoundsManager.RoundOutcome.IN_PROGRESS.name()
                 ))
             );
-            RoundStats.I().restore(
+            session.roundStats().restore(
                 preferences.getInteger("stats.symbolsHit", 0),
                 preferences.getInteger("stats.spins", 0),
                 preferences.getFloat("stats.moneyGained", 0f),
@@ -74,10 +76,8 @@ public final class RunSaveManager {
                 preferences.getInteger("stats.symbolsCollected", 0),
                 preferences.getFloat("stats.totalClaimTime", 0f)
             );
-            ScoreDisplay.I().setScoreNumber(
-                preferences.getFloat("cash", 0f)
-            );
-            CompChipBar.I().restore(
+            session.cash().set(preferences.getFloat("cash", 0f));
+            session.chips().restore(
                 preferences.getInteger("chipLevel", 1),
                 preferences.getInteger("chips", 0)
             );
@@ -114,19 +114,19 @@ public final class RunSaveManager {
     public void saveNow() {
         if (!trackingRun) return;
 
-        RoundsManager rounds = RunManager.I().getRoundsManager();
+        RoundsManager rounds = session.runManager().getRoundsManager();
         preferences.putInteger("version", SAVE_VERSION);
         preferences.putBoolean("valid", true);
-        preferences.putFloat("cash", ScoreDisplay.I().getScoreNumber());
+        preferences.putFloat("cash", session.cash().get());
         preferences.putInteger("round", rounds.getCurrentRound());
         preferences.putString("roundOutcome", rounds.getOutcome().name());
         preferences.putFloat(
             "secondsRemaining",
             rounds.getRoundTimer().getPreciseSecondsRemaining()
         );
-        preferences.putInteger("chipLevel", CompChipBar.I().getLevel());
-        preferences.putInteger("chips", CompChipBar.I().getChips());
-        RoundStats stats = RoundStats.I();
+        preferences.putInteger("chipLevel", session.chips().getLevel());
+        preferences.putInteger("chips", session.chips().getChips());
+        RoundStats stats = session.roundStats();
         preferences.putInteger("stats.symbolsHit", stats.getSymbolsHit());
         preferences.putInteger("stats.spins", stats.getSpins());
         preferences.putFloat("stats.moneyGained", stats.getMoneyGained());
@@ -230,6 +230,17 @@ public final class RunSaveManager {
             "patterns",
             PatternUnlocks.I().getUnlockedCount()
         );
+        SkillTreeProgress skillTree = session.skillTree();
+        for (SkillTreeUnlock unlock : SkillTreeUnlock.values()) {
+            preferences.putBoolean(
+                "skillTree." + unlock.name(),
+                skillTree.isUnlocked(unlock)
+            );
+        }
+        preferences.putInteger(
+            "skillTree.timeGainSeconds",
+            skillTree.getTimeGainSeconds()
+        );
         preferences.putInteger(
             "extraCollectibleChance",
             CollectibleValues.I().getExtraCollectibleSpawnChance()
@@ -262,6 +273,7 @@ public final class RunSaveManager {
 
     private void restoreProgression() {
         Automations automations = Automations.I();
+        restoreSkillTreeProgress();
 
         while (automations.getAutoSpinCapacity().getCapacity()
             < preferences.getInteger("autoSpinCapacity", 3)) {
@@ -302,6 +314,42 @@ public final class RunSaveManager {
         }
         if (preferences.getBoolean("fullAutoSpin", false)) {
             automations.getFullAutoSpin().activate();
+        }
+    }
+
+    private void restoreSkillTreeProgress() {
+        SkillTreeProgress skillTree = session.skillTree();
+        skillTree.reset();
+        for (SkillTreeUnlock unlock : SkillTreeUnlock.values()) {
+            if (preferences.getBoolean(
+                "skillTree." + unlock.name(),
+                legacyUnlockDefault(unlock)
+            )) {
+                skillTree.unlock(unlock);
+            }
+        }
+        skillTree.restoreTimeGainSeconds(preferences.getInteger(
+            "skillTree.timeGainSeconds",
+            SkillTreeProgress.BASE_TIME_GAIN_SECONDS
+        ));
+    }
+
+    private boolean legacyUnlockDefault(SkillTreeUnlock unlock) {
+        switch (unlock) {
+            case CASH_CHIP_DROP:
+                return preferences.getInteger("cashChipChance", 0) > 0;
+            case CHEST_DROP:
+                return preferences.getInteger("chestDropChance", 0) > 0;
+            case CRITICAL_HIT:
+                return preferences.getInteger("criticalChance", 0) > 0;
+            case DOUBLE_TRIGGER:
+                return preferences.getInteger("doubleHitChance", 0) > 0;
+            case EXTRA_COLLECTIBLE:
+                return preferences.getInteger("extraCollectibleChance", 0) > 0;
+            case TIME_GAIN:
+                return false;
+            default:
+                throw new IllegalArgumentException("Unknown unlock: " + unlock);
         }
     }
 

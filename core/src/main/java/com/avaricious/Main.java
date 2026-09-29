@@ -1,12 +1,15 @@
 package com.avaricious;
 
 import com.avaricious.screens.LoadingScreen;
-import com.avaricious.screens.ScreenManager;
+import com.avaricious.app.navigation.ScreenManager;
+import com.avaricious.app.AppServices;
+import com.avaricious.components.CompChipBar;
+import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.utility.DeviceInfo;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.GameSettings;
 import com.avaricious.utility.MouseCursor;
-import com.avaricious.utility.RunSaveManager;
 import com.avaricious.utility.SeededRandomizer;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -22,6 +25,8 @@ public class Main extends Game {
     private FitViewport viewport;
     private FitViewport uiViewport;
     private DeviceInfo deviceInfo;
+    private AppServices services;
+    private ScreenManager screens;
 
     public Main(DeviceInfo deviceInfo) {
         this.deviceInfo = deviceInfo;
@@ -39,6 +44,18 @@ public class Main extends Game {
         viewport = new FitViewport(16, 9);
         uiViewport = new FitViewport(1920, 1080);
 
+        services = new AppServices();
+        ScoreDisplay.configure(
+            services.gameSession().cash(),
+            services.gameSession().roundStats()
+        );
+        CompChipBar.configure(services.gameSession().chips());
+        BouncingSymbolManager.configure(
+            services.gameSession().roundStats(),
+            services.gameSession().runManager().getRoundsManager().getRoundTimer(),
+            services.gameSession().skillTree()
+        );
+
         GameContext.init(
             batch,
             viewport,
@@ -46,8 +63,8 @@ public class Main extends Game {
             deviceInfo
         );
 
-        ScreenManager.create(this)
-            .setScreen(LoadingScreen.class);
+        screens = new ScreenManager(this, services);
+        screens.setScreen(LoadingScreen.class);
 
         Pixmap pixmap =
             new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -85,7 +102,9 @@ public class Main extends Game {
 
     @Override
     public void dispose() {
-        RunSaveManager.I().saveNow();
+        if (services != null) {
+            services.runSaves().saveNow();
+        }
         GameSettings.I().flush();
         super.dispose();
 

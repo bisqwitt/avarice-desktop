@@ -2,9 +2,10 @@ package com.avaricious.items.upgrades.cards;
 
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.IUpgradeType;
+import com.avaricious.game.GameplayActions;
+import com.avaricious.game.run.RoundsManager;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.RunManager;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 
@@ -30,7 +31,12 @@ public class DrawACardDefenceCardsDisabledCard extends AbstractCard {
     @Override
     protected void onApply() {
         Hand.I().drawCard();
-        RunManager.I().getRoundsManager().disableDefenceTypeCards();
+    }
+
+    @Override
+    public void apply(GameplayActions actions, RoundsManager rounds) {
+        onApply();
+        rounds.disableDefenceTypeCards();
     }
 
     @Override

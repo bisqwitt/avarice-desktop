@@ -24,13 +24,17 @@ public class SymbolValueDescription extends FabledText {
     private static final float ARROW_GAP = 0.15f;
 
     public SymbolValueDescription(Symbol symbol) {
+        this(symbol, 1);
+    }
+
+    public SymbolValueDescription(Symbol symbol, int upgradeCount) {
         SymbolValues.I().addValueChangeListener(evt -> {
             if (evt.getPropertyName().equals(symbol.toString())) {
                 float newValue = ((Number) evt.getNewValue()).floatValue();
 
                 updateDescription(
                     newValue,
-                    SymbolValues.I().getNextValue(symbol)
+                    SymbolValues.I().getValueAfter(symbol, upgradeCount)
                 );
             }
         });
@@ -40,7 +44,7 @@ public class SymbolValueDescription extends FabledText {
 
         updateDescription(
             currentValue,
-            SymbolValues.I().getNextValue(symbol)
+            SymbolValues.I().getValueAfter(symbol, upgradeCount)
         );
     }
 

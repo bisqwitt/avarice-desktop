@@ -2,6 +2,10 @@ package com.avaricious.components.slot;
 
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
+import com.avaricious.game.run.RoundStats;
+import com.avaricious.components.roundInfoPanel.RoundTimer;
 import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.SeededRandomizer;
 import com.avaricious.utility.Seq;
@@ -16,15 +20,55 @@ import java.util.List;
 public class BouncingSymbolManager {
 
     private static BouncingSymbolManager instance;
+    private static RoundStats configuredRoundStats;
+    private static RoundTimer configuredRoundTimer;
+    private static SkillTreeProgress configuredSkillTree;
 
-    public static BouncingSymbolManager I() {
-        return instance == null ? instance = new BouncingSymbolManager() : instance;
+    public static void configure(
+        RoundStats roundStats,
+        RoundTimer roundTimer,
+        SkillTreeProgress skillTree
+    ) {
+        if (instance != null) {
+            throw new IllegalStateException(
+                "BouncingSymbolManager is already initialized"
+            );
+        }
+        configuredRoundStats = roundStats;
+        configuredRoundTimer = roundTimer;
+        configuredSkillTree = skillTree;
     }
 
+    public static BouncingSymbolManager I() {
+        if (configuredRoundStats == null || configuredRoundTimer == null
+            || configuredSkillTree == null) {
+            throw new IllegalStateException(
+                "BouncingSymbolManager must be configured with a game session"
+            );
+        }
+        return instance == null
+            ? instance = new BouncingSymbolManager(
+                configuredRoundStats,
+                configuredRoundTimer,
+                configuredSkillTree
+            )
+            : instance;
+    }
+
+    private final RoundStats roundStats;
+    private final RoundTimer roundTimer;
+    private final SkillTreeProgress skillTree;
     private final List<BouncingSymbol> bouncingSymbols = new ArrayList<>();
     private final List<CashChipCollectible> cashChips = new ArrayList<>();
 
-    private BouncingSymbolManager() {
+    private BouncingSymbolManager(
+        RoundStats roundStats,
+        RoundTimer roundTimer,
+        SkillTreeProgress skillTree
+    ) {
+        this.roundStats = roundStats;
+        this.roundTimer = roundTimer;
+        this.skillTree = skillTree;
     }
 
     public void createFallingSymbol(Symbol symbol, float x, float y) {
@@ -34,8 +78,11 @@ public class BouncingSymbolManager {
     public void createSymbolDrop(Symbol symbol, float x, float y) {
         createFallingSymbol(symbol, x, y);
 
-        int extraSpawnChance =
-            CollectibleValues.I().getExtraCollectibleSpawnChance();
+        int extraSpawnChance = skillTree.isUnlocked(
+            SkillTreeUnlock.EXTRA_COLLECTIBLE
+        )
+            ? CollectibleValues.I().getExtraCollectibleSpawnChance()
+            : 0;
 
         if (extraSpawnChance <= 0) {
             return;
@@ -56,7 +103,15 @@ public class BouncingSymbolManager {
         float launchPower
     ) {
         bouncingSymbols.add(
-            new BouncingSymbol(symbol, x, y, launchPower)
+            new BouncingSymbol(
+                roundStats,
+                roundTimer,
+                skillTree,
+                symbol,
+                x,
+                y,
+                launchPower
+            )
         );
 
         ParticleManager.I().create(
@@ -70,7 +125,7 @@ public class BouncingSymbolManager {
     }
 
     public void createCashChip(float reward, float x, float y) {
-        cashChips.add(new CashChipCollectible(reward, x, y));
+        cashChips.add(new CashChipCollectible(roundStats, reward, x, y));
 
         ParticleManager.I().create(
             x,

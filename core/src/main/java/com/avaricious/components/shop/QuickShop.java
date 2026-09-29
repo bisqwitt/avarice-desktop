@@ -1,5 +1,6 @@
 package com.avaricious.components.shop;
 
+import com.avaricious.app.GameContext;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.*;

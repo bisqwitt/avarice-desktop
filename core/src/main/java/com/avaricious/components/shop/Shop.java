@@ -5,20 +5,18 @@ import com.avaricious.DevTools;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ButtonBoard;
 import com.avaricious.components.ScreenShake;
-import com.avaricious.components.automations.AbstractAutomation;
-import com.avaricious.components.automations.AbstractAutomationUpgrade;
-import com.avaricious.components.automations.Automations;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.ChestManager;
-import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.texts.GeneratedFabledText;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.CriticalHitValues;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
+import com.avaricious.utility.DoubleHitValues;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.SymbolValues;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.Gdx;
@@ -32,7 +30,6 @@ import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BooleanSupplier;
 
 /** A pannable, zoomable skill tree shown between successful rounds. */
 public final class Shop {
@@ -81,10 +78,11 @@ public final class Shop {
         "DRAG TO MOVE   WHEEL TO SCALE   C TO CENTER", 48f, MUTED, false
     );
     private final GeneratedFabledText hubText = text("CORE", 27f, GOLD, true);
-    private final GeneratedFabledText symbolsBranch = branchText("SYMBOLS");
-    private final GeneratedFabledText automationBranch =
-        branchText("AUTOMATIONS");
-    private final GeneratedFabledText statsBranch = branchText("STATS");
+    private final GeneratedFabledText claimsBranch = branchText("CLAIMING");
+    private final GeneratedFabledText symbolHitsBranch =
+        branchText("SYMBOL HITS");
+    private final GeneratedFabledText patternHitsBranch =
+        branchText("PATTERN HITS");
 
     private final CreditNumber balance = new CreditNumber(
         ScoreDisplay.I().getScoreNumber(),
@@ -99,6 +97,7 @@ public final class Shop {
     private final Vector2 dragStart = new Vector2();
     private final Vector2 lastDragMouse = new Vector2();
     private final Runnable onReturnedFromShop;
+    private final SkillTreeProgress skillTree;
 
     private enum State { HIDDEN, ENTERING, SHOWN, EXITING }
 
@@ -112,8 +111,12 @@ public final class Shop {
     private float transition;
     private float zoom = INITIAL_ZOOM;
 
-    public Shop(Runnable onReturnedFromShop) {
+    public Shop(
+        Runnable onReturnedFromShop,
+        SkillTreeProgress skillTree
+    ) {
         this.onReturnedFromShop = onReturnedFromShop;
+        this.skillTree = skillTree;
         balance.setCompactThreshold(1_000f);
         balance.getIdleScaleEffect().setAllowed(false);
         balance.getPulseEffect().setStrength(0.35f);
@@ -125,226 +128,118 @@ public final class Shop {
     }
 
     private void buildTree() {
-        Automations automations = Automations.I();
-        buildSymbolBranch();
-        buildAutomationBranch(automations);
-        buildStatsBranch(automations);
-    }
-
-    private void buildSymbolBranch() {
-        SkillNode lemon = symbolNode(
-            "LEMON", Symbol.LEMON, 2f, -10.17f, 5.10f, null
+        SkillNode timeGain = unlockNode(
+            "TIME ON CLAIM", AssetKey.PLUS_SYMBOL,
+            SkillTreeUnlock.TIME_GAIN, -5.70f, 2.25f
         );
-        SkillNode cherry = symbolNode(
-            "CHERRY", Symbol.CHERRY, 2f, -7.17f, 4.00f, null
+        SkillNode cashChip = unlockNode(
+            "CASH CHIP", AssetKey.POKER_CHIP,
+            SkillTreeUnlock.CASH_CHIP_DROP, -2.60f, 2.25f
         );
-        SkillNode clover = symbolNode(
-            "CLOVER", Symbol.CLOVER, 3f, -4.17f, 3.15f, null
+        SkillNode criticalHit = unlockNode(
+            "CRITICAL STRIKE", AssetKey.CRITICAL_HIT,
+            SkillTreeUnlock.CRITICAL_HIT, -7.00f, 0f
         );
-        SkillNode bell = symbolNode(
-            "BELL", Symbol.BELL, 3f, -1.17f, 2.70f, null
-        );
-        SkillNode iron = symbolNode(
-            "IRON", Symbol.IRON, 5f, 1.83f, 3.15f, null
-        );
-        SkillNode diamond = symbolNode(
-            "DIAMOND", Symbol.DIAMOND, 5f, 4.83f, 4.00f, null
-        );
-        SkillNode seven = symbolNode(
-            "SEVEN", Symbol.SEVEN, 7f, 7.83f, 5.10f, null
-        );
-        branches.add(new Branch(
-            symbolsBranch,
-            0.95f,
-            1.32f,
-            lemon,
-            cherry,
-            clover,
-            bell,
-            iron,
-            diamond,
-            seven
-        ));
-    }
-
-    private void buildAutomationBranch(Automations automations) {
-        SkillNode quickSpin = automationNode(
-            "QUICK SPIN", AssetKey.SPIN_BUTTON, automations.getQuickSpin(),
-            -4.0f, -0.455f, null
-        );
-        SkillNode spinQueue = automationNode(
-            "SPIN QUEUE", AssetKey.SPIN_BUTTON, automations.getSpinQueuer(),
-            -7.0f, -0.455f, quickSpin
-        );
-        SkillNode queueLimit = upgradeNode(
-            "QUEUE LIMIT", AssetKey.SHOPPING_CART, automations.getAutoSpinCapacity(),
-            () -> automations.getAutoSpinCapacity().getCapacity() > 3,
-            () -> false,
-            -10.0f, -0.455f, spinQueue
-        );
-        automationNode(
-            "AUTO SPIN", AssetKey.RETRIGGER, automations.getFullAutoSpin(),
-            -13.0f, -0.455f, queueLimit
-        );
-        upgradeNode(
-            "COLLECTORS", AssetKey.COLLECTOR, automations.getCollectorCapacity(),
-            () -> automations.getCollectorCapacity().getCount() > 0,
-            () -> false,
-            -7.0f, -2.20f, quickSpin
-        );
-        branches.add(new Branch(
-            automationBranch, -3.0f, 0.72f, quickSpin
-        ));
-    }
-
-    private void buildStatsBranch(Automations automations) {
-        SkillNode luck = upgradeNode(
-            "LUCK", AssetKey.LUCK, automations.getLuck(),
-            () -> automations.getLuck().getBonusPercent() > 0,
-            automations.getLuck()::isMaxBonusReached,
-            -1.17f, -2.65f, null
-        );
-        SkillNode critChance = upgradeNode(
-            "CRIT CHANCE", AssetKey.CRITICAL_HIT,
-            automations.getCriticalHitChance(),
-            () -> CriticalHitValues.I().getCriticalHitChance() > 0,
-            () -> CriticalHitValues.I().getCriticalHitChance()
-                >= CriticalHitValues.MAX_CRITICAL_HIT_CHANCE,
-            -1.17f, -4.40f, luck
-        );
-        SkillNode cashDrop = upgradeNode(
-            "CASH DROP", AssetKey.POKER_CHIP,
-            automations.getCashChipChance(),
-            () -> CollectibleValues.I().getCashChipSpawnChance() > 0,
-            () -> CollectibleValues.I().getCashChipSpawnChance()
-                >= CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE,
-            -1.17f, -6.15f, critChance
-        );
-        upgradeNode(
+        SkillNode chestDrop = unlockNode(
             "CHEST DROP", AssetKey.CHEST_CLOSED,
-            automations.getChestDropChance(),
-            () -> ChestManager.I().getDropChancePercent()
-                > ChestManager.BASE_DROP_CHANCE_PERCENT,
-            () -> ChestManager.I().getDropChancePercent()
-                >= ChestManager.MAX_DROP_CHANCE_PERCENT,
-            -1.17f, -7.90f, cashDrop
+            SkillTreeUnlock.CHEST_DROP, -3.90f, 0f
         );
-        branches.add(new Branch(statsBranch, 0.95f, -1.65f, luck));
+        SkillNode extraCollectible = unlockNode(
+            "EXTRA COLLECTIBLE", AssetKey.COLLECTOR,
+            SkillTreeUnlock.EXTRA_COLLECTIBLE, 2.60f, 0f
+        );
+        SkillNode doubleTrigger = unlockNode(
+            "DOUBLE PATTERN", AssetKey.RETRIGGER,
+            SkillTreeUnlock.DOUBLE_TRIGGER, -2.60f, -2.25f
+        );
+
+        branches.add(new Branch(
+            claimsBranch, -8.45f, 3.38f, timeGain, cashChip
+        ));
+        branches.add(new Branch(
+            symbolHitsBranch, -9.75f, 1.13f,
+            criticalHit, chestDrop, extraCollectible
+        ));
+        branches.add(new Branch(
+            patternHitsBranch, -5.65f, -1.12f, doubleTrigger
+        ));
     }
 
-    private SkillNode symbolNode(
-        String name,
-        Symbol symbol,
-        float initialValue,
-        float x,
-        float y,
-        SkillNode prerequisite
-    ) {
-        PurchaseTarget target = new PurchaseTarget() {
-            @Override
-            public float price() {
-                return SymbolValues.I().getPrice(symbol);
-            }
-
-            @Override
-            public boolean canBuy() {
-                return DevTools.freeShopPurchases()
-                    || ScoreDisplay.I().getScoreNumber() >= price();
-            }
-
-            @Override
-            public void purchase() {
-                SymbolValues.I().increaseValue(symbol);
-            }
-
-            @Override
-            public boolean invested() {
-                return SymbolValues.I().getValue(symbol) > initialValue;
-            }
-
-            @Override
-            public boolean complete() {
-                return false;
-            }
-        };
-        return addNode(name, Assets.I().get(symbol.textureKey()), target,
-            false, x, y, prerequisite);
-    }
-
-    private SkillNode automationNode(
+    private SkillNode unlockNode(
         String name,
         AssetKey icon,
-        AbstractAutomation automation,
+        SkillTreeUnlock unlock,
         float x,
-        float y,
-        SkillNode prerequisite
+        float y
     ) {
         PurchaseTarget target = new PurchaseTarget() {
             @Override
             public float price() {
-                return automation.price();
+                return unlock.price();
             }
 
             @Override
             public boolean canBuy() {
-                return automation.isBuyable();
+                return !skillTree.isUnlocked(unlock)
+                    && (
+                        DevTools.freeShopPurchases()
+                            || DevTools.unlimitedMoney()
+                            || ScoreDisplay.I().getScoreNumber() >= price()
+                    );
             }
 
             @Override
             public void purchase() {
-                automation.activate();
+                activateUnlock(unlock);
             }
 
             @Override
             public boolean invested() {
-                return automation.isActive();
+                return skillTree.isUnlocked(unlock);
             }
 
             @Override
             public boolean complete() {
-                return automation.isActive();
+                return skillTree.isUnlocked(unlock);
             }
         };
-        return addNode(name, Assets.I().get(icon), target, true, x, y, prerequisite);
+        return addNode(name, Assets.I().get(icon), target, true, x, y, null);
     }
 
-    private SkillNode upgradeNode(
-        String name,
-        AssetKey icon,
-        AbstractAutomationUpgrade upgrade,
-        BooleanSupplier invested,
-        BooleanSupplier complete,
-        float x,
-        float y,
-        SkillNode prerequisite
-    ) {
-        PurchaseTarget target = new PurchaseTarget() {
-            @Override
-            public float price() {
-                return upgrade.price();
-            }
+    private void activateUnlock(SkillTreeUnlock unlock) {
+        if (!skillTree.unlock(unlock)) return;
 
-            @Override
-            public boolean canBuy() {
-                return upgrade.isBuyable();
-            }
-
-            @Override
-            public void purchase() {
-                upgrade.upgrade();
-            }
-
-            @Override
-            public boolean invested() {
-                return invested.getAsBoolean();
-            }
-
-            @Override
-            public boolean complete() {
-                return complete.getAsBoolean();
-            }
-        };
-        return addNode(name, Assets.I().get(icon), target, true, x, y, prerequisite);
+        switch (unlock) {
+            case CASH_CHIP_DROP:
+                if (CollectibleValues.I().getCashChipSpawnChance() == 0) {
+                    CollectibleValues.I().increaseCashChipSpawnChance();
+                }
+                break;
+            case CHEST_DROP:
+                if (ChestManager.I().getDropChancePercent() == 0) {
+                    ChestManager.I().increaseDropChance();
+                }
+                break;
+            case CRITICAL_HIT:
+                if (CriticalHitValues.I().getCriticalHitChance() == 0) {
+                    CriticalHitValues.I().increaseCriticalHitChance();
+                }
+                break;
+            case DOUBLE_TRIGGER:
+                if (DoubleHitValues.I().getDoubleHitChance() == 0) {
+                    DoubleHitValues.I().increaseDoubleHitChance();
+                }
+                break;
+            case EXTRA_COLLECTIBLE:
+                if (CollectibleValues.I().getExtraCollectibleSpawnChance() == 0) {
+                    CollectibleValues.I().increaseExtraCollectibleSpawnChance();
+                }
+                break;
+            case TIME_GAIN:
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown unlock: " + unlock);
+        }
     }
 
     private SkillNode addNode(
@@ -720,7 +615,7 @@ public final class Shop {
     }
 
     private void purchase(PurchaseTarget target, boolean major) {
-        if (!DevTools.freeShopPurchases()) {
+        if (!DevTools.freeShopPurchases() && !DevTools.unlimitedMoney()) {
             ScoreDisplay.I().removeFromScore(target.price());
         }
         target.purchase();

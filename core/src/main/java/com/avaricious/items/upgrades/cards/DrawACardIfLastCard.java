@@ -2,6 +2,7 @@ package com.avaricious.items.upgrades.cards;
 
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.IUpgradeType;
+import com.avaricious.game.run.RoundsManager;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -38,7 +39,7 @@ public class DrawACardIfLastCard extends AbstractCard implements IConditionalApp
     }
 
     @Override
-    public boolean condition() {
+    public boolean condition(RoundsManager rounds) {
         return Hand.I().getHand().size() == 1;
     }
 }

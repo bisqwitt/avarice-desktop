@@ -1,6 +1,6 @@
 package com.avaricious.components.background;
 
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Mesh;

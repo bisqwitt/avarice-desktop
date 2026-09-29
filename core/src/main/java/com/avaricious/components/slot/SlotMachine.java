@@ -11,7 +11,7 @@ import com.avaricious.components.slot.rework.SpinResultGenerator;
 import com.avaricious.components.slot.rework.SpinResultManipulator;
 import com.avaricious.components.slot.rework.SpinResultPolicy;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.Seq;
@@ -615,7 +615,7 @@ public class SlotMachine {
         Pencil.I().toggleDarkenEverythingBehindLayer(ZIndex.HAND_UI_SELECTING_CARD_TO_DISCARD);
         zIndex = ZIndex.SLOT_MACHINE;
         shiftingSymbol = false;
-        SlotMachineResultRunner.I().runResult(Seq.of(SlotMachineMatchFinder.I().findMatches())
+        SlotMachineResultRunner.I().runResult(Seq.of(SlotMachineMatchFinder.findMatches())
             .filter(patternHit -> patternHit.getPositions()
                 .contains(new Vector2(neighbourCol, neighbourRow))
                 || patternHit.getPositions()

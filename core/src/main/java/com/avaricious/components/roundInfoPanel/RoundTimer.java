@@ -14,11 +14,11 @@ public final class RoundTimer {
     }
 
     public void restore(float savedSecondsRemaining) {
-        secondsRemaining = Math.max(
+        secondsRemaining = Math.max(0f, savedSecondsRemaining);
+        elapsedSeconds = Math.max(
             0f,
-            Math.min(ROUND_DURATION_SECONDS, savedSecondsRemaining)
+            ROUND_DURATION_SECONDS - secondsRemaining
         );
-        elapsedSeconds = ROUND_DURATION_SECONDS - secondsRemaining;
     }
 
     /**
@@ -44,6 +44,10 @@ public final class RoundTimer {
 
     public float getPreciseSecondsRemaining() {
         return secondsRemaining;
+    }
+
+    public void addSeconds(float seconds) {
+        secondsRemaining += Math.max(0f, seconds);
     }
 
     public long msSinceRoundStart() {

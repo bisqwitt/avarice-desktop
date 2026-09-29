@@ -27,7 +27,7 @@ public abstract class AbstractSymbolTriggerCard extends AbstractCard {
 
     @Override
     protected void onApply() {
-        SlotMachineResultRunner.I().runResult(SlotMachineMatchFinder.I().findSymbol(getSymbol()));
+        SlotMachineResultRunner.I().runResult(SlotMachineMatchFinder.findSymbol(getSymbol()));
     }
 
     @Override

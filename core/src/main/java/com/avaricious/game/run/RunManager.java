@@ -1,31 +1,30 @@
-package com.avaricious.utility;
+package com.avaricious.game.run;
 
-import com.avaricious.RoundsManager;
-import com.avaricious.utility.runData.RunData;
-import com.avaricious.utility.runData.RunDataFileManager;
+import com.avaricious.persistence.rundata.RunData;
+import com.avaricious.persistence.rundata.RunDataFileManager;
 
 import java.util.UUID;
 
 public class RunManager {
 
-    private static RunManager instance;
-
-    public static RunManager I() {
-        return instance == null ? instance = new RunManager() : instance;
-    }
-
-    private final RoundsManager roundsManager = new RoundsManager();
+    private final RoundsManager roundsManager;
+    private final RunDataFileManager runDataFiles;
 
     private String runId;
 
     private RunData opponentsRun;
 
-    private RunManager() {
+    public RunManager(
+        RoundStats roundStats,
+        RunDataFileManager runDataFiles
+    ) {
+        roundsManager = new RoundsManager(roundStats);
+        this.runDataFiles = runDataFiles;
     }
 
     public void newRun() {
         runId = UUID.randomUUID().toString();
-        opponentsRun = RunDataFileManager.I().findOpponentsRun();
+        opponentsRun = runDataFiles.findOpponentsRun(runId);
 
         roundsManager.startNewRun();
     }
@@ -44,7 +43,7 @@ public class RunManager {
         RoundsManager.RoundOutcome outcome
     ) {
         runId = UUID.randomUUID().toString();
-        opponentsRun = RunDataFileManager.I().findOpponentsRun();
+        opponentsRun = runDataFiles.findOpponentsRun(runId);
         roundsManager.restoreRun(round, secondsRemaining, outcome);
     }
 

@@ -1,4 +1,4 @@
-package com.avaricious;
+package com.avaricious.game.run;
 
 import com.avaricious.components.ItemBag;
 import com.avaricious.components.roundInfoPanel.RoundTimer;
@@ -24,12 +24,17 @@ public class RoundsManager extends Observable<Integer> {
     }
 
     private final RoundTimer roundTimer = new RoundTimer();
+    private final RoundStats roundStats;
     private Integer currentRound = 0;
     private float roundTarget;
     private RoundOutcome outcome = RoundOutcome.IN_PROGRESS;
 
     private final List<AbstractCard> playedCardsThisRound = new ArrayList<>();
     private boolean defenceTypeCardsDisabled = false;
+
+    public RoundsManager(RoundStats roundStats) {
+        this.roundStats = roundStats;
+    }
 
     public void startNewRun() {
         currentRound = 0;
@@ -46,7 +51,7 @@ public class RoundsManager extends Observable<Integer> {
         RoundOutcome savedOutcome
     ) {
         int restoredRound = Math.max(1, round);
-        RoundStats.I().reset();
+        roundStats.reset();
         roundTarget = calculateTarget(restoredRound);
         outcome = savedOutcome == null
             ? RoundOutcome.IN_PROGRESS
@@ -57,7 +62,7 @@ public class RoundsManager extends Observable<Integer> {
 
     public void nextRound() {
         int nextRound = currentRound + 1;
-        RoundStats.I().reset();
+        roundStats.reset();
         roundTarget = calculateTarget(nextRound);
         outcome = RoundOutcome.IN_PROGRESS;
         roundTimer.startTimer();
@@ -70,7 +75,7 @@ public class RoundsManager extends Observable<Integer> {
 
     public boolean tryStartSpin() {
         if (!canSpin()) return false;
-        RoundStats.I().recordSpin();
+        roundStats.recordSpin();
         return true;
     }
 

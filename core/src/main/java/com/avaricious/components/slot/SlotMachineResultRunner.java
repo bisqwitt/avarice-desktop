@@ -13,8 +13,8 @@ import com.avaricious.effects.EffectManager;
 import com.avaricious.effects.TextureEcho;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
-import com.avaricious.screens.ScreenManager;
-import com.avaricious.screens.SlotScreen;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.CriticalHitValues;
@@ -27,6 +27,7 @@ import com.badlogic.gdx.math.Rectangle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 public class SlotMachineResultRunner {
 
@@ -51,8 +52,27 @@ public class SlotMachineResultRunner {
     private float resultStepDelay = DEFAULT_RESULT_STEP_DELAY;
     private boolean instantResults = false;
     private float screenShakeScale = 1f;
+    private BooleanSupplier onSpinResolved;
+    private Runnable requestSpin;
+    private Runnable resetSymbolsHit;
+    private Runnable addSymbolHit;
+    private SkillTreeProgress skillTree;
 
     private SlotMachineResultRunner() {
+    }
+
+    public void configure(
+        BooleanSupplier onSpinResolved,
+        Runnable requestSpin,
+        Runnable resetSymbolsHit,
+        Runnable addSymbolHit,
+        SkillTreeProgress skillTree
+    ) {
+        this.onSpinResolved = onSpinResolved;
+        this.requestSpin = requestSpin;
+        this.resetSymbolsHit = resetSymbolsHit;
+        this.addSymbolHit = addSymbolHit;
+        this.skillTree = skillTree;
     }
 
     public void runResult(PatternMatch match) {
@@ -68,13 +88,12 @@ public class SlotMachineResultRunner {
                 slotMachine.playEmptySpinSweep(() -> {
                     slotMachine.setStale(true);
                     TicketPressSystem.I().finishSpin();
-                    SlotScreen screen = ScreenManager.I().getScreen(SlotScreen.class);
-                    if (screen.onSpinResolved()) return;
+                    if (onSpinResolved.getAsBoolean()) return;
                     if (
                         Automations.I().getAutoSpin().isActive() ||
                             Automations.I().getFullAutoSpin().isActive()
                     ) {
-                        screen.onSpinButtonPressed();
+                        requestSpin.run();
                     }
                 });
             }, 0f);
@@ -129,14 +148,6 @@ public class SlotMachineResultRunner {
                         new Rectangle(body.getPos().x, body.getPos().y, SlotMachine.CELL_W, SlotMachine.CELL_H),
                         TextureEcho.Type.SLOT);
 
-                    BouncingSymbolManager.I().createFallingSymbol(
-                        patternMatch.getSymbol(),
-                        body.getPos().x,
-                        body.getPos().y,
-                        1.18f
-                    );
-
-
                 }
 
                 ParticleManager.I().create(
@@ -180,15 +191,14 @@ public class SlotMachineResultRunner {
             slotMachine.setStale(true);
             EffectManager.endStreak();
             TicketPressSystem.I().finishSpin();
-            SlotScreen screen = ScreenManager.I().getScreen(SlotScreen.class);
-            if (screen.onSpinResolved()) return;
+            if (onSpinResolved.getAsBoolean()) return;
 //            buttonBoard.setVisible(true);
 //            ScoreDisplay.I().updateScoreNumber();
             if (
                 Automations.I().getAutoSpin().isActive() ||
                     Automations.I().getFullAutoSpin().isActive()
             )
-                screen.onSpinButtonPressed();
+                requestSpin.run();
         });
 
         scheduler.runTasks(
@@ -214,15 +224,19 @@ public class SlotMachineResultRunner {
         List<Body> slots,
         TaskScheduler scheduler
     ) {
-        SlotScreen slotScreen = ScreenManager.I().getScreen(SlotScreen.class);
-        slotScreen.setSymbolsHitLastSpin(0);
+        resetSymbolsHit.run();
+        boolean doubleTrigger = skillTree.isUnlocked(
+            SkillTreeUnlock.DOUBLE_TRIGGER
+        ) && DoubleHitValues.I().rollDoubleHit();
+
         for (Body body : slots) {
-            boolean doubleHit = DoubleHitValues.I().rollDoubleHit();
             scheduler.schedule(() ->
-                resolveSymbolHit(match, body, slotScreen, false));
-            if (doubleHit) {
+                resolveSymbolHit(match, body, false));
+        }
+        if (doubleTrigger) {
+            for (Body body : slots) {
                 scheduler.schedule(() ->
-                    resolveSymbolHit(match, body, slotScreen, true));
+                    resolveSymbolHit(match, body, true));
             }
         }
     }
@@ -230,10 +244,9 @@ public class SlotMachineResultRunner {
     private void resolveSymbolHit(
         PatternMatch match,
         Body body,
-        SlotScreen slotScreen,
         boolean repeatedHit
     ) {
-        slotScreen.addSymbolsHitLastSpin();
+        addSymbolHit.run();
 
         slotMachine.flashSymbol(body, 1f);
         body.pulse(repeatedHit ? 1.95f : 1.75f);
@@ -259,7 +272,9 @@ public class SlotMachineResultRunner {
         }
 
         float basePoints = SymbolValues.I().getValue(match.getSymbol());
-        boolean criticalHit = CriticalHitValues.I().rollCriticalHit();
+        boolean criticalHit = skillTree.isUnlocked(
+            SkillTreeUnlock.CRITICAL_HIT
+        ) && CriticalHitValues.I().rollCriticalHit();
         float points = criticalHit
             ? CriticalHitValues.I().applyCriticalDamage(basePoints)
             : basePoints;
@@ -312,6 +327,13 @@ public class SlotMachineResultRunner {
             body.getPos().x,
             body.getPos().y
         );
+
+        if (skillTree.isUnlocked(SkillTreeUnlock.CHEST_DROP)) {
+            ChestManager.I().rollForChest(
+                body.getPos().x + SlotMachine.CELL_W / 2f,
+                body.getPos().y + SlotMachine.CELL_H / 2f
+            );
+        }
 
         if (criticalHit) {
             AudioManager.I().playCriticalHit(EffectManager.streak);

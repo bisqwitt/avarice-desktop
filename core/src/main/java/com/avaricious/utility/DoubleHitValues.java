@@ -3,7 +3,7 @@ package com.avaricious.utility;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
-/** Run-wide chance for a resolved symbol hit to resolve one extra time. */
+/** Run-wide chance for a resolved pattern to trigger one extra time. */
 public final class DoubleHitValues {
 
     public static final String DOUBLE_HIT_CHANCE = "doubleHitChance";

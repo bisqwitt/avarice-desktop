@@ -18,7 +18,6 @@ public class DrawTwoCardsMinusOneTry extends AbstractCard {
 
     @Override
     protected void onApply() {
-//        RoundInfoPanel.I().minusSpin();
         Hand.I().drawCards(2);
     }
 

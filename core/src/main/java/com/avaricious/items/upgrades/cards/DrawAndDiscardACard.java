@@ -1,6 +1,6 @@
 package com.avaricious.items.upgrades.cards;
 
-import com.avaricious.components.HandUi;
+import com.avaricious.game.GameplayActions;
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.IUpgradeType;
 import com.avaricious.utility.AssetKey;
@@ -30,7 +30,12 @@ public class DrawAndDiscardACard extends AbstractCard {
     @Override
     protected void onApply() {
         Hand.I().drawCard();
-        HandUi.I().selectCardToDiscard();
+    }
+
+    @Override
+    public void apply(GameplayActions actions) {
+        onApply();
+        actions.selectCardToDiscard();
     }
 
     @Override

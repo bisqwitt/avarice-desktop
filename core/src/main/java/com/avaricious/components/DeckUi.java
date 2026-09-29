@@ -25,13 +25,7 @@ import java.util.List;
 
 public class DeckUi {
 
-    private static DeckUi instance;
-
-    public static DeckUi I() {
-        return instance == null ? instance = new DeckUi() : instance;
-    }
-
-    private DeckUi() {
+    public DeckUi() {
         Deck.I().onChange(newDeck -> pendingCards = newDeck);
         cardsInDeckTxt.setText(Assets.I().getTitleFont(), "Cards in Deck");
     }

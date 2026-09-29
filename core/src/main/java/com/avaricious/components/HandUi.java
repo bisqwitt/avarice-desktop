@@ -5,15 +5,15 @@ import com.avaricious.components.popups.TooltipPopup;
 import com.avaricious.components.slot.DragableBody;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.game.GameplayActions;
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.cards.AbstractCard;
 import com.avaricious.items.upgrades.cards.newgen.AbstractQuestCard;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.FontDrawing;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.RunManager;
 import com.avaricious.utility.Seq;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.UiUtility;
@@ -33,11 +33,8 @@ import java.util.List;
 
 public class HandUi {
 
-    private static HandUi instance;
-
-    public static HandUi I() {
-        return instance == null ? instance = new HandUi() : instance;
-    }
+    private final GameplayActions gameplayActions;
+    private final com.avaricious.game.run.RoundsManager rounds;
 
     private final float Y = 3.5f;
     private final float CARD_SIZE_DIVISOR = 75;
@@ -47,6 +44,7 @@ public class HandUi {
     private final TextureRegion jokerCardShadow = Assets.I().get(AssetKey.JOKER_CARD_SHADOW);
 
     private final List<AbstractCard> cards = new ArrayList<>();
+    private final DeckUi deckUi = new DeckUi();
     private final GlyphLayout cardsHoldingTxt = new GlyphLayout();
 
     private AbstractCard selectedCard = null;
@@ -59,7 +57,12 @@ public class HandUi {
     private boolean selectingCardToDiscard = false;
     private final GlyphLayout discardACardTxt = new GlyphLayout();
 
-    private HandUi() {
+    public HandUi(
+        GameplayActions gameplayActions,
+        com.avaricious.game.run.RoundsManager rounds
+    ) {
+        this.gameplayActions = gameplayActions;
+        this.rounds = rounds;
         Hand.I().onChange(newHand -> pendingHand = newHand);
         discardACardTxt.setText(Assets.I().getBigFont(), "Select a card to discard", Color.WHITE, 500f, Align.top | Align.center, true);
     }
@@ -155,7 +158,7 @@ public class HandUi {
             + (card != selectedCard && !applyingCards.contains(card) ? getHandRotation(card) : 0);
 
         float alpha = body.getAlpha();
-        if ((!selectingCardToDiscard && card.isDisabled())) {
+        if ((!selectingCardToDiscard && card.isDisabled(rounds))) {
             alpha -= 0.5f;
         }
 
@@ -187,7 +190,7 @@ public class HandUi {
             if (!cards.contains(card)) {
 
                 // 1) Start at deck position
-                Vector2 deckSpawn = DeckUi.I().getTopCardSpawnPos();
+                Vector2 deckSpawn = deckUi.getTopCardSpawnPos();
 
                 Rectangle initialBounds = new Rectangle(
                     deckSpawn.x, deckSpawn.y,
@@ -326,7 +329,7 @@ public class HandUi {
 
     public void applyCard(AbstractCard card) {
         selectedCard = null;
-        card.apply();
+        card.apply(gameplayActions, rounds);
         applyingCards.add(card);
 
         DragableBody body = card.getBody();
@@ -351,7 +354,7 @@ public class HandUi {
             }
         }, 0.5f);
 
-        RunManager.I().getRoundsManager().onCardPlayed(card);
+        rounds.onCardPlayed(card);
     }
 
     public void selectCardToDiscard() {

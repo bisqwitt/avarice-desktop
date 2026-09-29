@@ -1,9 +1,8 @@
 package com.avaricious.items.upgrades.cards;
 
 import com.avaricious.components.popups.PopupManager;
+import com.avaricious.game.GameplayActions;
 import com.avaricious.items.upgrades.IUpgradeType;
-import com.avaricious.screens.ScreenManager;
-import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -20,7 +19,11 @@ public class SpinCard extends AbstractCard {
 
     @Override
     protected void onApply() {
-        ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+    }
+
+    @Override
+    public void apply(GameplayActions actions) {
+        actions.requestSpin();
     }
 
     @Override

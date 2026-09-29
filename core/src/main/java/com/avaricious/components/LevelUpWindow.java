@@ -5,8 +5,11 @@ import com.avaricious.components.automations.Automations;
 import com.avaricious.components.automations.Luck;
 import com.avaricious.components.automations.SlotMachineSpeed;
 import com.avaricious.components.slot.ChestManager;
+import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.slot.SlotMachineResultRunner;
 import com.avaricious.components.texts.*;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
 import com.avaricious.items.upgrades.UpgradeRarity;
 import com.avaricious.utility.*;
 import com.badlogic.gdx.Gdx;
@@ -56,6 +59,7 @@ public class LevelUpWindow {
 
     private final List<LevelUpChoice> choices =
         new ArrayList<>();
+    private final SkillTreeProgress skillTree;
     private final GeneratedFabledText controls = label("CLICK A CARD OR PRESS ITS NUMBER", 62f, MUTED);
     private float windowOpacity = 1f;
     private Runnable onRewardSelected;
@@ -109,7 +113,8 @@ public class LevelUpWindow {
      */
     private float titleStartY = Float.NaN;
 
-    public LevelUpWindow() {
+    public LevelUpWindow(SkillTreeProgress skillTree) {
+        this.skillTree = skillTree;
         prompt.fitWithinWidth(4.25f);
         prompt.setAbsoluteX(
             WORLD_WIDTH / 2f -
@@ -226,82 +231,49 @@ public class LevelUpWindow {
 
         Automations stats = Automations.I();
 
+        for (Symbol symbol : Symbol.values()) {
+            possibleChoices.add(createSymbolValueChoice(symbol));
+        }
+
         SlotMachineSpeed speed = stats.getSlotMachineSpeed();
         if (!speed.isMaxSpeedReached()) {
             possibleChoices.add(createSpeedChoice(speed));
         }
 
         if (
-            CollectibleValues.I().getExtraCollectibleSpawnChance() <
+            skillTree.isUnlocked(SkillTreeUnlock.EXTRA_COLLECTIBLE) &&
+                CollectibleValues.I().getExtraCollectibleSpawnChance() <
                 CollectibleValues.MAX_EXTRA_COLLECTIBLE_SPAWN_CHANCE
         ) {
             possibleChoices.add(createCollectibleChoice());
         }
 
         if (
-            CollectibleValues.I().getExtraSpadeSpawnChance() <
-                CollectibleValues.MAX_EXTRA_SPADE_SPAWN_CHANCE
+            skillTree.isUnlocked(SkillTreeUnlock.TIME_GAIN) &&
+                !skillTree.isTimeGainMaxed()
         ) {
-            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-            int increaseAmount = rarity.scaleLevelUpAmount(
-                CollectibleValues.EXTRA_SPADE_CHANCE_STEP
-            );
-            TextureRegion spade = Assets.I().get(AssetKey.SPADE);
-            possibleChoices.add(
-                new LevelUpChoice(
-                    new ExtraSpadeChanceText(),
-                    new ExtraSpadeChanceDescription(increaseAmount),
-                    () -> CollectibleValues.I()
-                        .increaseExtraSpadeSpawnChance(increaseAmount),
-                    spade,
-                    spade,
-                    spade,
-                    rarity
-                )
-            );
+            possibleChoices.add(createTimeGainedChoice());
         }
 
         if (
-            CriticalHitValues.I().getCriticalHitChance() <
-                CriticalHitValues.MAX_CRITICAL_HIT_CHANCE
-        ) {
-            UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-            int increaseAmount = rarity.scaleLevelUpAmount(
-                CriticalHitValues.CRITICAL_HIT_CHANCE_STEP
-            );
-            TextureRegion criticalHit = Assets.I().get(AssetKey.CRITICAL_HIT);
-            TextureRegion criticalHitShadow =
-                Assets.I().get(AssetKey.CRITICAL_HIT_SHADOW);
-            possibleChoices.add(
-                new LevelUpChoice(
-                    new CriticalHitChanceText(),
-                    new CriticalHitChanceDescription(increaseAmount),
-                    () -> CriticalHitValues.I()
-                        .increaseCriticalHitChance(increaseAmount),
-                    criticalHit,
-                    criticalHitShadow,
-                    criticalHit,
-                    rarity
-                )
-            );
-        }
-
-        if (
-            DoubleHitValues.I().getDoubleHitChance() <
+            skillTree.isUnlocked(SkillTreeUnlock.DOUBLE_TRIGGER) &&
+                DoubleHitValues.I().getDoubleHitChance() <
                 DoubleHitValues.MAX_DOUBLE_HIT_CHANCE
         ) {
             possibleChoices.add(createDoubleHitChoice());
         }
 
         if (
-            CollectibleValues.I().getCashChipSpawnChance() <
+            skillTree.isUnlocked(SkillTreeUnlock.CASH_CHIP_DROP) &&
+                CollectibleValues.I().getCashChipSpawnChance() <
                 CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE
         ) {
             possibleChoices.add(createCashChipChoice());
         }
 
         if (
-            ChestManager.I().getDropChancePercent() <
+            skillTree.isUnlocked(SkillTreeUnlock.CHEST_DROP) &&
+                ChestManager.I().getDropChancePercent() <
                 ChestManager.MAX_DROP_CHANCE_PERCENT
         ) {
             possibleChoices.add(createChestDropChoice());
@@ -313,7 +285,7 @@ public class LevelUpWindow {
         }
 
         if (
-            CriticalHitValues.I().getCriticalHitChance() > 0 &&
+            skillTree.isUnlocked(SkillTreeUnlock.CRITICAL_HIT) &&
                 !CriticalHitValues.I().isCriticalDamageMaxed()
         ) {
             UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
@@ -363,6 +335,21 @@ public class LevelUpWindow {
         updateChoiceBounds();
     }
 
+    private LevelUpChoice createSymbolValueChoice(Symbol symbol) {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int upgradeCount = rarity.scaleLevelUpAmount(1);
+        TextureRegion icon = Assets.I().get(symbol.textureKey());
+        return new LevelUpChoice(
+            createChoiceTitle(symbol.name() + " VALUE"),
+            new SymbolValueDescription(symbol, upgradeCount),
+            () -> SymbolValues.I().increaseValue(symbol, upgradeCount),
+            icon,
+            Assets.I().get(symbol.shadowKey()),
+            icon,
+            rarity
+        );
+    }
+
     private LevelUpChoice createSpeedChoice(SlotMachineSpeed speed) {
         UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
         int upgradeCount = rarity.scaleLevelUpAmount(1);
@@ -396,6 +383,23 @@ public class LevelUpWindow {
         );
     }
 
+    private LevelUpChoice createTimeGainedChoice() {
+        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
+        int increaseAmount = rarity.scaleLevelUpAmount(
+            SkillTreeProgress.TIME_GAIN_STEP_SECONDS
+        );
+        TextureRegion icon = Assets.I().get(AssetKey.PLUS_SYMBOL);
+        return new LevelUpChoice(
+            createChoiceTitle("TIME GAINED"),
+            new TimeGainedDescriptionText(skillTree, increaseAmount),
+            () -> skillTree.increaseTimeGainSeconds(increaseAmount),
+            icon,
+            Assets.I().get(AssetKey.PLUS_SYMBOL_SHADOW),
+            icon,
+            rarity
+        );
+    }
+
     private LevelUpChoice createDoubleHitChoice() {
         UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
         int increaseAmount = rarity.scaleLevelUpAmount(
@@ -403,7 +407,7 @@ public class LevelUpWindow {
         );
         TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
         return new LevelUpChoice(
-            createChoiceTitle("DOUBLE HIT CHANCE"),
+            createChoiceTitle("DOUBLE TRIGGER CHANCE"),
             new DoubleHitChanceDescription(increaseAmount),
             () -> DoubleHitValues.I().increaseDoubleHitChance(increaseAmount),
             retrigger,

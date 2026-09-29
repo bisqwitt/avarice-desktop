@@ -5,7 +5,7 @@ import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SeededRandomizer;
@@ -37,7 +37,6 @@ public final class ChestManager {
         return instance == null ? instance = new ChestManager() : instance;
     }
 
-    /** One roll per completed slot-machine spin. */
     private static final float STACK_X_OFFSET = 0.15f;
     private static final float STACK_BUTTON_GAP = 0.25f;
     private static final float CHEST_SIZE = 0.96f;
@@ -54,14 +53,20 @@ public final class ChestManager {
     }
 
     public void rollForChest() {
+        float machineHeight = SlotMachine.rowCount * SlotMachine.CELL_H
+            + (SlotMachine.rowCount - 1) * SlotMachine.spacingY;
+        rollForChest(
+            GameplayLayout.SLOT_CENTER,
+            SlotMachine.originY + machineHeight * 0.52f
+        );
+    }
+
+    /** Rolls once for a resolved symbol hit. */
+    public void rollForChest(float spawnX, float spawnY) {
         if (
             SeededRandomizer.get().nextFloat() * 100f >= dropChancePercent
         ) return;
 
-        float machineHeight = SlotMachine.rowCount * SlotMachine.CELL_H
-            + (SlotMachine.rowCount - 1) * SlotMachine.spacingY;
-        float spawnX = GameplayLayout.SLOT_CENTER;
-        float spawnY = SlotMachine.originY + machineHeight * 0.52f;
         ChestCollectible chest = new ChestCollectible(spawnX, spawnY);
         chests.add(chest);
 

@@ -10,13 +10,13 @@ import com.avaricious.components.roundInfoPanel.AutoSpinDisplay;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.items.upgrades.Hand;
-import com.avaricious.screens.ScreenManager;
-import com.avaricious.screens.SlotScreen;
 import com.avaricious.utility.GameplayLayout;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
+
+import java.util.function.BooleanSupplier;
 
 public class ButtonBoard {
 
@@ -49,14 +49,18 @@ public class ButtonBoard {
     private ButtonBoard() {
     }
 
-    public ButtonBoard init(Runnable onSpinButtonPressed, Runnable onCashoutButtonPressed) {
-        spinAgainButton = new SpinButton(onSpinButtonPressed,
+    public ButtonBoard init(
+        Runnable onSpinButtonPressed,
+        Runnable onCashoutButtonPressed,
+        BooleanSupplier canSpin
+    ) {
+        spinAgainButton = new SpinButton(onSpinButtonPressed, canSpin,
             new Rectangle(GameplayLayout.SLOT_CENTER - BUTTON_W / 2f,
                 BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
         buySpinButton = new BuySpinButton(() -> {
             AutoSpinDisplay.I().addSpin();
             if (AutoSpinDisplay.I().getSpins() == 1 && SlotMachine.I().isStale())
-                ScreenManager.I().getScreen(SlotScreen.class).onSpinButtonPressed();
+                onSpinButtonPressed.run();
         },
             new Rectangle(GameplayLayout.SLOT_CENTER - BUTTON_W / 2f,
                 BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);

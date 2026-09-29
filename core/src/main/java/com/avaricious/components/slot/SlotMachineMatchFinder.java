@@ -10,27 +10,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class SlotMachineMatchFinder {
-
-    private static SlotMachineMatchFinder instance;
-
-    public static SlotMachineMatchFinder I() {
-        return instance == null ? instance = new SlotMachineMatchFinder() : instance;
-    }
-
-    private final int cols;
-    private final int rows;
+public final class SlotMachineMatchFinder {
 
     private SlotMachineMatchFinder() {
-        this.cols = SlotMachine.colCount;
-        this.rows = SlotMachine.rowCount;
     }
 
-    public List<PatternMatch> findMatches() {
+    public static List<PatternMatch> findMatches() {
         return findMatches(new SpinResult(getCurrentSymbolMap()));
     }
 
-    public List<PatternMatch> findMatches(SpinResult result) {
+    public static List<PatternMatch> findMatches(SpinResult result) {
         List<PatternMatch> matches = PatternFinder.findMatches(result.symbols());
 
         sortMatches(matches);
@@ -41,11 +30,11 @@ public class SlotMachineMatchFinder {
      * Kept for callers that still use the old name. Outcome policies now run
      * before animation and this method never rewrites a landed reel.
      */
-    public List<PatternMatch> findMatchesAfterSpin() {
+    public static List<PatternMatch> findMatchesAfterSpin() {
         return findMatches(SlotMachine.I().getCurrentSpinResult());
     }
 
-    private void sortMatches(List<PatternMatch> matches) {
+    private static void sortMatches(List<PatternMatch> matches) {
 
         Collections.sort(matches, new Comparator<PatternMatch>() {
             @Override
@@ -60,7 +49,7 @@ public class SlotMachineMatchFinder {
         });
     }
 
-    public PatternMatch findSymbol(Symbol targetSymbol) {
+    public static PatternMatch findSymbol(Symbol targetSymbol) {
         Symbol[][] symbolMap = getCurrentSymbolMap();
         List<Vector2> positions = new ArrayList<>();
         for (int col = 0; col < symbolMap.length; col++) {
@@ -83,12 +72,13 @@ public class SlotMachineMatchFinder {
         return new PatternMatch(targetSymbol, positions.size(), positions);
     }
 
-    private Symbol[][] getCurrentSymbolMap() {
+    private static Symbol[][] getCurrentSymbolMap() {
         return SlotMachine.I().getSymbolMap();
     }
 
-    private boolean inGrid(int x, int y) {
-        return x >= 0 && x < cols && y >= 0 && y < rows;
+    private static boolean inGrid(int x, int y) {
+        return x >= 0 && x < SlotMachine.colCount
+            && y >= 0 && y < SlotMachine.rowCount;
     }
 
 }

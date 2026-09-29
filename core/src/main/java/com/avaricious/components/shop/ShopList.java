@@ -1,6 +1,6 @@
 package com.avaricious.components.shop;
 
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.Seq;
 import com.badlogic.gdx.math.Rectangle;

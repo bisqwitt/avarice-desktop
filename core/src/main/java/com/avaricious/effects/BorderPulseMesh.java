@@ -1,6 +1,6 @@
 package com.avaricious.effects;
 
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;

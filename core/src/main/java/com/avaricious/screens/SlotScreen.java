@@ -3,8 +3,11 @@ package com.avaricious.screens;
 import com.avaricious.DevTools;
 import com.avaricious.Main;
 import com.avaricious.Profiler;
-import com.avaricious.RoundStats;
-import com.avaricious.RoundsManager;
+import com.avaricious.game.run.RoundsManager;
+import com.avaricious.game.run.GameSession;
+import com.avaricious.game.run.RunManager;
+import com.avaricious.game.GameplayActions;
+import com.avaricious.app.AppServices;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.*;
 import com.avaricious.components.automations.Automations;
@@ -26,7 +29,8 @@ import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.IUpgradeWithActionOnSpinButtonPressed;
 import com.avaricious.utility.*;
-import com.avaricious.utility.runData.RunDataFileManager;
+import com.avaricious.persistence.rundata.RunDataFileManager;
+import com.avaricious.persistence.RunSaveManager;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -46,7 +50,7 @@ import com.crashinvaders.vfx.VfxManager;
 import com.crashinvaders.vfx.effects.CrtEffect;
 import com.crashinvaders.vfx.effects.OldTvEffect;
 
-public class SlotScreen extends ScreenAdapter {
+public class SlotScreen extends ScreenAdapter implements GameplayActions {
 
     private enum StartMode { NEW_RUN, CONTINUE_RUN }
 
@@ -61,22 +65,26 @@ public class SlotScreen extends ScreenAdapter {
     }
 
     private final Main app;
+    private final GameSession gameSession;
+    private final RunManager runManager;
+    private final RunSaveManager runSaves;
+    private final RunDataFileManager runDataFiles;
+    private final RoundInfoPanel roundInfoPanel;
+    private final PlayerScores playerScores = new PlayerScores();
+    private final PlayerHealths playerHealths = new PlayerHealths();
+    private final HandUi handUi;
 
     private final ScreenShake screenShake;
 
-    private final Shop shop = new Shop(this::onReturnedFromShop);
+    private final Shop shop;
 
-    private final LevelUpWindow levelUpWindow = new LevelUpWindow();
+    private final LevelUpWindow levelUpWindow;
 
-    private final RoundResultWindow roundResultWindow = new RoundResultWindow();
+    private final RoundResultWindow roundResultWindow;
 
     private final SettingsMenu settingsMenu = new SettingsMenu();
 
-    private final ButtonBoard buttonBoard = ButtonBoard.I()
-        .init(
-            this::onSpinButtonPressed,
-            this::onPlayButtonPressed
-        );
+    private final ButtonBoard buttonBoard;
 
     private final TextureRegion charcoalPixel =
         Assets.I().get(AssetKey.CHARCOAL_PIXEL);
@@ -153,9 +161,35 @@ public class SlotScreen extends ScreenAdapter {
     private final Texture levelUpFlashTexture;
 
 
-    public SlotScreen(Main app) {
+    public SlotScreen(Main app, AppServices services) {
 
         this.app = app;
+        this.gameSession = services.gameSession();
+        this.runManager = gameSession.runManager();
+        this.shop = new Shop(
+            this::onReturnedFromShop,
+            gameSession.skillTree()
+        );
+        this.levelUpWindow = new LevelUpWindow(gameSession.skillTree());
+        this.buttonBoard = ButtonBoard.I().init(
+            this::onSpinButtonPressed,
+            this::onPlayButtonPressed,
+            () -> runManager.getRoundsManager().canSpin()
+        );
+        this.runSaves = services.runSaves();
+        this.runDataFiles = services.runDataFiles();
+        this.roundInfoPanel = new RoundInfoPanel(
+            runManager.getRoundsManager()
+        );
+        this.handUi = new HandUi(
+            this,
+            runManager.getRoundsManager()
+        );
+        this.roundResultWindow = new RoundResultWindow(
+            runSaves,
+            gameSession.roundStats(),
+            runManager
+        );
 
         Pencil.I().setBatch(app.getBatch());
 
@@ -201,6 +235,18 @@ public class SlotScreen extends ScreenAdapter {
 
         flashPixmap.dispose();
 
+        SlotMachineResultRunner.I().configure(
+            this::onSpinResolved,
+            this::onSpinButtonPressed,
+            () -> setSymbolsHitLastSpin(0),
+            this::addSymbolsHitLastSpin,
+            gameSession.skillTree()
+        );
+        Automations.I().getFullAutoSpin().configure(
+            this::onSpinButtonPressed,
+            () -> !isShopShowing() && SlotMachine.I().isStale()
+        );
+
 
         // ------------------------------------------------------------
         // SLOT MACHINE
@@ -208,9 +254,8 @@ public class SlotScreen extends ScreenAdapter {
 
         SlotMachine.I().setOnLastReelFinished(
             () -> {
-                ChestManager.I().rollForChest();
                 SlotMachineResultRunner.I().runResult(
-                    SlotMachineMatchFinder.I().findMatches(
+                    SlotMachineMatchFinder.findMatches(
                         SlotMachine.I().getCurrentSpinResult()
                     )
                 );
@@ -221,6 +266,16 @@ public class SlotScreen extends ScreenAdapter {
         if (DevTools.enableProfiler()) {
             Profiler.start();
         }
+    }
+
+    @Override
+    public void requestSpin() {
+        onSpinButtonPressed();
+    }
+
+    @Override
+    public void selectCardToDiscard() {
+        handUi.selectCardToDiscard();
     }
 
 
@@ -238,7 +293,7 @@ public class SlotScreen extends ScreenAdapter {
             resetRunState();
             drawStartingHand();
         } else {
-            RoundsManager restoredRounds = RunManager.I().getRoundsManager();
+            RoundsManager restoredRounds = runManager.getRoundsManager();
             if (restoredRounds.getOutcome()
                     != RoundsManager.RoundOutcome.IN_PROGRESS
                 || restoredRounds.getRoundTimer().timerEnded()) {
@@ -261,15 +316,14 @@ public class SlotScreen extends ScreenAdapter {
     private void resetRunState() {
         roundClockActive = false;
         autoSpinWaitingForCollectibles = false;
-        ScoreDisplay.I().setScoreNumber(0f);
-        RunManager.I().newRun();
+        gameSession.startNewRun();
         ChestManager.I().reset();
         CollectorManager.I().reset();
         BouncingSymbolManager.I().reset();
         TicketPressSystem.I().reset();
         VaultManager.I().reset();
         roundResultWindow.hide();
-        RunSaveManager.I().beginNewRun();
+        runSaves.beginNewRun();
     }
 
     private boolean restoreRunState() {
@@ -280,7 +334,7 @@ public class SlotScreen extends ScreenAdapter {
         BouncingSymbolManager.I().reset();
         TicketPressSystem.I().reset();
         roundResultWindow.hide();
-        return RunSaveManager.I().restore();
+        return runSaves.restore();
     }
 
 
@@ -291,8 +345,8 @@ public class SlotScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
 
-        RunDataFileManager.I().update(delta);
-        RunSaveManager.I().update(delta);
+        runDataFiles.update(delta);
+        runSaves.update(delta);
 
 
         // ------------------------------------------------------------
@@ -340,7 +394,7 @@ public class SlotScreen extends ScreenAdapter {
                 !settingsMenu.isShowing() &&
                 roundClockActive
         ) {
-            boolean timerExpired = RunManager.I()
+            boolean timerExpired = runManager
                 .getRoundsManager()
                 .updateTimer(delta);
             if (timerExpired && SlotMachine.I().isStale()) {
@@ -382,7 +436,7 @@ public class SlotScreen extends ScreenAdapter {
                 .updateFallingSymbols(
                     delta,
                     ScoreDisplay.I().getCollisionBounds(),
-                    RoundInfoPanel.I().getCollisionBounds(),
+                    roundInfoPanel.getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
 
@@ -475,11 +529,11 @@ public class SlotScreen extends ScreenAdapter {
         Pencil.I().drawDarkenWindow();
 
 
-        RoundInfoPanel.I().draw(delta);
+        roundInfoPanel.draw(delta);
 
-        PlayerScores.I().draw(delta);
+        playerScores.draw(delta);
 
-        PlayerHealths.I().draw(delta);
+        playerHealths.draw(delta);
 
         if (!SlotMachine.I().isStale()) {
             buttonBoard.draw(delta);
@@ -489,7 +543,6 @@ public class SlotScreen extends ScreenAdapter {
         AutoSpinDisplay.I().draw(delta);
 
 
-//        DeckUi.I().draw();
 //        ItemBag.I().draw(delta);
 
 
@@ -501,8 +554,6 @@ public class SlotScreen extends ScreenAdapter {
 
         SlotMachine.I().draw(delta);
 
-
-//        HandUi.I().draw(delta);
 
 
 //        TextureGlow.draw(
@@ -966,7 +1017,7 @@ public class SlotScreen extends ScreenAdapter {
 
     public void onPlayButtonPressed() {
 
-        HandUi.I().applySelectedCard();
+        handUi.applySelectedCard();
     }
 
 
@@ -1000,7 +1051,7 @@ public class SlotScreen extends ScreenAdapter {
             return;
         }
 
-        if (!RunManager.I().getRoundsManager().tryStartSpin()) {
+        if (!runManager.getRoundsManager().tryStartSpin()) {
             AudioManager.I().playMiss();
             return;
         }
@@ -1053,7 +1104,7 @@ public class SlotScreen extends ScreenAdapter {
             return;
         }
 
-        if (!RunManager.I().getRoundsManager().canSpin()) {
+        if (!runManager.getRoundsManager().canSpin()) {
             autoSpinWaitingForCollectibles = false;
             return;
         }
@@ -1071,7 +1122,7 @@ public class SlotScreen extends ScreenAdapter {
     }
 
     public boolean onSpinResolved() {
-        RoundsManager rounds = RunManager.I().getRoundsManager();
+        RoundsManager rounds = runManager.getRoundsManager();
         VaultManager.I().collectIfMature(rounds.getCurrentRound());
         float cash = ScoreDisplay.I().getScoreNumber();
         float bill = rounds.getRoundTarget();
@@ -1101,7 +1152,7 @@ public class SlotScreen extends ScreenAdapter {
     }
 
     private void restartFailedRun() {
-        RunSaveManager.I().clear();
+        runSaves.clear();
         resetRunState();
         buttonBoard.setVisible(true);
         roundClockActive = true;
@@ -1117,7 +1168,7 @@ public class SlotScreen extends ScreenAdapter {
     }
 
     private void startNextRound() {
-        RunManager.I()
+        runManager
             .getRoundsManager()
             .nextRound();
         roundClockActive = true;
@@ -1132,12 +1183,6 @@ public class SlotScreen extends ScreenAdapter {
 
 
     public void onBothPlayersEndedRound() {
-        PlayerScores playerScores =
-            PlayerScores.I();
-
-        PlayerHealths playerHealths =
-            PlayerHealths.I();
-
         if (
             playerScores.getPlayerScore() >
                 playerScores.getEnemyScore()
@@ -1177,6 +1222,10 @@ public class SlotScreen extends ScreenAdapter {
             },
             1
         );
+    }
+
+    public void setOpponentScore(int score) {
+        playerScores.setEnemyScoreNumber(score);
     }
 
 
@@ -1271,7 +1320,7 @@ public class SlotScreen extends ScreenAdapter {
     public void addSymbolsHitLastSpin() {
 
         symbolsHitLastSpin++;
-        RoundStats.I().recordSymbolHit();
+        gameSession.roundStats().recordSymbolHit();
     }
 
 
@@ -1293,13 +1342,13 @@ public class SlotScreen extends ScreenAdapter {
 
     @Override
     public void hide() {
-        RunSaveManager.I().saveNow();
+        runSaves.saveNow();
     }
 
     @Override
     public void dispose() {
 
-        RunSaveManager.I().saveNow();
+        runSaves.saveNow();
 
         if (Gdx.input.getInputProcessor() == shopScrollInput) {
             Gdx.input.setInputProcessor(null);

@@ -2,9 +2,9 @@ package com.avaricious.items.upgrades.cards;
 
 import com.avaricious.items.upgrades.Hand;
 import com.avaricious.items.upgrades.IUpgradeType;
+import com.avaricious.game.run.RoundsManager;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.RunManager;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 
@@ -15,7 +15,7 @@ public class DrawACardDisabledUntilTwoCardsPlayedCard extends AbstractCard imple
     @Override
     public String description() {
         return "Draw a card, is disabled until two cards played\n"
-            + "(" + cardsPlayedThisRound() + ")";
+            + "(play two cards first)";
     }
 
     @Override
@@ -39,12 +39,12 @@ public class DrawACardDisabledUntilTwoCardsPlayedCard extends AbstractCard imple
         };
     }
 
-    private int cardsPlayedThisRound() {
-        return RunManager.I().getRoundsManager().getPlayedCardsThisRound().size();
+    private int cardsPlayedThisRound(RoundsManager rounds) {
+        return rounds.getPlayedCardsThisRound().size();
     }
 
     @Override
-    public boolean condition() {
-        return cardsPlayedThisRound() >= 2;
+    public boolean condition(RoundsManager rounds) {
+        return cardsPlayedThisRound(rounds) >= 2;
     }
 }

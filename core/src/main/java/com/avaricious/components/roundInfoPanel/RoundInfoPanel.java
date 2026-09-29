@@ -1,14 +1,13 @@
 package com.avaricious.components.roundInfoPanel;
 
 import com.avaricious.CreditNumber;
-import com.avaricious.RoundsManager;
+import com.avaricious.game.run.RoundsManager;
 import com.avaricious.components.DigitalNumber;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.GameplayLayout;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.RunManager;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.graphics.Color;
@@ -17,12 +16,6 @@ import com.badlogic.gdx.math.Rectangle;
 
 /** Compact HUD for the current round target and countdown. */
 public class RoundInfoPanel {
-
-    private static RoundInfoPanel instance;
-
-    public static RoundInfoPanel I() {
-        return instance == null ? instance = new RoundInfoPanel() : instance;
-    }
 
     private static final float PANEL_X = GameplayLayout.SLOT_X;
     private static final float PANEL_Y = GameplayLayout.HUD_Y;
@@ -59,8 +52,10 @@ public class RoundInfoPanel {
     private int displayedRound = Integer.MIN_VALUE;
     private int displayedTime = Integer.MIN_VALUE;
     private float displayedTarget = Float.NaN;
+    private final RoundsManager rounds;
 
-    private RoundInfoPanel() {
+    public RoundInfoPanel(RoundsManager rounds) {
+        this.rounds = rounds;
         positionLabel(roundLabel, ROUND_LEFT, ROUND_WIDTH);
         positionLabel(targetLabel, TARGET_LEFT, TARGET_WIDTH);
         positionLabel(timeLabel, TIME_LEFT, TIME_WIDTH);
@@ -132,7 +127,6 @@ public class RoundInfoPanel {
     }
 
     private void updateValues() {
-        RoundsManager rounds = RunManager.I().getRoundsManager();
         int round = rounds.getCurrentRound();
         int seconds = rounds.getSecondsRemaining();
         float target = rounds.getRoundTarget();

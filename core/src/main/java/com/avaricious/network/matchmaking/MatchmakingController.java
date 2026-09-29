@@ -2,15 +2,20 @@ package com.avaricious.network.matchmaking;
 
 import com.avaricious.network.SocketClient;
 import com.avaricious.network.SocketEvents;
+import com.avaricious.app.navigation.ScreenManager;
 import com.badlogic.gdx.Gdx;
 
 public class MatchmakingController {
 
     private final SocketClient socketClient;
-    private final MatchmakingService service = new MatchmakingService();
+    private final MatchmakingService service;
 
-    public MatchmakingController(SocketClient socketClient) {
+    public MatchmakingController(
+        SocketClient socketClient,
+        ScreenManager screens
+    ) {
         this.socketClient = socketClient;
+        this.service = new MatchmakingService(screens);
     }
 
     public void registerListeners() {

@@ -54,8 +54,21 @@ public class SymbolValues {
         increasePrice(symbol);
     }
 
+    public void increaseValue(Symbol symbol, int upgrades) {
+        for (int i = 0; i < Math.max(0, upgrades); i++) {
+            increaseValue(symbol);
+        }
+    }
+
     public float getNextValue(Symbol symbol) {
         return symbolValueMap.get(symbol) * VALUE_MULTIPLIER;
+    }
+
+    public float getValueAfter(Symbol symbol, int upgrades) {
+        return (float) (
+            symbolValueMap.get(symbol)
+                * Math.pow(VALUE_MULTIPLIER, Math.max(0, upgrades))
+        );
     }
 
     public float getPrice(Symbol symbol) {

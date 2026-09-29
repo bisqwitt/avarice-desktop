@@ -1,21 +1,26 @@
 package com.avaricious.network.match;
 
-import com.avaricious.components.roundInfoPanel.PlayerScores;
-import com.avaricious.screens.ScreenManager;
+import com.avaricious.app.navigation.ScreenManager;
 import com.avaricious.screens.SlotScreen;
 import com.badlogic.gdx.Gdx;
 
 public class MatchService {
 
+    private final ScreenManager screens;
+
+    public MatchService(ScreenManager screens) {
+        this.screens = screens;
+    }
+
     public void onRoundEndWaiting() {
         Gdx.app.postRunnable(() -> {
-            ScreenManager.I().getScreen(SlotScreen.class).showWaitingForOpponentText();
+            screens.getScreen(SlotScreen.class).showWaitingForOpponentText();
         });
     }
 
     public void onBothPlayersEndedRound() {
         Gdx.app.postRunnable(() -> {
-            ScreenManager.I().getScreen(SlotScreen.class).onBothPlayersEndedRound();
+            screens.getScreen(SlotScreen.class).onBothPlayersEndedRound();
         });
     }
 
@@ -27,7 +32,7 @@ public class MatchService {
 
     public void onOpponentScoreChanged(int newScore) {
         Gdx.app.postRunnable(() -> {
-            PlayerScores.I().setEnemyScoreNumber(newScore);
+            screens.getScreen(SlotScreen.class).setOpponentScore(newScore);
         });
     }
 

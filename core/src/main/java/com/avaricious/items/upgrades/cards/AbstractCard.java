@@ -1,6 +1,8 @@
 package com.avaricious.items.upgrades.cards;
 
 import com.avaricious.components.popups.NumberPopup;
+import com.avaricious.game.GameplayActions;
+import com.avaricious.game.run.RoundsManager;
 import com.avaricious.items.upgrades.AbstractUpgrade;
 import com.avaricious.items.upgrades.cards.PatternTriggerCard.FiveInARowTriggerCard;
 import com.avaricious.items.upgrades.cards.PatternTriggerCard.FourInARowTriggerCard;
@@ -14,7 +16,6 @@ import com.avaricious.items.upgrades.cards.SymbolTriggerCard.LemonTriggerCard;
 import com.avaricious.items.upgrades.cards.SymbolTriggerCard.SevenTriggerCard;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.RunManager;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
@@ -47,6 +48,14 @@ public abstract class AbstractCard extends AbstractUpgrade {
         onApply();
     }
 
+    public void apply(GameplayActions actions) {
+        apply();
+    }
+
+    public void apply(GameplayActions actions, RoundsManager rounds) {
+        apply(actions);
+    }
+
     @Override
     public TextureRegion shadowTexture() {
         return Assets.I().get(AssetKey.JOKER_CARD_SHADOW);
@@ -62,10 +71,12 @@ public abstract class AbstractCard extends AbstractUpgrade {
         return 3;
     }
 
-    public boolean isDisabled() {
-        if (this instanceof IConditionalApplyCard && !((IConditionalApplyCard) this).condition())
+    public boolean isDisabled(RoundsManager rounds) {
+        if (this instanceof IConditionalApplyCard
+            && !((IConditionalApplyCard) this).condition(rounds))
             return true;
-        if (RunManager.I().getRoundsManager().defenceTypeCardsDisabled() && this.type() == CardType.DEFENCE)
+        if (rounds.defenceTypeCardsDisabled()
+            && this.type() == CardType.DEFENCE)
             return true;
 
         return false;

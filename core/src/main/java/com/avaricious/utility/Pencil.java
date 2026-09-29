@@ -1,5 +1,6 @@
 package com.avaricious.utility;
 
+import com.avaricious.app.GameContext;
 import com.avaricious.DevTools;
 import com.avaricious.effects.BorderPulseMesh;
 import com.badlogic.gdx.Gdx;

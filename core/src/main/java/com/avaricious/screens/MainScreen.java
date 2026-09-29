@@ -1,6 +1,8 @@
 package com.avaricious.screens;
 
 import com.avaricious.Main;
+import com.avaricious.app.AppServices;
+import com.avaricious.app.navigation.ScreenManager;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.SettingsMenu;
 import com.avaricious.components.texts.GeneratedFabledText;
@@ -8,7 +10,7 @@ import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.MouseCursor;
 import com.avaricious.utility.Pencil;
-import com.avaricious.utility.RunSaveManager;
+import com.avaricious.persistence.RunSaveManager;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.Gdx;
@@ -50,6 +52,8 @@ public final class MainScreen extends ScreenAdapter {
         new Color(0.58f, 0.66f, 0.71f, 1f);
 
     private final Main app;
+    private final RunSaveManager runSaves;
+    private final ScreenManager screens;
     private final SettingsMenu settingsMenu = new SettingsMenu(false);
     private final Vector2 mouse = new Vector2();
     private final TextureRegion whitePixel = Assets.I().get(AssetKey.WHITE_PIXEL);
@@ -87,8 +91,14 @@ public final class MainScreen extends ScreenAdapter {
         QUIT
     }
 
-    public MainScreen(Main app) {
+    public MainScreen(
+        Main app,
+        AppServices services,
+        ScreenManager screens
+    ) {
         this.app = app;
+        this.runSaves = services.runSaves();
+        this.screens = screens;
         Pencil.I().setBatch(app.getBatch());
         title.fitWithinWidth(6.8f);
         subtitle.fitWithinWidth(5.8f);
@@ -157,7 +167,7 @@ public final class MainScreen extends ScreenAdapter {
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             activate(
-                RunSaveManager.I().hasSave()
+                runSaves.hasSave()
                     ? MenuAction.CONTINUE_RUN
                     : MenuAction.NEW_RUN
             );
@@ -169,7 +179,7 @@ public final class MainScreen extends ScreenAdapter {
     private MenuAction actionAt(Vector2 position) {
         if (NEW_RUN.contains(position)) return MenuAction.NEW_RUN;
         if (CONTINUE_RUN.contains(position)
-            && RunSaveManager.I().hasSave()) {
+            && runSaves.hasSave()) {
             return MenuAction.CONTINUE_RUN;
         }
         if (SETTINGS.contains(position)) return MenuAction.SETTINGS;
@@ -181,13 +191,13 @@ public final class MainScreen extends ScreenAdapter {
         AudioManager.I().playUpgradeSelected();
         switch (action) {
             case NEW_RUN:
-                RunSaveManager.I().clear();
+                runSaves.clear();
                 SlotScreen.requestNewRun();
-                ScreenManager.I().setScreen(SlotScreen.class);
+                screens.setScreen(SlotScreen.class);
                 break;
             case CONTINUE_RUN:
                 SlotScreen.requestContinueRun();
-                ScreenManager.I().setScreen(SlotScreen.class);
+                screens.setScreen(SlotScreen.class);
                 break;
             case SETTINGS:
                 settingsMenu.open();
@@ -242,7 +252,7 @@ public final class MainScreen extends ScreenAdapter {
         ));
 
         drawButton(NEW_RUN, newRunText, MenuAction.NEW_RUN, true, delta);
-        boolean canContinue = RunSaveManager.I().hasSave();
+        boolean canContinue = runSaves.hasSave();
         drawButton(
             CONTINUE_RUN,
             canContinue ? continueRunText : continueRunDisabledText,

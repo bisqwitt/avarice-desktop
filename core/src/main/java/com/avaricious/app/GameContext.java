@@ -1,4 +1,6 @@
-package com.avaricious.utility;
+package com.avaricious.app;
+
+import com.avaricious.utility.DeviceInfo;
 
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.viewport.FitViewport;

@@ -2,23 +2,21 @@ package com.avaricious.network;
 
 import com.avaricious.network.match.MatchController;
 import com.avaricious.network.matchmaking.MatchmakingController;
+import com.avaricious.app.navigation.ScreenManager;
 
 public class NetworkController {
-
-    private static NetworkController instance;
-
-    public static NetworkController I() {
-        return instance == null ? instance = new NetworkController() : instance;
-    }
 
     private final SocketClient socketClient;
     private final MatchmakingController matchmakingController;
     private final MatchController matchController;
 
-    private NetworkController() {
+    public NetworkController(ScreenManager screens) {
         socketClient = new SocketClient();
-        matchmakingController = new MatchmakingController(socketClient);
-        matchController = new MatchController(socketClient);
+        matchmakingController = new MatchmakingController(
+            socketClient,
+            screens
+        );
+        matchController = new MatchController(socketClient, screens);
     }
 
     public void connect() {

@@ -1,13 +1,7 @@
-package com.avaricious;
+package com.avaricious.game.run;
 
 /** Accumulates gameplay statistics for the currently active round. */
 public final class RoundStats {
-
-    private static RoundStats instance;
-
-    public static RoundStats I() {
-        return instance == null ? instance = new RoundStats() : instance;
-    }
 
     private int symbolsHit;
     private int spins;
@@ -16,7 +10,7 @@ public final class RoundStats {
     private int symbolsCollected;
     private float totalCollectibleClaimTime;
 
-    private RoundStats() {
+    public RoundStats() {
     }
 
     public void reset() {

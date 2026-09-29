@@ -2,23 +2,17 @@ package com.avaricious.components.roundInfoPanel;
 
 import com.avaricious.components.DigitalNumber;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.badlogic.gdx.math.Rectangle;
 
 public class PlayerScores {
-
-    private static PlayerScores instance;
-
-    public static PlayerScores I() {
-        return instance == null ? instance = new PlayerScores() : instance;
-    }
 
     private final DigitalNumber playerScoreNumber = new DigitalNumber(0, Assets.I().lightColor(), 1,
         new Rectangle(1f, 16f, 7 / 14f, 11 / 14f), 0.55f);
     private final DigitalNumber enemyScoreNumber = new DigitalNumber(0, Assets.I().lightColor(), 1,
         new Rectangle(6, 16f, 7 / 14f, 11 / 14f), 0.55f);
 
-    private PlayerScores() {
+    public PlayerScores() {
         playerScoreNumber.getIdleScaleEffect().setAllowed(false);
         enemyScoreNumber.getIdleScaleEffect().setAllowed(false);
 

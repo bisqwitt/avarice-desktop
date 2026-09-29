@@ -1,7 +1,7 @@
 package com.avaricious.components.slot;
 
 import com.avaricious.audio.AudioManager;
-import com.avaricious.RoundStats;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.Automations;
@@ -10,13 +10,17 @@ import com.avaricious.components.popups.NumberPopup;
 import com.avaricious.components.popups.PopupManager;
 import com.avaricious.components.popups.SpadePopup;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.components.roundInfoPanel.RoundTimer;
 import com.avaricious.effects.PulseEffect;
 import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
+import com.avaricious.game.progression.SkillTreeProgress;
+import com.avaricious.game.progression.SkillTreeUnlock;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
-import com.avaricious.utility.GameContext;
+import com.avaricious.utility.CriticalHitValues;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.EconomyScaling;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SeededRandomizer;
@@ -34,6 +38,9 @@ public class BouncingSymbol implements CollectorTarget {
     private static final int COMP_CHIP_REWARD = 1;
     private static final float COLLECTOR_GRACE_PERIOD = 0.12f;
 
+    private final RoundStats roundStats;
+    private final RoundTimer roundTimer;
+    private final SkillTreeProgress skillTree;
     private final Symbol symbol;
     private final TextureRegion texture;
     private final TextureRegion whiteTexture;
@@ -96,11 +103,29 @@ public class BouncingSymbol implements CollectorTarget {
     private final float wobbleSpeed;
     private final float wobbleStrength;
 
-    public BouncingSymbol(Symbol symbol, float x, float y) {
-        this(symbol, x, y, 1f);
+    public BouncingSymbol(
+        RoundStats roundStats,
+        RoundTimer roundTimer,
+        SkillTreeProgress skillTree,
+        Symbol symbol,
+        float x,
+        float y
+    ) {
+        this(roundStats, roundTimer, skillTree, symbol, x, y, 1f);
     }
 
-    public BouncingSymbol(Symbol symbol, float x, float y, float launchPower) {
+    public BouncingSymbol(
+        RoundStats roundStats,
+        RoundTimer roundTimer,
+        SkillTreeProgress skillTree,
+        Symbol symbol,
+        float x,
+        float y,
+        float launchPower
+    ) {
+        this.roundStats = roundStats;
+        this.roundTimer = roundTimer;
+        this.skillTree = skillTree;
         this.symbol = symbol;
         this.texture = Assets.I().getSymbol(symbol);
         this.whiteTexture = Assets.I().get(symbol.whiteKey());
@@ -239,13 +264,21 @@ public class BouncingSymbol implements CollectorTarget {
 
         disappearTime = 0f;
         claimed = true;
-        RoundStats.I().recordSymbolCollected(spawnAge);
+        roundStats.recordSymbolCollected(spawnAge);
 
-        float cashReward = SymbolValues.I().getValue(symbol);
+        float baseReward = SymbolValues.I().getValue(symbol);
+        boolean criticalHit = skillTree.isUnlocked(
+            SkillTreeUnlock.CRITICAL_HIT
+        ) && CriticalHitValues.I().rollCriticalHit();
+        float cashReward = criticalHit
+            ? CriticalHitValues.I().applyCriticalDamage(baseReward)
+            : baseReward;
         ScoreDisplay.I().addToScore(cashReward);
         PopupManager.I().spawnNumber(new NumberPopup(
             cashReward,
-            Assets.I().getSymbolColor(symbol),
+            criticalHit
+                ? new Color(1f, 0.22f, 0.42f, 1f)
+                : Assets.I().getSymbolColor(symbol),
             new Rectangle(
                 getCenterX() - 0.22f,
                 getCenterY() + 0.20f,
@@ -275,27 +308,26 @@ public class BouncingSymbol implements CollectorTarget {
         );
 
         spawnSpade(0.75f);
-
-        int extraSpadeChance =
-            CollectibleValues.I().getExtraSpadeSpawnChance();
-
-        if (
-            extraSpadeChance >= 100 ||
-                extraSpadeChance > 0 &&
-                    SeededRandomizer.get().nextFloat() * 100f < extraSpadeChance
-        ) {
-            spawnSpade(0.45f);
-        }
-
+        tryGainTime();
         trySpawnCashChip();
 
         AudioManager.I().playCollect(COMP_CHIP_REWARD);
+        if (criticalHit) {
+            PopupManager.I().spawnStatisticHit(
+                Assets.I().get(AssetKey.CRITICAL_HIT),
+                getCenterX(),
+                getCenterY() + 0.95f
+            );
+            AudioManager.I().playCriticalHit(0);
+        }
         impactFlash = 1f;
 
         return true;
     }
 
     private void trySpawnCashChip() {
+        if (!skillTree.isUnlocked(SkillTreeUnlock.CASH_CHIP_DROP)) return;
+
         int chance = CollectibleValues.I().getCashChipSpawnChance();
         if (chance <= 0 ||
             chance < 100 && SeededRandomizer.get().nextFloat() * 100f >= chance) {
@@ -310,6 +342,25 @@ public class BouncingSymbol implements CollectorTarget {
             reward,
             getCenterX(),
             getCenterY()
+        );
+    }
+
+    private void tryGainTime() {
+        if (!skillTree.rollTimeGain()) return;
+
+        roundTimer.addSeconds(skillTree.getTimeGainSeconds());
+        PopupManager.I().spawnStatisticHit(
+            Assets.I().get(AssetKey.PLUS_SYMBOL),
+            getCenterX(),
+            getCenterY() + 1.28f
+        );
+        ParticleManager.I().create(
+            getCenterX(),
+            getCenterY(),
+            ParticleType.RAINBOW,
+            0.022f,
+            42f,
+            ZIndex.SYMBOL_HIT_PARTICLES
         );
     }
 

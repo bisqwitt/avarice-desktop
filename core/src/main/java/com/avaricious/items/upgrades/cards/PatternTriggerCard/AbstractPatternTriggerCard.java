@@ -28,7 +28,7 @@ public abstract class AbstractPatternTriggerCard extends AbstractCard {
     @Override
     protected void onApply() {
         SlotMachineResultRunner.I().runResult(
-            Seq.of(SlotMachineMatchFinder.I().findMatches())
+            Seq.of(SlotMachineMatchFinder.findMatches())
                 .filter(patternMatch -> patternMatch.getLength() == length())
                 .toList()
         );

@@ -1,7 +1,5 @@
-package com.avaricious.utility.runData;
+package com.avaricious.persistence.rundata;
 
-import com.avaricious.utility.Listener;
-import com.avaricious.utility.RunManager;
 import com.avaricious.utility.Seq;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
@@ -12,12 +10,6 @@ import java.util.ArrayList;
 
 public class RunDataFileManager {
 
-    private static RunDataFileManager instance;
-
-    public static RunDataFileManager I() {
-        return instance == null ? instance = new RunDataFileManager() : instance;
-    }
-
     private final FileHandle file;
     private final Json json = new Json();
 
@@ -26,15 +18,10 @@ public class RunDataFileManager {
 
     private ArrayList<RunData> runs = new ArrayList<>();
 
-    private RunDataFileManager() {
+    public RunDataFileManager() {
         file = Gdx.files.local("runs.json");
         json.setOutputType(JsonWriter.OutputType.json);
 
-//        observeValue(ScoreDisplay.I()::onChange, scoreState ->
-//            onScoreChange(
-//                RunManager.I().getRoundsManager().getCurrentRound(),
-//                scoreState.sum,
-//                RunManager.I().getRoundsManager().getRoundTimer().msSinceRoundStart()));
         loadRuns();
     }
 
@@ -50,11 +37,16 @@ public class RunDataFileManager {
         }
     }
 
-    public void onScoreChange(int round, float newScore, long msSinceRoundStart) {
-        RunData currentRun = getCurrentRun();
+    public void onScoreChange(
+        String runId,
+        int round,
+        float newScore,
+        long msSinceRoundStart
+    ) {
+        RunData currentRun = getCurrentRun(runId);
 
         if (currentRun == null) {
-            currentRun = new RunData().setRunId(RunManager.I().getRunId());
+            currentRun = new RunData().setRunId(runId);
             runs.add(currentRun);
         }
 
@@ -62,9 +54,9 @@ public class RunDataFileManager {
         isDirty = true;
     }
 
-    public RunData findOpponentsRun() {
+    public RunData findOpponentsRun(String currentRunId) {
         RunData opponentsRun = Seq.of(runs)
-            .filter(run -> !run.runId.equals(RunManager.I().getRunId()))
+            .filter(run -> !run.runId.equals(currentRunId))
             .findAnyOrNull();
 
         return opponentsRun == null ? RunData.defaultRun() : opponentsRun;
@@ -80,9 +72,9 @@ public class RunDataFileManager {
         clearUnfinishedRuns();
     }
 
-    private RunData getCurrentRun() {
+    private RunData getCurrentRun(String runId) {
         return Seq.of(runs)
-            .filter(runData -> runData.runId.equals(RunManager.I().getRunId()))
+            .filter(runData -> runData.runId.equals(runId))
             .findAnyOrNull();
     }
 
@@ -100,16 +92,6 @@ public class RunDataFileManager {
         }).toList();
 
         isDirty = true;
-    }
-
-    private <T> void observeValue(
-        Listener<Listener<T>> register,
-        Listener<T> setter
-    ) {
-        register.accept(value -> {
-            setter.accept(value);
-            isDirty = true;
-        });
     }
 
 }

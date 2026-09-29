@@ -1,6 +1,6 @@
 package com.avaricious.components.slot;
 
-import com.avaricious.RoundStats;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.popups.CreditNumberPopup;
@@ -10,7 +10,7 @@ import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.GameContext;
+import com.avaricious.app.GameContext;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.TextureDrawing;
 import com.avaricious.utility.ZIndex;
@@ -33,6 +33,7 @@ public class CashChipCollectible implements CollectorTarget {
     private final TextureRegion shadow = Assets.I().get(AssetKey.POKER_CHIP_SHADOW);
     private final TextureRegion glow = Assets.I().get(AssetKey.WHITE_PIXEL);
     private final float reward;
+    private final RoundStats roundStats;
 
     private float x;
     private float y;
@@ -46,7 +47,13 @@ public class CashChipCollectible implements CollectorTarget {
     private boolean claimed;
     private boolean finished;
 
-    public CashChipCollectible(float reward, float x, float y) {
+    public CashChipCollectible(
+        RoundStats roundStats,
+        float reward,
+        float x,
+        float y
+    ) {
+        this.roundStats = roundStats;
         this.reward = reward;
         this.x = x;
         this.y = y;
@@ -97,7 +104,7 @@ public class CashChipCollectible implements CollectorTarget {
 
         claimed = true;
         disappearTime = 0f;
-        RoundStats.I().recordCollectibleClaim(age);
+        roundStats.recordCollectibleClaim(age);
         ScoreDisplay.I().addToScore(reward);
         PopupManager.I().spawnNumber(new CreditNumberPopup(
             reward,

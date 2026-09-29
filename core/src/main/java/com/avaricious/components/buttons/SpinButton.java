@@ -5,18 +5,27 @@ import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
-import com.avaricious.utility.RunManager;
 import com.avaricious.utility.ZIndex;
 import com.badlogic.gdx.math.Rectangle;
 
+import java.util.function.BooleanSupplier;
+
 public class SpinButton extends DisablableButton {
 
-    public SpinButton(Runnable onButtonPressedRunnable, Rectangle buttonRectangle, int key) {
+    private final BooleanSupplier canSpin;
+
+    public SpinButton(
+        Runnable onButtonPressedRunnable,
+        BooleanSupplier canSpin,
+        Rectangle buttonRectangle,
+        int key
+    ) {
         super(onButtonPressedRunnable,
             Assets.I().get(AssetKey.SPIN_BUTTON),
             Assets.I().get(AssetKey.SPIN_BUTTON_PRESSED),
             Assets.I().get(AssetKey.SPIN_BUTTON),
             buttonRectangle, key, ZIndex.BUTTON_BOARD);
+        this.canSpin = canSpin;
     }
 
     @Override
@@ -24,7 +33,7 @@ public class SpinButton extends DisablableButton {
         return !SlotMachine.I().isStale()
             || !Automations.I().getQuickSpin().isActive()
                 && BouncingSymbolManager.I().hasUnclaimedCollectibles()
-            || !RunManager.I().getRoundsManager().canSpin();
+            || !canSpin.getAsBoolean();
     }
 
     @Override

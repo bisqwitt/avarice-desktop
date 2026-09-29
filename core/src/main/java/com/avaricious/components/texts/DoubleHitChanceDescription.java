@@ -2,7 +2,7 @@ package com.avaricious.components.texts;
 
 import com.avaricious.utility.DoubleHitValues;
 
-/** Displays Double Hit chance as current percentage -> next percentage. */
+/** Displays Double Trigger chance as current percentage -> next percentage. */
 public final class DoubleHitChanceDescription
     extends ExtraCollectibleChanceDescription {
 
