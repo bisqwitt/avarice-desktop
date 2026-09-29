@@ -15,7 +15,7 @@ public class LoadingScreen extends ScreenAdapter {
     public void render(float delta) {
         if (Assets.I().update() && !switched) {
             switched = true;
-            ScreenManager.I().setScreen(SlotScreen.class);
+            ScreenManager.I().setScreen(MainScreen.class);
             return;
         }
 

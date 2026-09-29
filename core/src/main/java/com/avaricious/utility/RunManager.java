@@ -30,6 +30,24 @@ public class RunManager {
         roundsManager.startNewRun();
     }
 
+    public void continueRun(int round, float secondsRemaining) {
+        continueRun(
+            round,
+            secondsRemaining,
+            RoundsManager.RoundOutcome.IN_PROGRESS
+        );
+    }
+
+    public void continueRun(
+        int round,
+        float secondsRemaining,
+        RoundsManager.RoundOutcome outcome
+    ) {
+        runId = UUID.randomUUID().toString();
+        opponentsRun = RunDataFileManager.I().findOpponentsRun();
+        roundsManager.restoreRun(round, secondsRemaining, outcome);
+    }
+
     public RoundsManager getRoundsManager() {
         return roundsManager;
     }

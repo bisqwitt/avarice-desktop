@@ -4,6 +4,9 @@ import com.avaricious.screens.LoadingScreen;
 import com.avaricious.screens.ScreenManager;
 import com.avaricious.utility.DeviceInfo;
 import com.avaricious.utility.GameContext;
+import com.avaricious.utility.GameSettings;
+import com.avaricious.utility.MouseCursor;
+import com.avaricious.utility.RunSaveManager;
 import com.avaricious.utility.SeededRandomizer;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -53,6 +56,7 @@ public class Main extends Game {
             Gdx.graphics.newCursor(pixmap, 0, 0);
 
         Gdx.graphics.setCursor(emptyCursor);
+        MouseCursor.I().capture();
 
         pixmap.dispose();
     }
@@ -81,6 +85,8 @@ public class Main extends Game {
 
     @Override
     public void dispose() {
+        RunSaveManager.I().saveNow();
+        GameSettings.I().flush();
         super.dispose();
 
         if (batch != null) {

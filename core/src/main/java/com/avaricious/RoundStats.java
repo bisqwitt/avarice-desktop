@@ -28,6 +28,25 @@ public final class RoundStats {
         totalCollectibleClaimTime = 0f;
     }
 
+    public void restore(
+        int savedSymbolsHit,
+        int savedSpins,
+        float savedMoneyGained,
+        int savedCollectiblesClaimed,
+        int savedSymbolsCollected,
+        float savedTotalCollectibleClaimTime
+    ) {
+        symbolsHit = Math.max(0, savedSymbolsHit);
+        spins = Math.max(0, savedSpins);
+        moneyGained = Math.max(0f, savedMoneyGained);
+        collectiblesClaimed = Math.max(0, savedCollectiblesClaimed);
+        symbolsCollected = Math.max(0, savedSymbolsCollected);
+        totalCollectibleClaimTime = Math.max(
+            0f,
+            savedTotalCollectibleClaimTime
+        );
+    }
+
     public void recordSymbolHit() {
         symbolsHit++;
     }
@@ -64,6 +83,14 @@ public final class RoundStats {
 
     public int getSymbolsCollected() {
         return symbolsCollected;
+    }
+
+    public int getCollectiblesClaimed() {
+        return collectiblesClaimed;
+    }
+
+    public float getTotalCollectibleClaimTime() {
+        return totalCollectibleClaimTime;
     }
 
     public float getAverageCollectibleClaimTime() {

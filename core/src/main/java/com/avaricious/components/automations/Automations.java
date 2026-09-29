@@ -25,8 +25,6 @@ public class Automations {
     private final Luck luck = new Luck();
     private final XpMultiplier xpMultiplier = new XpMultiplier();
     private final CollectorCapacity collectorCapacity = new CollectorCapacity();
-    private final CursorTargetRadius cursorTargetRadius =
-        new CursorTargetRadius();
     private final PatternUnlockUpgrade patternUnlock =
         new PatternUnlockUpgrade();
 
@@ -134,10 +132,6 @@ public class Automations {
 
     public CollectorCapacity getCollectorCapacity() {
         return collectorCapacity;
-    }
-
-    public CursorTargetRadius getCursorTargetRadius() {
-        return cursorTargetRadius;
     }
 
     public PatternUnlockUpgrade getPatternUnlock() {

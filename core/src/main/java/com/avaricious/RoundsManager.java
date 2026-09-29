@@ -36,6 +36,25 @@ public class RoundsManager extends Observable<Integer> {
         nextRound();
     }
 
+    public void restoreRun(int round, float secondsRemaining) {
+        restoreRun(round, secondsRemaining, RoundOutcome.IN_PROGRESS);
+    }
+
+    public void restoreRun(
+        int round,
+        float secondsRemaining,
+        RoundOutcome savedOutcome
+    ) {
+        int restoredRound = Math.max(1, round);
+        RoundStats.I().reset();
+        roundTarget = calculateTarget(restoredRound);
+        outcome = savedOutcome == null
+            ? RoundOutcome.IN_PROGRESS
+            : savedOutcome;
+        roundTimer.restore(secondsRemaining);
+        setCurrentRound(restoredRound);
+    }
+
     public void nextRound() {
         int nextRound = currentRound + 1;
         RoundStats.I().reset();

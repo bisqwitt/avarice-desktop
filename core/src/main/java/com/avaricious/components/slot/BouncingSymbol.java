@@ -27,30 +27,20 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector2;
 
 public class BouncingSymbol implements CollectorTarget {
 
     private static final int COMP_CHIP_REWARD = 1;
     private static final float COLLECTOR_GRACE_PERIOD = 0.12f;
-    private static final float MAX_HOVER_HEALTH = 1f;
-    private static final float HOVER_CLAIM_DURATION = 1f;
-    private static final float MIN_HOVER_DAMAGE_MULTIPLIER = 0.50f;
-    private static final float MAX_HOVER_DAMAGE_MULTIPLIER = 1.65f;
-    private static final float DRAIN_MOVEMENT_SCALE = 0.62f;
-    private static final float DRAIN_SHAKE_X = 0.030f;
-    private static final float DRAIN_SHAKE_Y = 0.022f;
-    private static final float CLICK_CLAIM_DURATION = 0.68f;
-    private static final float CLICK_CONFIRM_DURATION = 0.26f;
-    private static final float CLICK_BAR_DRAIN_DURATION = 0.14f;
 
     private final Symbol symbol;
     private final TextureRegion texture;
     private final TextureRegion whiteTexture;
     private final TextureRegion shadowTexture;
-    private final TextureRegion healthBarTexture;
+    private final TextureRegion statusBarTexture;
 
     private final PulseEffect pulseEffect = new PulseEffect();
-    private final float drainVisualPhase;
 
     private float x;
     private float y;
@@ -65,13 +55,10 @@ public class BouncingSymbol implements CollectorTarget {
     private float spawnAge = 0f;
     private float impactFlash = 0f;
     private float hoverAmount = 0f;
-    private float hoverHealth = MAX_HOVER_HEALTH;
-    private float clickClaimStartHealth = MAX_HOVER_HEALTH;
     private float collisionCooldown = 0f;
     private boolean hovered = false;
-    private boolean clickClaimed = false;
 
-    /* Tracks active, non-draining time before this symbol expires. */
+    /* Tracks how long the symbol remains available to claim. */
     private float lifetime = 0f;
 
     /*
@@ -95,7 +82,7 @@ public class BouncingSymbol implements CollectorTarget {
     /*
      * Maximum time the player has to claim the symbol.
      */
-    private static final float MAX_LIFETIME = 6f;
+    private static final float MAX_LIFETIME = 4f;
 
     /*
      * How long the symbol takes to shrink away
@@ -118,7 +105,7 @@ public class BouncingSymbol implements CollectorTarget {
         this.texture = Assets.I().getSymbol(symbol);
         this.whiteTexture = Assets.I().get(symbol.whiteKey());
         this.shadowTexture = Assets.I().get(symbol.shadowKey());
-        this.healthBarTexture = Assets.I().get(AssetKey.WHITE_PIXEL);
+        this.statusBarTexture = Assets.I().get(AssetKey.WHITE_PIXEL);
 
         this.x = x;
         this.y = y;
@@ -143,7 +130,6 @@ public class BouncingSymbol implements CollectorTarget {
          */
         wobbleSpeed = MathUtils.random(7f, 12f);
         wobbleStrength = MathUtils.random(4f, 10f);
-        drainVisualPhase = MathUtils.random(0f, MathUtils.PI2);
 
         /*
          * Bouncing symbol pulse settings.
@@ -156,21 +142,19 @@ public class BouncingSymbol implements CollectorTarget {
 
     public void update(float delta) {
 
-        boolean draining = hovered && !claimed;
         spawnAge += delta;
         collisionCooldown = Math.max(0f, collisionCooldown - delta);
         impactFlash = Math.max(0f, impactFlash - delta * 5.5f);
         hoverAmount = MathUtils.lerp(
             hoverAmount,
-            draining ? 1f : 0f,
+            hovered && !claimed ? 1f : 0f,
             Math.min(1f, delta * 12f)
         );
-        hovered = false;
 
         /*
          * The symbol continues moving while it is available.
          */
-        updatePhysics(delta, draining);
+        updatePhysics(delta);
 
         pulseEffect.update(delta);
 
@@ -182,9 +166,7 @@ public class BouncingSymbol implements CollectorTarget {
          * count down its available lifetime.
          */
         if (!claimed) {
-            if (!draining) {
-                lifetime += delta;
-            }
+            lifetime += delta;
 
             if (lifetime >= MAX_LIFETIME) {
                 miss();
@@ -201,12 +183,12 @@ public class BouncingSymbol implements CollectorTarget {
 
         updateScale();
 
-        if (disappearTime >= getDisappearDuration()) {
+        if (disappearTime >= DISAPPEAR_DURATION) {
             finished = true;
         }
     }
 
-    private void updatePhysics(float delta, boolean draining) {
+    private void updatePhysics(float delta) {
 //        if (claimed) {
 //            return;
 //        }
@@ -229,14 +211,13 @@ public class BouncingSymbol implements CollectorTarget {
         /*
          * Movement
          */
-        float movementScale = draining ? DRAIN_MOVEMENT_SCALE : 1f;
-        x += velocityX * delta * movementScale;
-        y += velocityY * delta * movementScale;
+        x += velocityX * delta;
+        y += velocityY * delta;
 
         /*
          * Rotation
          */
-        rotation += rotationVelocity * delta * movementScale;
+        rotation += rotationVelocity * delta;
 
         /*
          * Small organic wobble.
@@ -246,47 +227,15 @@ public class BouncingSymbol implements CollectorTarget {
             * delta;
     }
 
-    boolean updateHoverHealth(float hoverStrength, float delta) {
-        this.hovered = hoverStrength >= 0f && !claimed;
-        if (claimed) {
-            return false;
-        }
-
-        if (this.hovered) {
-            float centeredStrength = MathUtils.clamp(hoverStrength, 0f, 1f);
-            centeredStrength = centeredStrength * centeredStrength
-                * (3f - 2f * centeredStrength);
-            float damageMultiplier = MathUtils.lerp(
-                MIN_HOVER_DAMAGE_MULTIPLIER,
-                MAX_HOVER_DAMAGE_MULTIPLIER,
-                centeredStrength
-            );
-            hoverHealth = Math.max(
-                0f,
-                hoverHealth
-                    - delta
-                    * damageMultiplier
-                    / HOVER_CLAIM_DURATION
-            );
-            if (hoverHealth <= 0f) return collect();
-        }
-
-        return false;
-    }
-
-    boolean collectImmediately() {
-        if (claimed || finished) return false;
-
-        clickClaimed = true;
-        clickClaimStartHealth = hoverHealth;
-        hoverHealth = 0f;
-        return collect();
+    boolean handleInput(Vector2 mouse, boolean touching) {
+        hovered = !claimed && getHitbox().contains(mouse);
+        return touching && hovered && collect();
     }
 
     private boolean collect() {
         if (claimed || finished) return false;
 
-        pulseEffect.pulse(clickClaimed ? 2.05f : 1.65f);
+        pulseEffect.pulse(1.65f);
 
         disappearTime = 0f;
         claimed = true;
@@ -388,6 +337,18 @@ public class BouncingSymbol implements CollectorTarget {
 
         AudioManager.I().playMiss();
         finished = true;
+    }
+
+    private Rectangle getHitbox() {
+        float width = getWidth() * 2f;
+        float height = getHeight() * 2f;
+
+        return new Rectangle(
+            getCenterX() - width / 2f,
+            getCenterY() - height / 2f,
+            width,
+            height
+        );
     }
 
     private void handleHorizontalCollisions() {
@@ -520,41 +481,18 @@ public class BouncingSymbol implements CollectorTarget {
             return;
         }
 
-        if (clickClaimed && disappearTime < CLICK_CONFIRM_DURATION) {
-            float confirmProgress = MathUtils.clamp(
-                disappearTime / CLICK_CONFIRM_DURATION,
-                0f,
-                1f
-            );
-            float punch = MathUtils.sin(confirmProgress * MathUtils.PI) * 0.28f;
-            scale = 1f + punch;
-            return;
-        }
-
-        float collapseStart = clickClaimed ? CLICK_CONFIRM_DURATION : 0f;
-        float collapseDuration = getDisappearDuration() - collapseStart;
         float progress = MathUtils.clamp(
-            (disappearTime - collapseStart) / collapseDuration,
+            disappearTime / DISAPPEAR_DURATION,
             0f,
             1f
         );
 
-        if (!clickClaimed && progress < 0.18f) {
+        if (progress < 0.18f) {
             scale = MathUtils.lerp(1f, 1.55f, progress / 0.18f);
         } else {
-            float collapse = clickClaimed
-                ? progress
-                : (progress - 0.18f) / 0.82f;
-            scale = MathUtils.lerp(
-                clickClaimed ? 1f : 1.55f,
-                0f,
-                collapse * collapse
-            );
+            float collapse = (progress - 0.18f) / 0.82f;
+            scale = MathUtils.lerp(1.55f, 0f, collapse * collapse);
         }
-    }
-
-    private float getDisappearDuration() {
-        return clickClaimed ? CLICK_CLAIM_DURATION : DISAPPEAR_DURATION;
     }
 
     public void triggerImpact(float force) {
@@ -601,19 +539,11 @@ public class BouncingSymbol implements CollectorTarget {
         float width = getWidth();
         float height = getHeight();
 
-        float drainShakeAmount = hoverAmount * hoverAmount;
-        float visualOffsetX = MathUtils.sin(
-            spawnAge * 72f + drainVisualPhase
-        ) * DRAIN_SHAKE_X * drainShakeAmount;
-        float visualOffsetY = MathUtils.sin(
-            spawnAge * 91f + drainVisualPhase * 1.61f
-        ) * DRAIN_SHAKE_Y * drainShakeAmount;
-
         float centerX =
-            x + SlotMachine.CELL_W / 2f + visualOffsetX;
+            x + SlotMachine.CELL_W / 2f;
 
         float centerY =
-            y + SlotMachine.CELL_H / 2f + visualOffsetY;
+            y + SlotMachine.CELL_H / 2f;
 
         float drawX =
             centerX - width / 2f;
@@ -638,20 +568,12 @@ public class BouncingSymbol implements CollectorTarget {
         float glowY =
             centerY - glowHeight / 2f;
 
-        float drainRotation = MathUtils.sin(
-            spawnAge * 67f + drainVisualPhase * 0.73f
-        ) * 1.8f * drainShakeAmount;
         float finalRotation =
-            rotation + pulseEffect.getRotation() + drainRotation;
+            rotation + pulseEffect.getRotation();
 
-        float renderedMovementScale = MathUtils.lerp(
-            1f,
-            DRAIN_MOVEMENT_SCALE,
-            hoverAmount
-        );
         float speed = (float) Math.sqrt(
             velocityX * velocityX + velocityY * velocityY
-        ) * renderedMovementScale;
+        );
         float urgency = getUrgency();
 
         /* Motion echoes make fast launches legible without extra textures. */
@@ -661,13 +583,12 @@ public class BouncingSymbol implements CollectorTarget {
             Pencil.I().addDrawing(
                 new TextureDrawing(
                     whiteTexture,
-                    drawX - velocityX * trailOffset * renderedMovementScale,
-                    drawY - velocityY * trailOffset * renderedMovementScale,
+                    drawX - velocityX * trailOffset,
+                    drawY - velocityY * trailOffset,
                     width,
                     height,
                     1f - i * 0.08f,
-                    finalRotation
-                        - rotationVelocity * trailOffset * renderedMovementScale,
+                    finalRotation - rotationVelocity * trailOffset,
                     ZIndex.SLOT_MACHINE,
                     new Color(1f, 1f, 1f, trailAlpha / i)
                 )
@@ -726,51 +647,15 @@ public class BouncingSymbol implements CollectorTarget {
             )
         );
 
-        boolean showingClickConfirmation = clickClaimed
-            && disappearTime < CLICK_CONFIRM_DURATION;
         if (!claimed) {
             drawLifetimeBar(drawX, drawY, width, height);
-            drawHealthBar(
-                drawX,
-                drawY,
-                width,
-                height,
-                hoverHealth / MAX_HOVER_HEALTH
-            );
-        } else if (showingClickConfirmation) {
-            float drainProgress = MathUtils.clamp(
-                disappearTime / CLICK_BAR_DRAIN_DURATION,
-                0f,
-                1f
-            );
-            drawHealthBar(
-                drawX,
-                drawY,
-                width,
-                height,
-                clickClaimStartHealth
-                    / MAX_HOVER_HEALTH
-                    * (1f - drainProgress)
-            );
         }
 
-        float drainFlicker = hoverAmount * (
-            0.16f +
-                (0.5f + 0.5f * MathUtils.sin(
-                    spawnAge * 27f + drainVisualPhase
-                )) * 0.26f
-        );
-        if (impactFlash > 0f || claimed || drainFlicker > 0.01f) {
-            float claimFlashDuration = clickClaimed
-                ? CLICK_CONFIRM_DURATION
-                : 0.16f;
+        if (impactFlash > 0f || claimed) {
             float claimFlash = claimed
-                ? Math.max(0f, 1f - disappearTime / claimFlashDuration)
+                ? Math.max(0f, 1f - disappearTime / 0.16f)
                 : 0f;
-            float flash = Math.max(
-                drainFlicker,
-                Math.max(impactFlash, claimFlash)
-            );
+            float flash = Math.max(impactFlash, claimFlash);
 
             Pencil.I().addDrawing(
                 new TextureDrawing(
@@ -779,64 +664,21 @@ public class BouncingSymbol implements CollectorTarget {
                     drawY,
                     width,
                     height,
-                    1f + flash * (clickClaimed ? 0.32f : 0.22f),
+                    1f + flash * 0.22f,
                     finalRotation,
                     ZIndex.SLOT_MACHINE_FOREGROUND,
-                    new Color(
-                        1f,
-                        1f,
-                        1f,
-                        flash * (clickClaimed ? 1f : 0.82f)
-                    )
+                    new Color(1f, 1f, 1f, flash * 0.82f)
                 )
             );
         }
     }
 
-    private void drawHealthBar(
+    private void drawLifetimeBar(
         float drawX,
         float drawY,
         float width,
-        float height,
-        float healthRatio
+        float height
     ) {
-        healthRatio = MathUtils.clamp(healthRatio, 0f, 1f);
-        float barWidth = Math.max(0.34f, width * 0.72f);
-        float barHeight = 0.055f;
-        float barX = drawX + (width - barWidth) * 0.5f;
-        float barY = drawY + height + 0.09f;
-
-        Pencil.I().addDrawing(new TextureDrawing(
-            healthBarTexture,
-            barX - 0.025f,
-            barY - 0.02f,
-            barWidth + 0.05f,
-            barHeight + 0.04f,
-            ZIndex.SYMBOL_STATUS,
-            new Color(0.015f, 0.022f, 0.026f, 0.78f)
-        ));
-
-        if (healthRatio <= 0f) return;
-
-        float damage = 1f - healthRatio;
-        Pencil.I().addDrawing(new TextureDrawing(
-            healthBarTexture,
-            barX,
-            barY,
-            barWidth * healthRatio,
-            barHeight,
-            ZIndex.SYMBOL_STATUS,
-            new Color(
-                1f,
-                0.78f - damage * 0.43f,
-                0.22f - damage * 0.08f,
-                0.94f
-            )
-        ));
-
-    }
-
-    private void drawLifetimeBar(float drawX, float drawY, float width, float height) {
         float remaining = 1f - MathUtils.clamp(
             lifetime / MAX_LIFETIME,
             0f,
@@ -845,10 +687,10 @@ public class BouncingSymbol implements CollectorTarget {
         float barWidth = Math.max(0.34f, width * 0.72f);
         float barHeight = 0.032f;
         float barX = drawX + (width - barWidth) * 0.5f;
-        float barY = drawY + height + 0.20f;
+        float barY = drawY + height + 0.09f;
 
         Pencil.I().addDrawing(new TextureDrawing(
-            healthBarTexture,
+            statusBarTexture,
             barX - 0.025f,
             barY - 0.015f,
             barWidth + 0.05f,
@@ -861,7 +703,7 @@ public class BouncingSymbol implements CollectorTarget {
 
         float danger = 1f - remaining;
         Pencil.I().addDrawing(new TextureDrawing(
-            healthBarTexture,
+            statusBarTexture,
             barX,
             barY,
             barWidth * remaining,

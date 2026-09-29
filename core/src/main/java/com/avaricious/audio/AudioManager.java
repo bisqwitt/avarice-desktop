@@ -1,6 +1,7 @@
 package com.avaricious.audio;
 
 import com.avaricious.DevTools;
+import com.avaricious.utility.GameSettings;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.math.MathUtils;
@@ -8,7 +9,7 @@ import com.badlogic.gdx.utils.Timer;
 
 public class AudioManager {
 
-    private static final float MASTER_VOLUME = 0.2f;
+    private static final float EFFECTS_MASTER_VOLUME = 0.2f;
 
     private static AudioManager instance;
 
@@ -20,15 +21,14 @@ public class AudioManager {
 
     private final LoopingSound payout = new LoopingSound(
         "payout-start.wav", "payout-loop.wav", "payout-end.wav",
-        0.9f * MASTER_VOLUME, 1f
+        0.9f * EFFECTS_MASTER_VOLUME, 1f
     );
 
     // 0 = base, 2 = whole step, 3 = minor third, 5 = fourth, 7 = fifth
     private static final float[] HIT_LADDER = {0f, 2f, 3f, 5f, 7f};
 
-    private boolean muted = false;
-
     private AudioManager() {
+        payout.setVolumeMultiplier(GameSettings.I().getMasterVolume());
     }
 
     public void playHit(float streak) {
@@ -110,11 +110,13 @@ public class AudioManager {
     }
 
     public void startPayout() {
-        if (!isMuted()) payout.start();
+        if (isEffectsMuted()) return;
+        payout.setVolumeMultiplier(GameSettings.I().getMasterVolume());
+        payout.start();
     }
 
     public void stopPayout() {
-        payout.stop();
+        payout.stop(!isEffectsMuted());
     }
 
     private void playHitInternal(float streak, float semitoneOffset) {
@@ -125,14 +127,24 @@ public class AudioManager {
         float semitones = HIT_LADDER[idx] + semitoneOffset;
         float pitch = (float) Math.pow(2f, semitones / 12f);
 
-        hit.play(volume, pitch, 0f);
+        hit.play(
+            volume * GameSettings.I().getMasterVolume(),
+            pitch,
+            0f
+        );
     }
 
     private void playOneShot(float volume, float semitones) {
         if (isMuted()) return;
 
         float pitch = (float) Math.pow(2f, semitones / 12f);
-        hit.play(volume * MASTER_VOLUME, pitch, 0f);
+        hit.play(
+            volume
+                * EFFECTS_MASTER_VOLUME
+                * GameSettings.I().getMasterVolume(),
+            pitch,
+            0f
+        );
     }
 
     private void scheduleOneShot(
@@ -149,23 +161,44 @@ public class AudioManager {
     }
 
     public void mute() {
-        muted = true;
-        payout.stop();
+        setEffectsMuted(true);
     }
 
     public void unmute() {
-        muted = false;
+        setEffectsMuted(false);
     }
 
     public void toggleMute() {
-        if (muted) {
-            unmute();
-        } else {
-            mute();
-        }
+        setEffectsMuted(!GameSettings.I().isEffectsMuted());
     }
 
     public boolean isMuted() {
-        return muted || DevTools.audioMuted();
+        return isEffectsMuted();
+    }
+
+    public void setMasterVolume(float volume) {
+        GameSettings.I().setMasterVolume(volume);
+        payout.setVolumeMultiplier(GameSettings.I().getMasterVolume());
+    }
+
+    public float getMasterVolume() {
+        return GameSettings.I().getMasterVolume();
+    }
+
+    public void setEffectsMuted(boolean muted) {
+        GameSettings.I().setEffectsMuted(muted);
+        if (muted) payout.stop(false);
+    }
+
+    public boolean isEffectsMuted() {
+        return GameSettings.I().isEffectsMuted() || DevTools.audioMuted();
+    }
+
+    public void setMusicMuted(boolean muted) {
+        GameSettings.I().setMusicMuted(muted);
+    }
+
+    public boolean isMusicMuted() {
+        return GameSettings.I().isMusicMuted() || DevTools.audioMuted();
     }
 }

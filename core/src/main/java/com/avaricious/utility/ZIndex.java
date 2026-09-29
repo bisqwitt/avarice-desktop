@@ -30,7 +30,9 @@ public enum ZIndex {
     CHEST_MODAL_BACKDROP(21),
     CHEST_MODAL(22),
     UNFOLDED_DECK_CARD(25),
-    CROSSHAIR(26);
+    CROSSHAIR(26),
+    SETTINGS_BACKDROP(27),
+    SETTINGS_MENU(28);
 
     private final int index;
 

@@ -48,6 +48,18 @@ import com.crashinvaders.vfx.effects.OldTvEffect;
 
 public class SlotScreen extends ScreenAdapter {
 
+    private enum StartMode { NEW_RUN, CONTINUE_RUN }
+
+    private static StartMode requestedStartMode = StartMode.NEW_RUN;
+
+    public static void requestNewRun() {
+        requestedStartMode = StartMode.NEW_RUN;
+    }
+
+    public static void requestContinueRun() {
+        requestedStartMode = StartMode.CONTINUE_RUN;
+    }
+
     private final Main app;
 
     private final ScreenShake screenShake;
@@ -57,6 +69,8 @@ public class SlotScreen extends ScreenAdapter {
     private final LevelUpWindow levelUpWindow = new LevelUpWindow();
 
     private final RoundResultWindow roundResultWindow = new RoundResultWindow();
+
+    private final SettingsMenu settingsMenu = new SettingsMenu();
 
     private final ButtonBoard buttonBoard = ButtonBoard.I()
         .init(
@@ -82,9 +96,8 @@ public class SlotScreen extends ScreenAdapter {
     private final InputProcessor shopScrollInput = new InputAdapter() {
         @Override
         public boolean scrolled(float amountX, float amountY) {
-            if (shop.isShowing()) {
-                scrollMouse.set(Gdx.input.getX(), Gdx.input.getY());
-                app.getViewport().unproject(scrollMouse);
+            if (shop.isShowing() && !settingsMenu.isShowing()) {
+                scrollMouse.set(mouse);
                 return shop.scrollItems(amountY, scrollMouse);
             }
             return false;
@@ -217,8 +230,21 @@ public class SlotScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-        resetRunState();
-        drawStartingHand();
+        boolean continued = requestedStartMode == StartMode.CONTINUE_RUN
+            && restoreRunState();
+        requestedStartMode = StartMode.NEW_RUN;
+
+        if (!continued) {
+            resetRunState();
+            drawStartingHand();
+        } else {
+            RoundsManager restoredRounds = RunManager.I().getRoundsManager();
+            if (restoredRounds.getOutcome()
+                    != RoundsManager.RoundOutcome.IN_PROGRESS
+                || restoredRounds.getRoundTimer().timerEnded()) {
+                onSpinResolved();
+            }
+        }
 
         Timer.schedule(
             new Timer.Task() {
@@ -241,7 +267,20 @@ public class SlotScreen extends ScreenAdapter {
         CollectorManager.I().reset();
         BouncingSymbolManager.I().reset();
         TicketPressSystem.I().reset();
+        VaultManager.I().reset();
         roundResultWindow.hide();
+        RunSaveManager.I().beginNewRun();
+    }
+
+    private boolean restoreRunState() {
+        roundClockActive = false;
+        autoSpinWaitingForCollectibles = false;
+        ChestManager.I().reset();
+        CollectorManager.I().reset();
+        BouncingSymbolManager.I().reset();
+        TicketPressSystem.I().reset();
+        roundResultWindow.hide();
+        return RunSaveManager.I().restore();
     }
 
 
@@ -253,6 +292,7 @@ public class SlotScreen extends ScreenAdapter {
     public void render(float delta) {
 
         RunDataFileManager.I().update(delta);
+        RunSaveManager.I().update(delta);
 
 
         // ------------------------------------------------------------
@@ -297,6 +337,7 @@ public class SlotScreen extends ScreenAdapter {
                 !levelUpShowing &&
                 !roundResultWindow.isShowing() &&
                 !shop.isShowing() &&
+                !settingsMenu.isShowing() &&
                 roundClockActive
         ) {
             boolean timerExpired = RunManager.I()
@@ -331,7 +372,8 @@ public class SlotScreen extends ScreenAdapter {
         if (
             !levelUpShowing &&
             !roundResultWindow.isShowing() &&
-            !shop.isShowing()
+            !shop.isShowing() &&
+            !settingsMenu.isShowing()
         ) {
 
             SlotMachine.I().update(delta);
@@ -535,7 +577,6 @@ public class SlotScreen extends ScreenAdapter {
 
         batch.end();
 
-
         vfxManager.endInputCapture();
         vfxManager.applyEffects();
         vfxManager.renderToScreen(
@@ -569,7 +610,7 @@ public class SlotScreen extends ScreenAdapter {
         }
 
         BouncingSymbolManager.I()
-            .drawFallingSymbols(delta, mouse);
+            .drawFallingSymbols(delta);
         CollectorManager.I().draw();
         ChestManager.I().draw();
         SlotMachine.I()
@@ -603,6 +644,8 @@ public class SlotScreen extends ScreenAdapter {
         levelUpWindow.draw(delta);
 
         roundResultWindow.draw(delta);
+
+        settingsMenu.draw(delta);
 
 
         Pencil.I().draw(
@@ -643,7 +686,6 @@ public class SlotScreen extends ScreenAdapter {
 
 
         batch.end();
-
 
         batch.setColor(Color.BLACK);
     }
@@ -783,13 +825,7 @@ public class SlotScreen extends ScreenAdapter {
 
         handleDeveloperShortcuts();
 
-        mouse.set(
-            Gdx.input.getX(),
-            Gdx.input.getY()
-        );
-
-
-        app.getViewport().unproject(mouse);
+        MouseCursor.I().update(app.getViewport(), mouse);
 
 
         boolean leftClickPressed =
@@ -829,7 +865,15 @@ public class SlotScreen extends ScreenAdapter {
 //        }
 
 
-        if (shop.isShowing()) {
+        boolean settingsConsumedInput = settingsMenu.handleInput(
+            mouse,
+            leftClickPressed,
+            leftClickWasPressed
+        );
+
+        if (settingsConsumedInput) {
+            // The settings panel is modal and owns the pointer while open.
+        } else if (shop.isShowing()) {
 
             shop.handleInput(
                 mouse,
@@ -882,9 +926,7 @@ public class SlotScreen extends ScreenAdapter {
                 BouncingSymbolManager.I()
                     .handleInput(
                         mouse,
-                        leftClickPressed,
-                        leftClickWasPressed,
-                        delta
+                        leftClickPressed
                     );
 
 
@@ -1030,6 +1072,7 @@ public class SlotScreen extends ScreenAdapter {
 
     public boolean onSpinResolved() {
         RoundsManager rounds = RunManager.I().getRoundsManager();
+        VaultManager.I().collectIfMature(rounds.getCurrentRound());
         float cash = ScoreDisplay.I().getScoreNumber();
         float bill = rounds.getRoundTarget();
         RoundsManager.RoundOutcome outcome = rounds.resolveRound(cash);
@@ -1058,6 +1101,7 @@ public class SlotScreen extends ScreenAdapter {
     }
 
     private void restartFailedRun() {
+        RunSaveManager.I().clear();
         resetRunState();
         buttonBoard.setVisible(true);
         roundClockActive = true;
@@ -1248,7 +1292,14 @@ public class SlotScreen extends ScreenAdapter {
     // ============================================================
 
     @Override
+    public void hide() {
+        RunSaveManager.I().saveNow();
+    }
+
+    @Override
     public void dispose() {
+
+        RunSaveManager.I().saveNow();
 
         if (Gdx.input.getInputProcessor() == shopScrollInput) {
             Gdx.input.setInputProcessor(null);

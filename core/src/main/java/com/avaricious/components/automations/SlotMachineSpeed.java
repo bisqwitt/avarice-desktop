@@ -121,6 +121,10 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
         return PROFILES[tier].displayPercent;
     }
 
+    public int getTier() {
+        return tier;
+    }
+
     public int getNextSpeedPercent() {
         return PROFILES[Math.min(tier + 1, PROFILES.length - 1)].displayPercent;
     }

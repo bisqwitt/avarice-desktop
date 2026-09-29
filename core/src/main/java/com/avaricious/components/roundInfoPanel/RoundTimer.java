@@ -13,6 +13,14 @@ public final class RoundTimer {
         elapsedSeconds = 0f;
     }
 
+    public void restore(float savedSecondsRemaining) {
+        secondsRemaining = Math.max(
+            0f,
+            Math.min(ROUND_DURATION_SECONDS, savedSecondsRemaining)
+        );
+        elapsedSeconds = ROUND_DURATION_SECONDS - secondsRemaining;
+    }
+
     /**
      * Advances the clock and returns true only on the frame it expires.
      */

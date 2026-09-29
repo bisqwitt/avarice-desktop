@@ -201,6 +201,16 @@ public class CompChipBar {
         return chipsRequired;
     }
 
+    public void restore(int savedLevel, int savedChips) {
+        level = Math.max(1, savedLevel);
+        chipsRequired = calculateChipsRequired(level);
+        chips = MathUtils.clamp(savedChips, 0, chipsRequired - 1);
+        displayedProgress = getProgress();
+        gainPulse = 0f;
+        levelUpPulse = 0f;
+        shine = 0f;
+    }
+
     public float getProgress() {
         return (float) chips / chipsRequired;
     }

@@ -9,11 +9,13 @@ import com.avaricious.components.automations.AbstractAutomation;
 import com.avaricious.components.automations.AbstractAutomationUpgrade;
 import com.avaricious.components.automations.Automations;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.Symbol;
-import com.avaricious.components.slot.pattern.PatternUnlocks;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
+import com.avaricious.utility.CollectibleValues;
+import com.avaricious.utility.CriticalHitValues;
 import com.avaricious.utility.GameContext;
 import com.avaricious.utility.Pencil;
 import com.avaricious.utility.SymbolValues;
@@ -79,11 +81,10 @@ public final class Shop {
         "DRAG TO MOVE   WHEEL TO SCALE   C TO CENTER", 48f, MUTED, false
     );
     private final GeneratedFabledText hubText = text("CORE", 27f, GOLD, true);
-    private final GeneratedFabledText fruitBranch = branchText("FRUIT");
-    private final GeneratedFabledText luckyBranch = branchText("LUCKY");
-    private final GeneratedFabledText metalBranch = branchText("METAL");
-    private final GeneratedFabledText machineBranch = branchText("MACHINE");
-    private final GeneratedFabledText utilityBranch = branchText("UTILITY");
+    private final GeneratedFabledText symbolsBranch = branchText("SYMBOLS");
+    private final GeneratedFabledText automationBranch =
+        branchText("AUTOMATIONS");
+    private final GeneratedFabledText statsBranch = branchText("STATS");
 
     private final CreditNumber balance = new CreditNumber(
         ScoreDisplay.I().getScoreNumber(),
@@ -124,66 +125,111 @@ public final class Shop {
     }
 
     private void buildTree() {
-        SkillNode lemon = symbolNode("LEMON", Symbol.LEMON, 2f, -4.0f, 1.9f, null);
-        symbolNode("CHERRY", Symbol.CHERRY, 2f, -7.2f, 3.8f, lemon);
-        branches.add(new Branch(fruitBranch, lemon, -2.65f, 1.18f));
-
-        SkillNode clover = symbolNode("CLOVER", Symbol.CLOVER, 3f, 2.4f, 2.2f, null);
-        SkillNode bell = symbolNode("BELL", Symbol.BELL, 3f, 4.8f, 4.3f, clover);
-        symbolNode("SEVEN", Symbol.SEVEN, 7f, 7.2f, 6.4f, bell);
-        branches.add(new Branch(luckyBranch, clover, 1.30f, 1.48f));
-
-        SkillNode iron = symbolNode("IRON", Symbol.IRON, 5f, 3.4f, -0.7f, null);
-        symbolNode("DIAMOND", Symbol.DIAMOND, 5f, 6.8f, -1.6f, iron);
-        branches.add(new Branch(metalBranch, iron, 1.65f, -0.18f));
-
         Automations automations = Automations.I();
-        SkillNode speed = upgradeNode(
-            "SPEED", AssetKey.RETRIGGER, automations.getSlotMachineSpeed(),
-            () -> automations.getSlotMachineSpeed().getSpeedPercent() != 100,
-            automations.getSlotMachineSpeed()::isMaxSpeedReached,
-            -4.0f, -2.2f, null
+        buildSymbolBranch();
+        buildAutomationBranch(automations);
+        buildStatsBranch(automations);
+    }
+
+    private void buildSymbolBranch() {
+        SkillNode lemon = symbolNode(
+            "LEMON", Symbol.LEMON, 2f, -10.17f, 5.10f, null
         );
+        SkillNode cherry = symbolNode(
+            "CHERRY", Symbol.CHERRY, 2f, -7.17f, 4.00f, null
+        );
+        SkillNode clover = symbolNode(
+            "CLOVER", Symbol.CLOVER, 3f, -4.17f, 3.15f, null
+        );
+        SkillNode bell = symbolNode(
+            "BELL", Symbol.BELL, 3f, -1.17f, 2.70f, null
+        );
+        SkillNode iron = symbolNode(
+            "IRON", Symbol.IRON, 5f, 1.83f, 3.15f, null
+        );
+        SkillNode diamond = symbolNode(
+            "DIAMOND", Symbol.DIAMOND, 5f, 4.83f, 4.00f, null
+        );
+        SkillNode seven = symbolNode(
+            "SEVEN", Symbol.SEVEN, 7f, 7.83f, 5.10f, null
+        );
+        branches.add(new Branch(
+            symbolsBranch,
+            0.95f,
+            1.32f,
+            lemon,
+            cherry,
+            clover,
+            bell,
+            iron,
+            diamond,
+            seven
+        ));
+    }
+
+    private void buildAutomationBranch(Automations automations) {
         SkillNode quickSpin = automationNode(
             "QUICK SPIN", AssetKey.SPIN_BUTTON, automations.getQuickSpin(),
-            -6.8f, -3.4f, speed
+            -4.0f, -0.455f, null
         );
         SkillNode spinQueue = automationNode(
             "SPIN QUEUE", AssetKey.SPIN_BUTTON, automations.getSpinQueuer(),
-            -9.6f, -4.5f, quickSpin
+            -7.0f, -0.455f, quickSpin
         );
         SkillNode queueLimit = upgradeNode(
             "QUEUE LIMIT", AssetKey.SHOPPING_CART, automations.getAutoSpinCapacity(),
             () -> automations.getAutoSpinCapacity().getCapacity() > 3,
             () -> false,
-            -12.4f, -5.4f, spinQueue
+            -10.0f, -0.455f, spinQueue
         );
         automationNode(
             "AUTO SPIN", AssetKey.RETRIGGER, automations.getFullAutoSpin(),
-            -15.2f, -6.3f, queueLimit
+            -13.0f, -0.455f, queueLimit
         );
-        branches.add(new Branch(machineBranch, speed, -2.85f, -1.45f));
-
-        SkillNode collectors = upgradeNode(
+        upgradeNode(
             "COLLECTORS", AssetKey.COLLECTOR, automations.getCollectorCapacity(),
             () -> automations.getCollectorCapacity().getCount() > 0,
             () -> false,
-            -1.15f, -3.0f, null
+            -7.0f, -2.20f, quickSpin
+        );
+        branches.add(new Branch(
+            automationBranch, -3.0f, 0.72f, quickSpin
+        ));
+    }
+
+    private void buildStatsBranch(Automations automations) {
+        SkillNode luck = upgradeNode(
+            "LUCK", AssetKey.LUCK, automations.getLuck(),
+            () -> automations.getLuck().getBonusPercent() > 0,
+            automations.getLuck()::isMaxBonusReached,
+            -1.17f, -2.65f, null
+        );
+        SkillNode critChance = upgradeNode(
+            "CRIT CHANCE", AssetKey.CRITICAL_HIT,
+            automations.getCriticalHitChance(),
+            () -> CriticalHitValues.I().getCriticalHitChance() > 0,
+            () -> CriticalHitValues.I().getCriticalHitChance()
+                >= CriticalHitValues.MAX_CRITICAL_HIT_CHANCE,
+            -1.17f, -4.40f, luck
+        );
+        SkillNode cashDrop = upgradeNode(
+            "CASH DROP", AssetKey.POKER_CHIP,
+            automations.getCashChipChance(),
+            () -> CollectibleValues.I().getCashChipSpawnChance() > 0,
+            () -> CollectibleValues.I().getCashChipSpawnChance()
+                >= CollectibleValues.MAX_CASH_CHIP_SPAWN_CHANCE,
+            -1.17f, -6.15f, critChance
         );
         upgradeNode(
-            "TARGET RANGE", AssetKey.CROSSHAIR,
-            automations.getCursorTargetRadius(),
-            () -> automations.getCursorTargetRadius().getUpgradeCount() > 0,
-            automations.getCursorTargetRadius()::isMaxRadiusReached,
-            1.8f, -4.8f, collectors
+            "CHEST DROP", AssetKey.CHEST_CLOSED,
+            automations.getChestDropChance(),
+            () -> ChestManager.I().getDropChancePercent()
+                > ChestManager.BASE_DROP_CHANCE_PERCENT,
+            () -> ChestManager.I().getDropChancePercent()
+                >= ChestManager.MAX_DROP_CHANCE_PERCENT,
+            -1.17f, -7.90f, cashDrop
         );
-        upgradeNode(
-            "PATTERNS", AssetKey.PLUS_SYMBOL, automations.getPatternUnlock(),
-            () -> PatternUnlocks.I().getUnlockedCount() > 0,
-            () -> PatternUnlocks.I().getLockedPatterns().isEmpty(),
-            -1.0f, -5.9f, collectors
-        );
-        branches.add(new Branch(utilityBranch, collectors, -0.82f, -1.72f));
+        branches.add(new Branch(statsBranch, 0.95f, -1.65f, luck));
     }
 
     private SkillNode symbolNode(
@@ -428,8 +474,15 @@ public final class Shop {
     private void drawConnectors(float offsetY) {
         Vector2 hubCenter = canvasToScreen(0f, 0f, offsetY);
         for (Branch branch : branches) {
-            Vector2 rootCenter = branch.root.screenCenter(offsetY);
-            drawLine(hubCenter, rootCenter, GOLD, 0.58f, offsetY);
+            for (SkillNode root : branch.roots) {
+                drawLine(
+                    hubCenter,
+                    root.screenCenter(offsetY),
+                    GOLD,
+                    0.58f,
+                    offsetY
+                );
+            }
         }
 
         for (SkillNode node : nodes) {
@@ -752,20 +805,20 @@ public final class Shop {
 
     private static final class Branch {
         private final GeneratedFabledText label;
-        private final SkillNode root;
         private final float labelX;
         private final float labelY;
+        private final SkillNode[] roots;
 
         private Branch(
             GeneratedFabledText label,
-            SkillNode root,
             float labelX,
-            float labelY
+            float labelY,
+            SkillNode... roots
         ) {
             this.label = label;
-            this.root = root;
             this.labelX = labelX;
             this.labelY = labelY;
+            this.roots = roots;
         }
     }
 
