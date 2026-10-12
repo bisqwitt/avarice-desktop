@@ -70,6 +70,8 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
     private final RunSaveManager runSaves;
     private final RunDataFileManager runDataFiles;
     private final RoundInfoPanel roundInfoPanel;
+    private final CollectibleStreakDisplay collectibleStreakDisplay;
+    private final SlotMachineModelDisplay slotMachineModelDisplay;
     private final PlayerScores playerScores = new PlayerScores();
     private final PlayerHealths playerHealths = new PlayerHealths();
     private final HandUi handUi;
@@ -168,18 +170,27 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
         this.runManager = gameSession.runManager();
         this.shop = new Shop(
             this::onReturnedFromShop,
-            gameSession.skillTree()
+            gameSession.skillTree(),
+            gameSession.chips()
         );
         this.levelUpWindow = new LevelUpWindow(gameSession.skillTree());
         this.buttonBoard = ButtonBoard.I().init(
             this::onSpinButtonPressed,
             this::onPlayButtonPressed,
-            () -> runManager.getRoundsManager().canSpin()
+            () -> runManager.getRoundsManager().canSpin(),
+            () -> gameSession.skillTree().canSpinWithCollectibles()
         );
         this.runSaves = services.runSaves();
         this.runDataFiles = services.runDataFiles();
         this.roundInfoPanel = new RoundInfoPanel(
             runManager.getRoundsManager()
+        );
+        this.collectibleStreakDisplay = new CollectibleStreakDisplay(
+            gameSession.collectibleStreak(),
+            gameSession.skillTree()
+        );
+        this.slotMachineModelDisplay = new SlotMachineModelDisplay(
+            gameSession.skillTree()
         );
         this.handUi = new HandUi(
             this,
@@ -317,6 +328,9 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
         roundClockActive = false;
         autoSpinWaitingForCollectibles = false;
         gameSession.startNewRun();
+        Automations.I().applySlotMachineModel(
+            gameSession.skillTree().getCurrentSlotMachineModel()
+        );
         ChestManager.I().reset();
         CollectorManager.I().reset();
         BouncingSymbolManager.I().reset();
@@ -437,6 +451,8 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
                     delta,
                     ScoreDisplay.I().getCollisionBounds(),
                     roundInfoPanel.getCollisionBounds(),
+                    collectibleStreakDisplay.getCollisionBounds(),
+                    slotMachineModelDisplay.getCollisionBounds(),
                     buttonBoard.getSpinButtonCollisionBounds()
                 );
 
@@ -658,6 +674,8 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
         // The full shop renders its own cash balance instead.
         if (!fullShopShowing) {
             ScoreDisplay.I().draw(delta);
+            collectibleStreakDisplay.draw(delta);
+            slotMachineModelDisplay.draw(delta);
         }
 
         BouncingSymbolManager.I()
@@ -697,6 +715,7 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
         roundResultWindow.draw(delta);
 
         settingsMenu.draw(delta);
+        FpsDisplay.I().draw(delta);
 
 
         Pencil.I().draw(
@@ -1088,7 +1107,7 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
     }
 
     private boolean waitingForCollectibles() {
-        return !Automations.I().getQuickSpin().isActive()
+        return !gameSession.skillTree().canSpinWithCollectibles()
             && BouncingSymbolManager.I().hasUnclaimedCollectibles();
     }
 
@@ -1126,16 +1145,26 @@ public class SlotScreen extends ScreenAdapter implements GameplayActions {
         VaultManager.I().collectIfMature(rounds.getCurrentRound());
         float cash = ScoreDisplay.I().getScoreNumber();
         float bill = rounds.getRoundTarget();
+        boolean resolvingActiveRound =
+            rounds.getOutcome() == RoundsManager.RoundOutcome.IN_PROGRESS;
         RoundsManager.RoundOutcome outcome = rounds.resolveRound(cash);
 
         if (outcome == RoundsManager.RoundOutcome.IN_PROGRESS) {
             return false;
         }
+        gameSession.collectibleStreak().reset();
         if (roundResultWindow.isShowing()) {
             return true;
         }
 
         if (outcome == RoundsManager.RoundOutcome.CLEARED) {
+            // Continued saves may reopen an already-cleared result screen.
+            // Award the round's spades only on the original state transition.
+            if (resolvingActiveRound) {
+                gameSession.chips().grantRoundClearSpades(
+                    rounds.getCurrentRound()
+                );
+            }
             AudioManager.I().playUpgradeSelected();
             ScreenShake.I().addTrauma(0.16f);
             roundResultWindow.showCleared(

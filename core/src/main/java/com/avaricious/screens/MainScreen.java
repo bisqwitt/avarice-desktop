@@ -4,6 +4,7 @@ import com.avaricious.Main;
 import com.avaricious.app.AppServices;
 import com.avaricious.app.navigation.ScreenManager;
 import com.avaricious.audio.AudioManager;
+import com.avaricious.components.FpsDisplay;
 import com.avaricious.components.SettingsMenu;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.utility.AssetKey;
@@ -134,6 +135,7 @@ public final class MainScreen extends ScreenAdapter {
         drawBackground();
         drawMenu(delta);
         settingsMenu.draw(delta);
+        FpsDisplay.I().draw(delta);
         Pencil.I().draw(batch, delta, true);
         drawCrosshair(batch);
 

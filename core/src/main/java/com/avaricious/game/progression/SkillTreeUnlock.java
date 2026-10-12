@@ -2,20 +2,32 @@ package com.avaricious.game.progression;
 
 /** One-time mechanics purchased in the between-round skill tree. */
 public enum SkillTreeUnlock {
-    TIME_GAIN(5_000f),
-    CASH_CHIP_DROP(25_000f),
-    CHEST_DROP(50_000f),
-    CRITICAL_HIT(10_000f),
-    DOUBLE_TRIGGER(50_000f),
-    EXTRA_COLLECTIBLE(2_500f);
+    HOT_HAND(5),
+    LONG_FUSE(6),
+    LAST_CALL(8),
+    JUGGLING_ACT(11),
+    RISING_STAKES(7),
+    REDLINE(12),
+    TIME_GAIN(6),
+    CASH_CHIP_DROP(18),
+    CHEST_DROP(20),
+    CRITICAL_HIT(6),
+    DOUBLE_TRIGGER(9),
+    EXTRA_COLLECTIBLE(14),
+    MACHINE_CLUB_CLASSIC(7),
+    CONTINUOUS_PLAY(9),
+    MACHINE_HOUSE_SPECIAL(12),
+    MACHINE_GOLD_STANDARD(20),
+    MACHINE_HIGH_ROLLER(32),
+    MACHINE_BLACK_LABEL(50);
 
-    private final float price;
+    private final int price;
 
-    SkillTreeUnlock(float price) {
+    SkillTreeUnlock(int price) {
         this.price = price;
     }
 
-    public float price() {
+    public int price() {
         return price;
     }
 }

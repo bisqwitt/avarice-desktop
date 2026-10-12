@@ -1,15 +1,16 @@
 package com.avaricious.components.shop;
 
-import com.avaricious.CreditNumber;
 import com.avaricious.DevTools;
+import com.avaricious.SpadeNumber;
 import com.avaricious.audio.AudioManager;
 import com.avaricious.components.ButtonBoard;
 import com.avaricious.components.ScreenShake;
-import com.avaricious.components.roundInfoPanel.ScoreDisplay;
+import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.texts.GeneratedFabledText;
 import com.avaricious.game.progression.SkillTreeProgress;
 import com.avaricious.game.progression.SkillTreeUnlock;
+import com.avaricious.game.run.ChipProgress;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
@@ -83,12 +84,9 @@ public final class Shop {
         branchText("SYMBOL HITS");
     private final GeneratedFabledText patternHitsBranch =
         branchText("PATTERN HITS");
+    private final GeneratedFabledText machinesBranch = branchText("MACHINES");
 
-    private final CreditNumber balance = new CreditNumber(
-        ScoreDisplay.I().getScoreNumber(),
-        new Rectangle(0f, 0f, 0.32f, 0.50f),
-        0.38f
-    ).setZIndex(ZIndex.SHOP_CARD);
+    private final SpadeNumber balance;
 
     private final List<SkillNode> nodes = new ArrayList<>();
     private final List<Branch> branches = new ArrayList<>();
@@ -98,6 +96,7 @@ public final class Shop {
     private final Vector2 lastDragMouse = new Vector2();
     private final Runnable onReturnedFromShop;
     private final SkillTreeProgress skillTree;
+    private final ChipProgress chipProgress;
 
     private enum State { HIDDEN, ENTERING, SHOWN, EXITING }
 
@@ -113,68 +112,168 @@ public final class Shop {
 
     public Shop(
         Runnable onReturnedFromShop,
-        SkillTreeProgress skillTree
+        SkillTreeProgress skillTree,
+        ChipProgress chipProgress
     ) {
         this.onReturnedFromShop = onReturnedFromShop;
         this.skillTree = skillTree;
+        this.chipProgress = chipProgress;
+        balance = new SpadeNumber(
+            chipProgress.getSpades(),
+            new Rectangle(0f, 0f, 0.32f, 0.50f),
+            0.38f
+        ).setZIndex(ZIndex.SHOP_CARD);
         balance.setCompactThreshold(1_000f);
         balance.getIdleScaleEffect().setAllowed(false);
         balance.getPulseEffect().setStrength(0.35f);
         balance.getPulseEffect().setSpeed(0.09f);
-        ScoreDisplay.I().addScoreChangeListener(
+        chipProgress.addSpadeChangeListener(
             event -> balance.setValue(((Number) event.getNewValue()).floatValue())
         );
         buildTree();
     }
 
     private void buildTree() {
-        SkillNode timeGain = unlockNode(
-            "TIME ON CLAIM", AssetKey.PLUS_SYMBOL,
-            SkillTreeUnlock.TIME_GAIN, -5.70f, 2.25f
+        SkillNode hotHand = unlockNode(
+            "HOT HAND",
+            "FAST MANUAL CLAIMS BUILD STREAK AND RAISE CASH VALUE",
+            AssetKey.STREAK_POTION,
+            SkillTreeUnlock.HOT_HAND, -8.80f, 2.25f, null
         );
-        SkillNode cashChip = unlockNode(
-            "CASH CHIP", AssetKey.POKER_CHIP,
-            SkillTreeUnlock.CASH_CHIP_DROP, -2.60f, 2.25f
+        SkillNode longFuse = unlockNode(
+            "LONG FUSE",
+            "COLLECTIBLES STAY ACTIVE FOR ONE AND A QUARTER SECONDS LONGER",
+            AssetKey.HEALTH_POTION,
+            SkillTreeUnlock.LONG_FUSE, -8.80f, 3.38f, null
+        );
+        SkillNode risingStakes = unlockNode(
+            "RISING STAKES",
+            "EACH STREAK STEP ADDS FORTY PERCENT CASH VALUE",
+            AssetKey.MULTI,
+            SkillTreeUnlock.RISING_STAKES, -5.70f, 2.25f, hotHand
+        );
+        unlockNode(
+            "REDLINE",
+            "RAISE THE HOT HAND VALUE LIMIT FROM FOUR TIMES TO SIX TIMES",
+            AssetKey.STREAK_POTION,
+            SkillTreeUnlock.REDLINE, -2.60f, 2.25f, risingStakes
+        );
+        SkillNode lastCall = unlockNode(
+            "LAST CALL",
+            "CLAIMS IN THE FINAL FIFTH OF LIFE GENERATE THREE STREAK",
+            AssetKey.EXCLAMATION,
+            SkillTreeUnlock.LAST_CALL, -5.70f, 3.38f, hotHand
+        );
+        unlockNode(
+            "OLDEST FIRST",
+            "CLAIM THE MARKED OLDEST COLLECTIBLE FOR ONE EXTRA STREAK",
+            AssetKey.CROSSHAIR,
+            SkillTreeUnlock.JUGGLING_ACT, -2.60f, 3.38f, lastCall
+        );
+        SkillNode timeGain = unlockNode(
+            "TIME ON CLAIM",
+            "SYMBOL CLAIMS CAN ADD TIME TO THE ROUND CLOCK",
+            AssetKey.PLUS_SYMBOL,
+            SkillTreeUnlock.TIME_GAIN, -5.70f, 1.12f, hotHand
+        );
+        unlockNode(
+            "CASH CHIP",
+            "SYMBOL CLAIMS CAN DROP A SECOND CASH COLLECTIBLE",
+            AssetKey.POKER_CHIP,
+            SkillTreeUnlock.CASH_CHIP_DROP, -2.60f, 1.12f, timeGain
         );
         SkillNode criticalHit = unlockNode(
-            "CRITICAL STRIKE", AssetKey.CRITICAL_HIT,
-            SkillTreeUnlock.CRITICAL_HIT, -7.00f, 0f
+            "CRITICAL STRIKE",
+            "SYMBOL CLAIMS CAN DEAL A CRITICAL CASH HIT",
+            AssetKey.CRITICAL_HIT,
+            SkillTreeUnlock.CRITICAL_HIT, -7.00f, 0f, null
         );
-        SkillNode chestDrop = unlockNode(
-            "CHEST DROP", AssetKey.CHEST_CLOSED,
-            SkillTreeUnlock.CHEST_DROP, -3.90f, 0f
+        unlockNode(
+            "CHEST DROP",
+            "PATTERNS CAN DROP A CHEST WITH A CHOICE OF REWARDS",
+            AssetKey.CHEST_CLOSED,
+            SkillTreeUnlock.CHEST_DROP, -3.90f, 0f, criticalHit
         );
-        SkillNode extraCollectible = unlockNode(
-            "EXTRA COLLECTIBLE", AssetKey.COLLECTOR,
-            SkillTreeUnlock.EXTRA_COLLECTIBLE, 2.60f, 0f
+        unlockNode(
+            "EXTRA COLLECTIBLE",
+            "PATTERN HITS CAN THROW OUT AN EXTRA SYMBOL",
+            AssetKey.COLLECTOR,
+            SkillTreeUnlock.EXTRA_COLLECTIBLE, 2.60f, 0f, criticalHit
         );
         SkillNode doubleTrigger = unlockNode(
-            "DOUBLE PATTERN", AssetKey.RETRIGGER,
-            SkillTreeUnlock.DOUBLE_TRIGGER, -2.60f, -2.25f
+            "DOUBLE PATTERN",
+            "PATTERNS CAN TRIGGER THEIR PAYOUT A SECOND TIME",
+            AssetKey.RETRIGGER,
+            SkillTreeUnlock.DOUBLE_TRIGGER, -2.60f, -2.25f, null
+        );
+        SkillNode clubClassic = unlockNode(
+            "CLUB CLASSIC",
+            "125 PERCENT SPEED AND 7 PERCENT LUCK",
+            AssetKey.RETRIGGER,
+            SkillTreeUnlock.MACHINE_CLUB_CLASSIC, 2.60f, -2.25f, null
+        );
+        unlockNode(
+            "NO DOWNTIME",
+            "START THE NEXT SPIN WHILE OLD COLLECTIBLES ARE STILL ACTIVE",
+            AssetKey.SPIN_BUTTON,
+            SkillTreeUnlock.CONTINUOUS_PLAY,
+            5.70f, -3.38f, clubClassic
+        );
+        SkillNode houseSpecial = unlockNode(
+            "HOUSE SPECIAL",
+            "210 PERCENT SPEED AND 14 PERCENT LUCK",
+            AssetKey.LUCK,
+            SkillTreeUnlock.MACHINE_HOUSE_SPECIAL,
+            5.70f, -2.25f, clubClassic
+        );
+        SkillNode goldStandard = unlockNode(
+            "GOLD STANDARD",
+            "375 PERCENT SPEED AND 21 PERCENT LUCK",
+            AssetKey.COIN,
+            SkillTreeUnlock.MACHINE_GOLD_STANDARD,
+            8.80f, -2.25f, houseSpecial
+        );
+        SkillNode highRoller = unlockNode(
+            "HIGH ROLLER",
+            "700 PERCENT SPEED AND 28 PERCENT LUCK",
+            AssetKey.DIAMOND,
+            SkillTreeUnlock.MACHINE_HIGH_ROLLER,
+            11.90f, -2.25f, goldStandard
+        );
+        unlockNode(
+            "BLACK LABEL",
+            "INSTANT RESULTS AND 35 PERCENT LUCK",
+            AssetKey.SEVEN,
+            SkillTreeUnlock.MACHINE_BLACK_LABEL,
+            15.00f, -2.25f, highRoller
         );
 
         branches.add(new Branch(
-            claimsBranch, -8.45f, 3.38f, timeGain, cashChip
+            claimsBranch, -8.80f, 4.51f, hotHand, longFuse
         ));
         branches.add(new Branch(
-            symbolHitsBranch, -9.75f, 1.13f,
-            criticalHit, chestDrop, extraCollectible
+            symbolHitsBranch, -9.75f, 1.13f, criticalHit
         ));
         branches.add(new Branch(
             patternHitsBranch, -5.65f, -1.12f, doubleTrigger
+        ));
+        branches.add(new Branch(
+            machinesBranch, 2.60f, -1.12f, clubClassic
         ));
     }
 
     private SkillNode unlockNode(
         String name,
+        String description,
         AssetKey icon,
         SkillTreeUnlock unlock,
         float x,
-        float y
+        float y,
+        SkillNode prerequisite
     ) {
         PurchaseTarget target = new PurchaseTarget() {
             @Override
-            public float price() {
+            public int price() {
                 return unlock.price();
             }
 
@@ -184,7 +283,7 @@ public final class Shop {
                     && (
                         DevTools.freeShopPurchases()
                             || DevTools.unlimitedMoney()
-                            || ScoreDisplay.I().getScoreNumber() >= price()
+                            || chipProgress.canAffordSpades(price())
                     );
             }
 
@@ -203,13 +302,39 @@ public final class Shop {
                 return skillTree.isUnlocked(unlock);
             }
         };
-        return addNode(name, Assets.I().get(icon), target, true, x, y, null);
+        return addNode(
+            name,
+            description,
+            Assets.I().get(icon),
+            target,
+            true,
+            x,
+            y,
+            prerequisite
+        );
     }
 
     private void activateUnlock(SkillTreeUnlock unlock) {
         if (!skillTree.unlock(unlock)) return;
 
         switch (unlock) {
+            case HOT_HAND:
+            case LONG_FUSE:
+            case LAST_CALL:
+            case JUGGLING_ACT:
+            case RISING_STAKES:
+            case REDLINE:
+            case CONTINUOUS_PLAY:
+                break;
+            case MACHINE_CLUB_CLASSIC:
+            case MACHINE_HOUSE_SPECIAL:
+            case MACHINE_GOLD_STANDARD:
+            case MACHINE_HIGH_ROLLER:
+            case MACHINE_BLACK_LABEL:
+                Automations.I().applySlotMachineModel(
+                    skillTree.getCurrentSlotMachineModel()
+                );
+                break;
             case CASH_CHIP_DROP:
                 if (CollectibleValues.I().getCashChipSpawnChance() == 0) {
                     CollectibleValues.I().increaseCashChipSpawnChance();
@@ -244,6 +369,7 @@ public final class Shop {
 
     private SkillNode addNode(
         String name,
+        String description,
         TextureRegion icon,
         PurchaseTarget target,
         boolean majorPurchase,
@@ -253,6 +379,7 @@ public final class Shop {
     ) {
         SkillNode node = new SkillNode(
             name,
+            description,
             icon,
             target,
             majorPurchase,
@@ -321,8 +448,9 @@ public final class Shop {
         prompt.setY(7.30f + offsetY);
         prompt.draw(delta);
 
+        float balanceX = BALANCE_RIGHT - balance.getWidth();
         balance.getFirstDigitBounds().set(
-            BALANCE_RIGHT - balance.getWidth(),
+            balanceX,
             7.855f + offsetY,
             0.32f,
             0.50f
@@ -468,9 +596,13 @@ public final class Shop {
             GOLD, 0.95f, ZIndex.SHOP_CARD);
 
         centerText(nextRoundText, bounds, 0.25f, delta);
-        controlsText.setAbsoluteX(0.92f);
-        controlsText.setY(0.59f + offsetY);
-        controlsText.draw(delta);
+        SkillNode hoveredSkill = hoveredNode();
+        GeneratedFabledText footerText = hoveredSkill == null
+            ? controlsText
+            : hoveredSkill.description;
+        footerText.setAbsoluteX(0.92f);
+        footerText.setY(0.59f + offsetY);
+        footerText.draw(delta);
     }
 
     public void handleInput(
@@ -616,7 +748,7 @@ public final class Shop {
 
     private void purchase(PurchaseTarget target, boolean major) {
         if (!DevTools.freeShopPurchases() && !DevTools.unlimitedMoney()) {
-            ScoreDisplay.I().removeFromScore(target.price());
+            if (!chipProgress.spendSpades(target.price())) return;
         }
         target.purchase();
         AudioManager.I().playShopPurchase(major);
@@ -691,7 +823,7 @@ public final class Shop {
     }
 
     private interface PurchaseTarget {
-        float price();
+        int price();
         boolean canBuy();
         void purchase();
         boolean invested();
@@ -728,10 +860,11 @@ public final class Shop {
         private final boolean majorPurchase;
         private final SkillNode prerequisite;
         private final GeneratedFabledText name;
+        private final GeneratedFabledText description;
         private final GeneratedFabledText lockedText = text("LOCKED", 43f, MUTED, false);
         private final GeneratedFabledText ownedText = text("OWNED", 43f, GOLD, false);
         private final GeneratedFabledText maxedText = text("MAXED", 43f, GOLD, false);
-        private final CreditNumber price;
+        private final SpadeNumber price;
 
         private boolean hovered;
         private boolean purchasedHere;
@@ -739,6 +872,7 @@ public final class Shop {
 
         private SkillNode(
             String name,
+            String description,
             TextureRegion icon,
             PurchaseTarget target,
             boolean majorPurchase,
@@ -752,7 +886,9 @@ public final class Shop {
             this.prerequisite = prerequisite;
             this.name = text(name, 32f, Color.WHITE, true);
             this.name.fitWithinWidth(canvasBounds.width - 0.82f);
-            price = new CreditNumber(
+            this.description = text(description, 43f, MUTED, false);
+            this.description.fitWithinWidth(10.20f);
+            price = new SpadeNumber(
                 target.price(),
                 new Rectangle(0f, 0f, PRICE_DIGIT_WIDTH, PRICE_DIGIT_HEIGHT),
                 PRICE_DIGIT_SPACING

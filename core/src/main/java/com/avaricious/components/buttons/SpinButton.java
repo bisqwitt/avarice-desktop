@@ -1,6 +1,5 @@
 package com.avaricious.components.buttons;
 
-import com.avaricious.components.automations.Automations;
 import com.avaricious.components.slot.BouncingSymbolManager;
 import com.avaricious.components.slot.SlotMachine;
 import com.avaricious.utility.AssetKey;
@@ -13,10 +12,12 @@ import java.util.function.BooleanSupplier;
 public class SpinButton extends DisablableButton {
 
     private final BooleanSupplier canSpin;
+    private final BooleanSupplier canSpinWithCollectibles;
 
     public SpinButton(
         Runnable onButtonPressedRunnable,
         BooleanSupplier canSpin,
+        BooleanSupplier canSpinWithCollectibles,
         Rectangle buttonRectangle,
         int key
     ) {
@@ -26,13 +27,14 @@ public class SpinButton extends DisablableButton {
             Assets.I().get(AssetKey.SPIN_BUTTON),
             buttonRectangle, key, ZIndex.BUTTON_BOARD);
         this.canSpin = canSpin;
+        this.canSpinWithCollectibles = canSpinWithCollectibles;
     }
 
     @Override
     public boolean disabled() {
         return !SlotMachine.I().isStale()
-            || !Automations.I().getQuickSpin().isActive()
-                && BouncingSymbolManager.I().hasUnclaimedCollectibles()
+            || (!canSpinWithCollectibles.getAsBoolean()
+                && BouncingSymbolManager.I().hasUnclaimedCollectibles())
             || !canSpin.getAsBoolean();
     }
 

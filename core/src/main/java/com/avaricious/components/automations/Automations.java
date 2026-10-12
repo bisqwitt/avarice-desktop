@@ -1,6 +1,7 @@
 package com.avaricious.components.automations;
 
 import com.avaricious.components.slot.ChestManager;
+import com.avaricious.game.progression.SlotMachineModel;
 import com.avaricious.utility.CollectibleValues;
 import com.avaricious.utility.CriticalHitValues;
 import com.avaricious.utility.DoubleHitValues;
@@ -21,7 +22,6 @@ public class Automations {
     private final SpinBuyerSpeed spinBuyerSpeed = new SpinBuyerSpeed();
 
     private final SlotMachineSpeed slotMachineSpeed = new SlotMachineSpeed();
-    private final QuickSpinAutomation quickSpin = new QuickSpinAutomation();
     private final Luck luck = new Luck();
     private final XpMultiplier xpMultiplier = new XpMultiplier();
     private final CollectorCapacity collectorCapacity = new CollectorCapacity();
@@ -118,12 +118,13 @@ public class Automations {
         return slotMachineSpeed;
     }
 
-    public QuickSpinAutomation getQuickSpin() {
-        return quickSpin;
-    }
-
     public Luck getLuck() {
         return luck;
+    }
+
+    public void applySlotMachineModel(SlotMachineModel model) {
+        slotMachineSpeed.setTier(model.speedProfileTier());
+        luck.setBonusPercent(model.luckBonusPercent());
     }
 
     public XpMultiplier getXpMultiplier() {

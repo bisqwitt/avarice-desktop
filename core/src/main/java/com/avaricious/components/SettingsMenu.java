@@ -31,9 +31,11 @@ public final class SettingsMenu {
     private static final Rectangle VOLUME_SLIDER =
         new Rectangle(5.55f, 4.12f, 4.90f, 0.18f);
     private static final Rectangle EFFECTS_TOGGLE =
-        new Rectangle(5.10f, 2.55f, 2.65f, 0.74f);
+        new Rectangle(4.20f, 2.55f, 2.30f, 0.74f);
     private static final Rectangle MUSIC_TOGGLE =
-        new Rectangle(8.25f, 2.55f, 2.65f, 0.74f);
+        new Rectangle(6.85f, 2.55f, 2.30f, 0.74f);
+    private static final Rectangle FPS_TOGGLE =
+        new Rectangle(9.50f, 2.55f, 2.30f, 0.74f);
     private static final Rectangle BACK_BUTTON =
         new Rectangle(6.15f, 1.18f, 3.70f, 0.72f);
 
@@ -68,7 +70,11 @@ public final class SettingsMenu {
     private final GeneratedFabledText fullLabel = text("FULL", 68f, MUTED);
     private final GeneratedFabledText effectsLabel = text("EFFECTS", 47f, MUTED);
     private final GeneratedFabledText musicLabel = text("MUSIC", 47f, MUTED);
+    private final GeneratedFabledText fpsLabel = text("FPS DISPLAY", 47f, MUTED);
     private final GeneratedFabledText onText = text("ON", 39f, GOLD);
+    private final GeneratedFabledText offText = text(
+        "OFF", 39f, Assets.I().healthRedColor()
+    );
     private final GeneratedFabledText mutedText = text(
         "MUTED", 45f, Assets.I().healthRedColor()
     );
@@ -81,9 +87,11 @@ public final class SettingsMenu {
     private boolean launcherPressed;
     private boolean effectsHovered;
     private boolean musicHovered;
+    private boolean fpsHovered;
     private boolean backHovered;
     private boolean effectsPressed;
     private boolean musicPressed;
+    private boolean fpsPressed;
     private boolean backPressed;
     private Slider activeSlider = Slider.NONE;
 
@@ -121,6 +129,7 @@ public final class SettingsMenu {
 
         effectsHovered = EFFECTS_TOGGLE.contains(mouse);
         musicHovered = MUSIC_TOGGLE.contains(mouse);
+        fpsHovered = FPS_TOGGLE.contains(mouse);
         backHovered = BACK_BUTTON.contains(mouse);
 
         if (!inputArmed) {
@@ -136,6 +145,7 @@ public final class SettingsMenu {
             }
             effectsPressed = effectsHovered;
             musicPressed = musicHovered;
+            fpsPressed = fpsHovered;
             backPressed = backHovered;
         }
 
@@ -162,6 +172,11 @@ public final class SettingsMenu {
                 );
                 GameSettings.I().flush();
                 AudioManager.I().playHover();
+            } else if (fpsPressed && fpsHovered) {
+                GameSettings settings = GameSettings.I();
+                settings.setFpsVisible(!settings.isFpsVisible());
+                settings.flush();
+                AudioManager.I().playHover();
             } else if (backPressed && backHovered) {
                 AudioManager.I().playHover();
                 hide();
@@ -169,6 +184,7 @@ public final class SettingsMenu {
 
             effectsPressed = false;
             musicPressed = false;
+            fpsPressed = false;
             backPressed = false;
         }
 
@@ -238,6 +254,7 @@ public final class SettingsMenu {
         launcherPressed = false;
         effectsPressed = false;
         musicPressed = false;
+        fpsPressed = false;
         backPressed = false;
         activeSlider = Slider.NONE;
     }
@@ -285,9 +302,14 @@ public final class SettingsMenu {
             3.79f, true, delta);
 
         drawToggle(EFFECTS_TOGGLE, effectsLabel,
-            GameSettings.I().isEffectsMuted(), effectsHovered, delta);
+            !GameSettings.I().isEffectsMuted(), mutedText,
+            effectsHovered, delta);
         drawToggle(MUSIC_TOGGLE, musicLabel,
-            GameSettings.I().isMusicMuted(), musicHovered, delta);
+            !GameSettings.I().isMusicMuted(), mutedText,
+            musicHovered, delta);
+        drawToggle(FPS_TOGGLE, fpsLabel,
+            GameSettings.I().isFpsVisible(), offText,
+            fpsHovered, delta);
         drawButton(BACK_BUTTON, backText, backHovered, delta);
     }
 
@@ -349,14 +371,15 @@ public final class SettingsMenu {
     private void drawToggle(
         Rectangle bounds,
         GeneratedFabledText label,
-        boolean muted,
+        boolean enabled,
+        GeneratedFabledText disabledText,
         boolean hovered,
         float delta
     ) {
         label.setAbsoluteX(bounds.x + (bounds.width - label.getRenderedWidth()) / 2f);
         label.setY(bounds.y + bounds.height + 0.20f);
         label.draw(delta);
-        drawButton(bounds, muted ? mutedText : onText, hovered, delta);
+        drawButton(bounds, enabled ? onText : disabledText, hovered, delta);
     }
 
     private void drawButton(

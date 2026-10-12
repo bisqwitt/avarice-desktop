@@ -1,7 +1,6 @@
 package com.avaricious.components.slot;
 
 import com.avaricious.audio.AudioManager;
-import com.avaricious.game.run.RoundStats;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.ScreenShake;
 import com.avaricious.components.automations.Automations;
@@ -16,6 +15,8 @@ import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.game.progression.SkillTreeProgress;
 import com.avaricious.game.progression.SkillTreeUnlock;
+import com.avaricious.game.run.CollectibleStreak;
+import com.avaricious.game.run.RoundStats;
 import com.avaricious.utility.AssetKey;
 import com.avaricious.utility.Assets;
 import com.avaricious.utility.CollectibleValues;
@@ -41,11 +42,15 @@ public class BouncingSymbol implements CollectorTarget {
     private final RoundStats roundStats;
     private final RoundTimer roundTimer;
     private final SkillTreeProgress skillTree;
+    private final CollectibleStreak collectibleStreak;
+    private final float maxLifetime;
     private final Symbol symbol;
     private final TextureRegion texture;
     private final TextureRegion whiteTexture;
     private final TextureRegion shadowTexture;
     private final TextureRegion statusBarTexture;
+    private final TextureRegion lastCallIndicatorTexture;
+    private final TextureRegion oldestIndicatorTexture;
 
     private final PulseEffect pulseEffect = new PulseEffect();
 
@@ -64,6 +69,7 @@ public class BouncingSymbol implements CollectorTarget {
     private float hoverAmount = 0f;
     private float collisionCooldown = 0f;
     private boolean hovered = false;
+    private boolean oldestCollectible;
 
     /* Tracks how long the symbol remains available to claim. */
     private float lifetime = 0f;
@@ -80,16 +86,19 @@ public class BouncingSymbol implements CollectorTarget {
     /*
      * Physics
      */
-    private static final float AIR_DRAG = 0.998f;
-    private static final float ROTATION_DRAG = 0.997f;
+    private static final float AIR_DRAG = 0.994f;
+    private static final float ROTATION_DRAG = 0.993f;
 
-    private static final float MIN_BOUNCE = 0.75f;
-    private static final float MAX_BOUNCE = 0.97f;
+    private static final float MIN_BOUNCE = 0.65f;
+    private static final float MAX_BOUNCE = 0.86f;
+    private static final float MIN_LAUNCH_SPEED = 4.5f;
+    private static final float MAX_LAUNCH_SPEED = 8f;
+    private static final float MAX_INITIAL_ROTATION_SPEED = 120f;
 
     /*
      * Maximum time the player has to claim the symbol.
      */
-    private static final float MAX_LIFETIME = 4f;
+    private static final float BASE_LIFETIME_SECONDS = 3.25f;
 
     /*
      * How long the symbol takes to shrink away
@@ -107,17 +116,28 @@ public class BouncingSymbol implements CollectorTarget {
         RoundStats roundStats,
         RoundTimer roundTimer,
         SkillTreeProgress skillTree,
+        CollectibleStreak collectibleStreak,
         Symbol symbol,
         float x,
         float y
     ) {
-        this(roundStats, roundTimer, skillTree, symbol, x, y, 1f);
+        this(
+            roundStats,
+            roundTimer,
+            skillTree,
+            collectibleStreak,
+            symbol,
+            x,
+            y,
+            1f
+        );
     }
 
     public BouncingSymbol(
         RoundStats roundStats,
         RoundTimer roundTimer,
         SkillTreeProgress skillTree,
+        CollectibleStreak collectibleStreak,
         Symbol symbol,
         float x,
         float y,
@@ -126,11 +146,17 @@ public class BouncingSymbol implements CollectorTarget {
         this.roundStats = roundStats;
         this.roundTimer = roundTimer;
         this.skillTree = skillTree;
+        this.collectibleStreak = collectibleStreak;
+        this.maxLifetime = skillTree.getCollectibleLifetimeSeconds(
+            BASE_LIFETIME_SECONDS
+        );
         this.symbol = symbol;
         this.texture = Assets.I().getSymbol(symbol);
         this.whiteTexture = Assets.I().get(symbol.whiteKey());
         this.shadowTexture = Assets.I().get(symbol.shadowKey());
         this.statusBarTexture = Assets.I().get(AssetKey.WHITE_PIXEL);
+        this.lastCallIndicatorTexture = Assets.I().get(AssetKey.EXCLAMATION);
+        this.oldestIndicatorTexture = Assets.I().get(AssetKey.CROSSHAIR);
 
         this.x = x;
         this.y = y;
@@ -139,7 +165,10 @@ public class BouncingSymbol implements CollectorTarget {
          * Launch in a random direction.
         */
         float angle = MathUtils.random(0f, MathUtils.PI2);
-        float speed = MathUtils.random(6f, 12f) * launchPower;
+        float speed = MathUtils.random(
+            MIN_LAUNCH_SPEED,
+            MAX_LAUNCH_SPEED
+        ) * launchPower;
 
         velocityX = MathUtils.cos(angle) * speed;
         velocityY = MathUtils.sin(angle) * speed;
@@ -148,7 +177,10 @@ public class BouncingSymbol implements CollectorTarget {
          * Initial rotation.
          */
         rotation = MathUtils.random(-10f, 10f);
-        rotationVelocity = MathUtils.random(-180f, 180f);
+        rotationVelocity = MathUtils.random(
+            -MAX_INITIAL_ROTATION_SPEED,
+            MAX_INITIAL_ROTATION_SPEED
+        );
 
         /*
          * Slightly different wobble for every symbol.
@@ -193,7 +225,7 @@ public class BouncingSymbol implements CollectorTarget {
         if (!claimed) {
             lifetime += delta;
 
-            if (lifetime >= MAX_LIFETIME) {
+            if (lifetime >= maxLifetime) {
                 miss();
             }
 
@@ -254,25 +286,43 @@ public class BouncingSymbol implements CollectorTarget {
 
     boolean handleInput(Vector2 mouse, boolean touching) {
         hovered = !claimed && getHitbox().contains(mouse);
-        return touching && hovered && collect();
+        return touching && hovered && collect(true);
     }
 
-    private boolean collect() {
+    private boolean collect(boolean manualClaim) {
         if (claimed || finished) return false;
 
+        float lifetimeProgress = lifetime / maxLifetime;
         pulseEffect.pulse(1.65f);
 
         disappearTime = 0f;
         claimed = true;
         roundStats.recordSymbolCollected(spawnAge);
 
+        boolean hotHandClaim = manualClaim && skillTree.isUnlocked(
+            SkillTreeUnlock.HOT_HAND
+        );
+        float valueMultiplier = hotHandClaim
+            ? collectibleStreak.claim(
+                skillTree.getStreakGain(
+                    lifetimeProgress,
+                    oldestCollectible
+                ),
+                skillTree.getStreakValueStep(),
+                skillTree.getStreakValueLimit()
+            )
+            : 1f;
         float baseReward = SymbolValues.I().getValue(symbol);
         boolean criticalHit = skillTree.isUnlocked(
             SkillTreeUnlock.CRITICAL_HIT
         ) && CriticalHitValues.I().rollCriticalHit();
-        float cashReward = criticalHit
+        float cashRewardBeforeStreak = criticalHit
             ? CriticalHitValues.I().applyCriticalDamage(baseReward)
             : baseReward;
+        float cashReward = Math.max(
+            1f,
+            Math.round(cashRewardBeforeStreak * valueMultiplier)
+        );
         ScoreDisplay.I().addToScore(cashReward);
         PopupManager.I().spawnNumber(new NumberPopup(
             cashReward,
@@ -435,7 +485,7 @@ public class BouncingSymbol implements CollectorTarget {
                 Math.abs(velocityX) * randomBounce();
 
             rotationVelocity +=
-                MathUtils.random(-90f, 90f);
+                MathUtils.random(-55f, 55f);
 
             triggerImpact(impactSpeed);
         }
@@ -453,7 +503,7 @@ public class BouncingSymbol implements CollectorTarget {
                 -Math.abs(velocityX) * randomBounce();
 
             rotationVelocity +=
-                MathUtils.random(-90f, 90f);
+                MathUtils.random(-55f, 55f);
 
             triggerImpact(impactSpeed);
         }
@@ -492,7 +542,7 @@ public class BouncingSymbol implements CollectorTarget {
                 Math.abs(velocityY) * randomBounce();
 
             rotationVelocity +=
-                MathUtils.random(-90f, 90f);
+                MathUtils.random(-55f, 55f);
 
             triggerImpact(impactSpeed);
         }
@@ -510,7 +560,7 @@ public class BouncingSymbol implements CollectorTarget {
                 -Math.abs(velocityY) * randomBounce();
 
             rotationVelocity +=
-                MathUtils.random(-90f, 90f);
+                MathUtils.random(-55f, 55f);
 
             triggerImpact(impactSpeed);
         }
@@ -525,7 +575,7 @@ public class BouncingSymbol implements CollectorTarget {
             float entranceOvershoot =
                 1f + MathUtils.sin(entrance * MathUtils.PI) * 0.24f;
             float urgency = getUrgency();
-            float urgencyPulse = MathUtils.sin(spawnAge * 22f) * 0.06f * urgency;
+            float urgencyPulse = MathUtils.sin(spawnAge * 15f) * 0.045f * urgency;
 
             scale = entrance * entranceOvershoot
                 * (1f + hoverAmount * 0.16f + impactFlash * 0.15f + urgencyPulse);
@@ -646,6 +696,10 @@ public class BouncingSymbol implements CollectorTarget {
             );
         }
 
+        if (!claimed && oldestCollectible) {
+            drawOldestIndicator(centerX, centerY, width, height);
+        }
+
         Pencil.I().addDrawing(
             new TextureDrawing(
                 shadowTexture,
@@ -700,6 +754,9 @@ public class BouncingSymbol implements CollectorTarget {
 
         if (!claimed) {
             drawLifetimeBar(drawX, drawY, width, height);
+            if (isLastCallWindow()) {
+                drawLastCallIndicator(centerX, drawY + height);
+            }
         }
 
         if (impactFlash > 0f || claimed) {
@@ -731,7 +788,7 @@ public class BouncingSymbol implements CollectorTarget {
         float height
     ) {
         float remaining = 1f - MathUtils.clamp(
-            lifetime / MAX_LIFETIME,
+            lifetime / maxLifetime,
             0f,
             1f
         );
@@ -750,9 +807,24 @@ public class BouncingSymbol implements CollectorTarget {
             new Color(0.015f, 0.022f, 0.026f, 0.78f)
         ));
 
+        if (skillTree.isUnlocked(SkillTreeUnlock.LAST_CALL)) {
+            float thresholdX = barX + barWidth
+                * (1f - SkillTreeProgress.LAST_CALL_LIFETIME_THRESHOLD);
+            Pencil.I().addDrawing(new TextureDrawing(
+                statusBarTexture,
+                thresholdX - 0.012f,
+                barY - 0.025f,
+                0.024f,
+                barHeight + 0.05f,
+                ZIndex.SYMBOL_STATUS,
+                new Color(1f, 0.72f, 0.18f, 0.92f)
+            ));
+        }
+
         if (remaining <= 0f) return;
 
         float danger = 1f - remaining;
+        boolean lastCall = isLastCallWindow();
         Pencil.I().addDrawing(new TextureDrawing(
             statusBarTexture,
             barX,
@@ -760,18 +832,61 @@ public class BouncingSymbol implements CollectorTarget {
             barWidth * remaining,
             barHeight,
             ZIndex.SYMBOL_STATUS,
-            new Color(
-                MathUtils.lerp(0.38f, 1f, danger),
-                MathUtils.lerp(0.82f, 0.18f, danger),
-                MathUtils.lerp(1f, 0.12f, danger),
-                0.92f
-            )
+            lastCall
+                ? new Color(1f, 0.28f, 0.08f, 1f)
+                : new Color(
+                    MathUtils.lerp(0.38f, 1f, danger),
+                    MathUtils.lerp(0.82f, 0.18f, danger),
+                    MathUtils.lerp(1f, 0.12f, danger),
+                    0.92f
+                )
+        ));
+    }
+
+    private void drawLastCallIndicator(float centerX, float topY) {
+        float pulse = 1f + MathUtils.sin(spawnAge * 14f) * 0.10f;
+        float size = 0.27f * pulse;
+        Pencil.I().addDrawing(new TextureDrawing(
+            lastCallIndicatorTexture,
+            centerX - size / 2f,
+            topY + 0.17f,
+            size,
+            size,
+            ZIndex.SYMBOL_STATUS,
+            new Color(1f, 0.38f, 0.10f, 1f)
+        ));
+    }
+
+    private boolean isLastCallWindow() {
+        return !claimed && skillTree.isLastCallWindow(
+            lifetime / maxLifetime
+        );
+    }
+
+    private void drawOldestIndicator(
+        float centerX,
+        float centerY,
+        float width,
+        float height
+    ) {
+        float pulse = 1f + MathUtils.sin(spawnAge * 6f) * 0.05f;
+        float size = Math.max(width, height) * 1.36f * pulse;
+        Pencil.I().addDrawing(new TextureDrawing(
+            oldestIndicatorTexture,
+            centerX - size / 2f,
+            centerY - size / 2f,
+            size,
+            size,
+            1f,
+            -spawnAge * 24f,
+            ZIndex.SLOT_MACHINE,
+            new Color(0.30f, 0.92f, 1f, 0.72f)
         ));
     }
 
     private float getUrgency() {
-        float value = MathUtils.clamp(lifetime / MAX_LIFETIME, 0f, 1f);
-        value = MathUtils.clamp((value - 0.58f) / 0.42f, 0f, 1f);
+        float value = MathUtils.clamp(lifetime / maxLifetime, 0f, 1f);
+        value = MathUtils.clamp((value - 0.68f) / 0.32f, 0f, 1f);
         return value * value * (3f - 2f * value);
     }
 
@@ -781,6 +896,14 @@ public class BouncingSymbol implements CollectorTarget {
 
     boolean isUnclaimed() {
         return !claimed && !finished;
+    }
+
+    float getLifetimeProgress() {
+        return MathUtils.clamp(lifetime / maxLifetime, 0f, 1f);
+    }
+
+    void setOldestCollectible(boolean oldestCollectible) {
+        this.oldestCollectible = oldestCollectible;
     }
 
     /*
@@ -824,7 +947,7 @@ public class BouncingSymbol implements CollectorTarget {
 
     @Override
     public boolean collectByCollector() {
-        return collect();
+        return collect(false);
     }
 
     public float getVelocityX() {

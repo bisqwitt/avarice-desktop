@@ -81,7 +81,11 @@ public final class RunSaveManager {
             session.cash().set(preferences.getFloat("cash", 0f));
             session.chips().restore(
                 preferences.getInteger("chipLevel", 1),
-                preferences.getInteger("chips", 0)
+                preferences.getInteger("chips", 0),
+                preferences.getInteger(
+                    "spades",
+                    preferences.getInteger("chips", 0)
+                )
             );
             VaultManager.I().restore(
                 preferences.getFloat("vaultPrincipal", 0f),
@@ -128,6 +132,7 @@ public final class RunSaveManager {
         );
         preferences.putInteger("chipLevel", session.chips().getLevel());
         preferences.putInteger("chips", session.chips().getChips());
+        preferences.putInteger("spades", session.chips().getSpades());
         RoundStats stats = session.roundStats();
         preferences.putInteger("stats.symbolsHit", stats.getSymbolsHit());
         preferences.putInteger("stats.spins", stats.getSpins());
@@ -203,10 +208,6 @@ public final class RunSaveManager {
             "spinBuyer",
             automations.getSpinBuyer().isActive()
         );
-        preferences.putBoolean(
-            "quickSpin",
-            automations.getQuickSpin().isActive()
-        );
         preferences.putInteger(
             "autoSpinCapacity",
             automations.getAutoSpinCapacity().getCapacity()
@@ -276,21 +277,14 @@ public final class RunSaveManager {
     private void restoreProgression() {
         Automations automations = Automations.I();
         restoreSkillTreeProgress();
+        automations.applySlotMachineModel(
+            session.skillTree().getCurrentSlotMachineModel()
+        );
 
         restoreUpgrade(
             automations.getAutoSpinCapacity()::getCapacity,
             preferences.getInteger("autoSpinCapacity", 3),
             automations.getAutoSpinCapacity()::upgrade
-        );
-        restoreUpgrade(
-            automations.getSlotMachineSpeed()::getTier,
-            preferences.getInteger("slotMachineSpeedTier", 0),
-            automations.getSlotMachineSpeed()::upgrade
-        );
-        restoreUpgrade(
-            automations.getLuck()::getBonusPercent,
-            preferences.getInteger("luck", 0),
-            automations.getLuck()::upgrade
         );
         restoreUpgrade(
             automations.getXpMultiplier()::getMultiplier,
@@ -313,9 +307,6 @@ public final class RunSaveManager {
 
         if (preferences.getBoolean("spinBuyer", false)) {
             automations.getSpinBuyer().activate();
-        }
-        if (preferences.getBoolean("quickSpin", false)) {
-            automations.getQuickSpin().activate();
         }
         if (preferences.getBoolean("autoSpin", false)) {
             automations.getAutoSpin().activate();
@@ -344,6 +335,25 @@ public final class RunSaveManager {
 
     private boolean legacyUnlockDefault(SkillTreeUnlock unlock) {
         switch (unlock) {
+            case HOT_HAND:
+            case LONG_FUSE:
+            case LAST_CALL:
+            case JUGGLING_ACT:
+            case RISING_STAKES:
+            case REDLINE:
+                return false;
+            case CONTINUOUS_PLAY:
+                return preferences.getBoolean("quickSpin", false);
+            case MACHINE_CLUB_CLASSIC:
+                return legacyMachineRank() >= 1;
+            case MACHINE_HOUSE_SPECIAL:
+                return legacyMachineRank() >= 2;
+            case MACHINE_GOLD_STANDARD:
+                return legacyMachineRank() >= 3;
+            case MACHINE_HIGH_ROLLER:
+                return legacyMachineRank() >= 4;
+            case MACHINE_BLACK_LABEL:
+                return legacyMachineRank() >= 5;
             case CASH_CHIP_DROP:
                 return preferences.getInteger("cashChipChance", 0) > 0;
             case CHEST_DROP:
@@ -359,6 +369,17 @@ public final class RunSaveManager {
             default:
                 throw new IllegalArgumentException("Unknown unlock: " + unlock);
         }
+    }
+
+    private int legacyMachineRank() {
+        int speedTier = preferences.getInteger("slotMachineSpeedTier", 0);
+        int luckPercent = preferences.getInteger("luck", 0);
+        if (speedTier >= 9 || luckPercent >= 33) return 5;
+        if (speedTier >= 7 || luckPercent >= 26) return 4;
+        if (speedTier >= 5 || luckPercent >= 19) return 3;
+        if (speedTier >= 3 || luckPercent >= 12) return 2;
+        if (speedTier >= 1 || luckPercent >= 5) return 1;
+        return 0;
     }
 
     private void restorePatterns(int targetCount) {

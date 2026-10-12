@@ -56,7 +56,7 @@ public class GeneratedFabledText extends FabledText {
                 String letter = String.valueOf(label.charAt(index));
                 boolean useBigLetter = bigFirstLetter && wordIndex == 0 && index == 0
                     && hasBigLetter(letter);
-                String assetName = useBigLetter ? letter + "_BIG" : letter;
+                String assetName = assetName(letter, useBigLetter);
                 letters.add(Assets.I().get(AssetKey.valueOf(assetName)));
                 shadows.add(Assets.I().get(AssetKey.valueOf(assetName + "_SHADOW")));
             }
@@ -74,6 +74,23 @@ public class GeneratedFabledText extends FabledText {
         }
 
         return words.toArray(new FabledWord[0]);
+    }
+
+    private static String assetName(String character, boolean useBigLetter) {
+        switch (character) {
+            case "0": return "ZERO_NUMBER";
+            case "1": return "ONE_NUMBER";
+            case "2": return "TWO_NUMBER";
+            case "3": return "THREE_NUMBER";
+            case "4": return "FOUR_NUMBER";
+            case "5": return "FIVE_NUMBER";
+            case "6": return "SIX_NUMBER";
+            case "7": return "SEVEN_NUMBER";
+            case "8": return "EIGHT_NUMBER";
+            case "9": return "NINE_NUMBER";
+            default:
+                return useBigLetter ? character + "_BIG" : character;
+        }
     }
 
     private static boolean hasBigLetter(String letter) {

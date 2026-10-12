@@ -4,6 +4,7 @@ import com.avaricious.effects.particle.ParticleManager;
 import com.avaricious.effects.particle.ParticleType;
 import com.avaricious.game.progression.SkillTreeProgress;
 import com.avaricious.game.progression.SkillTreeUnlock;
+import com.avaricious.game.run.CollectibleStreak;
 import com.avaricious.game.run.RoundStats;
 import com.avaricious.components.roundInfoPanel.RoundTimer;
 import com.avaricious.utility.CollectibleValues;
@@ -23,11 +24,13 @@ public class BouncingSymbolManager {
     private static RoundStats configuredRoundStats;
     private static RoundTimer configuredRoundTimer;
     private static SkillTreeProgress configuredSkillTree;
+    private static CollectibleStreak configuredCollectibleStreak;
 
     public static void configure(
         RoundStats roundStats,
         RoundTimer roundTimer,
-        SkillTreeProgress skillTree
+        SkillTreeProgress skillTree,
+        CollectibleStreak collectibleStreak
     ) {
         if (instance != null) {
             throw new IllegalStateException(
@@ -37,11 +40,13 @@ public class BouncingSymbolManager {
         configuredRoundStats = roundStats;
         configuredRoundTimer = roundTimer;
         configuredSkillTree = skillTree;
+        configuredCollectibleStreak = collectibleStreak;
     }
 
     public static BouncingSymbolManager I() {
         if (configuredRoundStats == null || configuredRoundTimer == null
-            || configuredSkillTree == null) {
+            || configuredSkillTree == null
+            || configuredCollectibleStreak == null) {
             throw new IllegalStateException(
                 "BouncingSymbolManager must be configured with a game session"
             );
@@ -50,7 +55,8 @@ public class BouncingSymbolManager {
             ? instance = new BouncingSymbolManager(
                 configuredRoundStats,
                 configuredRoundTimer,
-                configuredSkillTree
+                configuredSkillTree,
+                configuredCollectibleStreak
             )
             : instance;
     }
@@ -58,17 +64,20 @@ public class BouncingSymbolManager {
     private final RoundStats roundStats;
     private final RoundTimer roundTimer;
     private final SkillTreeProgress skillTree;
+    private final CollectibleStreak collectibleStreak;
     private final List<BouncingSymbol> bouncingSymbols = new ArrayList<>();
     private final List<CashChipCollectible> cashChips = new ArrayList<>();
 
     private BouncingSymbolManager(
         RoundStats roundStats,
         RoundTimer roundTimer,
-        SkillTreeProgress skillTree
+        SkillTreeProgress skillTree,
+        CollectibleStreak collectibleStreak
     ) {
         this.roundStats = roundStats;
         this.roundTimer = roundTimer;
         this.skillTree = skillTree;
+        this.collectibleStreak = collectibleStreak;
     }
 
     public void createFallingSymbol(Symbol symbol, float x, float y) {
@@ -107,6 +116,7 @@ public class BouncingSymbolManager {
                 roundStats,
                 roundTimer,
                 skillTree,
+                collectibleStreak,
                 symbol,
                 x,
                 y,
@@ -125,7 +135,14 @@ public class BouncingSymbolManager {
     }
 
     public void createCashChip(float reward, float x, float y) {
-        cashChips.add(new CashChipCollectible(roundStats, reward, x, y));
+        cashChips.add(new CashChipCollectible(
+            roundStats,
+            skillTree,
+            collectibleStreak,
+            reward,
+            x,
+            y
+        ));
 
         ParticleManager.I().create(
             x,
@@ -140,6 +157,7 @@ public class BouncingSymbolManager {
     public void reset() {
         bouncingSymbols.clear();
         cashChips.clear();
+        collectibleStreak.reset();
     }
 
     public boolean hasUnclaimedCollectibles() {
@@ -181,12 +199,19 @@ public class BouncingSymbolManager {
         float delta,
         Rectangle... obstacleBounds
     ) {
+        if (skillTree.isUnlocked(SkillTreeUnlock.HOT_HAND)) {
+            collectibleStreak.update(delta);
+        } else {
+            collectibleStreak.reset();
+        }
+
         for (BouncingSymbol symbol : bouncingSymbols) {
             symbol.update(delta);
         }
         for (CashChipCollectible cashChip : cashChips) {
             cashChip.update(delta);
         }
+        updateOldestCollectible();
 
         /*
          * Dynamic symbols against each other.
@@ -216,6 +241,44 @@ public class BouncingSymbolManager {
             if (cashChips.get(i).isFinished()) {
                 cashChips.remove(i);
             }
+        }
+    }
+
+    private void updateOldestCollectible() {
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            symbol.setOldestCollectible(false);
+        }
+        for (CashChipCollectible cashChip : cashChips) {
+            cashChip.setOldestCollectible(false);
+        }
+        if (!skillTree.isUnlocked(SkillTreeUnlock.JUGGLING_ACT)) return;
+
+        BouncingSymbol oldestSymbol = null;
+        CashChipCollectible oldestCashChip = null;
+        float oldestProgress = -1f;
+        for (BouncingSymbol symbol : bouncingSymbols) {
+            if (!symbol.isUnclaimed()) continue;
+            float progress = symbol.getLifetimeProgress();
+            if (progress > oldestProgress) {
+                oldestProgress = progress;
+                oldestSymbol = symbol;
+                oldestCashChip = null;
+            }
+        }
+        for (CashChipCollectible cashChip : cashChips) {
+            if (!cashChip.isUnclaimed()) continue;
+            float progress = cashChip.getLifetimeProgress();
+            if (progress > oldestProgress) {
+                oldestProgress = progress;
+                oldestSymbol = null;
+                oldestCashChip = cashChip;
+            }
+        }
+
+        if (oldestSymbol != null) {
+            oldestSymbol.setOldestCollectible(true);
+        } else if (oldestCashChip != null) {
+            oldestCashChip.setOldestCollectible(true);
         }
     }
 
@@ -334,7 +397,7 @@ public class BouncingSymbolManager {
         }
 
         float restitution =
-            MathUtils.random(0.55f, 0.8f);
+            MathUtils.random(0.42f, 0.65f);
 
         /*
          * Equal mass collision.
@@ -378,17 +441,17 @@ public class BouncingSymbolManager {
 
         float spin =
             tangentVelocity
-                * MathUtils.random(8f, 16f);
+                * MathUtils.random(5f, 10f);
 
         a.addRotationVelocity(-spin);
         b.addRotationVelocity(spin);
 
         a.addRotationVelocity(
-            MathUtils.random(-25f, 25f)
+            MathUtils.random(-15f, 15f)
         );
 
         b.addRotationVelocity(
-            MathUtils.random(-25f, 25f)
+            MathUtils.random(-15f, 15f)
         );
 
         float impactForce = Math.abs(velocityAlongNormal);
@@ -620,7 +683,7 @@ public class BouncingSymbolManager {
          * collisions because the obstacle is static.
          */
         float restitution =
-            MathUtils.random(0.8f, 0.95f);
+            MathUtils.random(0.62f, 0.82f);
 
         /*
          * Reflect velocity along the surface normal.
@@ -657,11 +720,11 @@ public class BouncingSymbolManager {
 
         symbol.addRotationVelocity(
             tangentialVelocity
-                * MathUtils.random(5f, 12f)
+                * MathUtils.random(3f, 7f)
         );
 
         symbol.addRotationVelocity(
-            MathUtils.random(-35f, 35f)
+            MathUtils.random(-20f, 20f)
         );
 
         symbol.triggerImpact(

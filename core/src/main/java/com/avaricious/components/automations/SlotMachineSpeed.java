@@ -29,7 +29,7 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
      * later tiers preserve Instant as the long-term cathartic endpoint.
      */
     private static final SpeedProfile[] PROFILES = {
-        new SpeedProfile(100, 14f, 0.10f, 1.00f, 0.36f, 0.72f, 0.40f, 1.00f, false),
+        new SpeedProfile(75, 11f, 0.14f, 1.25f, 0.45f, 0.85f, 0.48f, 1.20f, false),
         new SpeedProfile(125, 17f, 0.085f, 0.82f, 0.30f, 0.62f, 0.35f, 0.86f, false),
         new SpeedProfile(160, 20.5f, 0.070f, 0.66f, 0.24f, 0.53f, 0.30f, 0.72f, false),
         new SpeedProfile(210, 24.5f, 0.055f, 0.52f, 0.19f, 0.45f, 0.25f, 0.59f, false),
@@ -138,8 +138,15 @@ public class SlotMachineSpeed extends AbstractAutomationUpgrade {
     }
 
     public void increaseSpeed(int upgrades) {
-        for (int i = 0; i < upgrades && !isMaxed(); i++) {
-            onUpgrade();
+        setTier(tier + Math.max(0, upgrades));
+    }
+
+    public void setTier(int targetTier) {
+        int oldTier = tier;
+        tier = Math.max(0, Math.min(PROFILES.length - 1, targetTier));
+        applyProfile();
+        if (oldTier != tier) {
+            changeSupport.firePropertyChange(SPEED_TIER, oldTier, tier);
         }
     }
 

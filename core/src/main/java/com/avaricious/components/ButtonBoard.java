@@ -52,11 +52,17 @@ public class ButtonBoard {
     public ButtonBoard init(
         Runnable onSpinButtonPressed,
         Runnable onCashoutButtonPressed,
-        BooleanSupplier canSpin
+        BooleanSupplier canSpin,
+        BooleanSupplier canSpinWithCollectibles
     ) {
-        spinAgainButton = new SpinButton(onSpinButtonPressed, canSpin,
+        spinAgainButton = new SpinButton(
+            onSpinButtonPressed,
+            canSpin,
+            canSpinWithCollectibles,
             new Rectangle(GameplayLayout.SLOT_CENTER - BUTTON_W / 2f,
-                BOARD_Y, BUTTON_W, BUTTON_H), Input.Keys.SPACE);
+                BOARD_Y, BUTTON_W, BUTTON_H),
+            Input.Keys.SPACE
+        );
         buySpinButton = new BuySpinButton(() -> {
             AutoSpinDisplay.I().addSpin();
             if (AutoSpinDisplay.I().getSpins() == 1 && SlotMachine.I().isStale())

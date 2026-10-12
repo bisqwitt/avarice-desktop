@@ -1,9 +1,6 @@
 package com.avaricious.components;
 
 import com.avaricious.audio.AudioManager;
-import com.avaricious.components.automations.Automations;
-import com.avaricious.components.automations.Luck;
-import com.avaricious.components.automations.SlotMachineSpeed;
 import com.avaricious.components.slot.ChestManager;
 import com.avaricious.components.slot.Symbol;
 import com.avaricious.components.slot.SlotMachineResultRunner;
@@ -229,15 +226,8 @@ public class LevelUpWindow {
         List<LevelUpChoice> possibleChoices =
             new ArrayList<>();
 
-        Automations stats = Automations.I();
-
         for (Symbol symbol : Symbol.values()) {
             possibleChoices.add(createSymbolValueChoice(symbol));
-        }
-
-        SlotMachineSpeed speed = stats.getSlotMachineSpeed();
-        if (!speed.isMaxSpeedReached()) {
-            possibleChoices.add(createSpeedChoice(speed));
         }
 
         if (
@@ -277,11 +267,6 @@ public class LevelUpWindow {
                 ChestManager.MAX_DROP_CHANCE_PERCENT
         ) {
             possibleChoices.add(createChestDropChoice());
-        }
-
-        Luck luck = stats.getLuck();
-        if (!luck.isMaxBonusReached()) {
-            possibleChoices.add(createLuckChoice(luck));
         }
 
         if (
@@ -346,21 +331,6 @@ public class LevelUpWindow {
             icon,
             Assets.I().get(symbol.shadowKey()),
             icon,
-            rarity
-        );
-    }
-
-    private LevelUpChoice createSpeedChoice(SlotMachineSpeed speed) {
-        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-        int upgradeCount = rarity.scaleLevelUpAmount(1);
-        TextureRegion retrigger = Assets.I().get(AssetKey.RETRIGGER);
-        return new LevelUpChoice(
-            new SlotMachineSpeedText(),
-            new SlotMachineSpeedDescriptionText(upgradeCount),
-            () -> speed.increaseSpeed(upgradeCount),
-            retrigger,
-            Assets.I().get(AssetKey.RETRIGGER_SHADOW),
-            retrigger,
             rarity
         );
     }
@@ -448,23 +418,6 @@ public class LevelUpWindow {
             chest,
             chest,
             chest,
-            rarity
-        );
-    }
-
-    private LevelUpChoice createLuckChoice(Luck luck) {
-        UpgradeRarity rarity = UpgradeRarity.rollLevelUpRarity();
-        int increaseAmount = rarity.scaleLevelUpAmount(
-            Luck.BONUS_PER_UPGRADE
-        );
-        TextureRegion luckIcon = Assets.I().get(AssetKey.LUCK);
-        return new LevelUpChoice(
-            new LuckText(),
-            new LuckDescriptionText(increaseAmount),
-            () -> luck.increaseBonusPercent(increaseAmount),
-            luckIcon,
-            Assets.I().get(AssetKey.LUCK_SHADOW),
-            luckIcon,
             rarity
         );
     }

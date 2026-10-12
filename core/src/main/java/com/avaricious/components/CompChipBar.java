@@ -171,7 +171,7 @@ public class CompChipBar {
     }
 
     public void addChips(int amount) {
-        int levelsGained = progress.add(amount);
+        int levelsGained = progress.collectSpade(amount);
         gainPulse = 1f;
         shine = 1f;
 

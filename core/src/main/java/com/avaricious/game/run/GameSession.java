@@ -11,6 +11,7 @@ public final class GameSession {
 
     private final CashBalance cash = new CashBalance();
     private final ChipProgress chips = new ChipProgress();
+    private final CollectibleStreak collectibleStreak = new CollectibleStreak();
     private final RoundStats roundStats = new RoundStats();
     private final SkillTreeProgress skillTree = new SkillTreeProgress();
     private final RunManager runManager;
@@ -25,6 +26,10 @@ public final class GameSession {
 
     public ChipProgress chips() {
         return chips;
+    }
+
+    public CollectibleStreak collectibleStreak() {
+        return collectibleStreak;
     }
 
     public RoundStats roundStats() {
@@ -46,7 +51,8 @@ public final class GameSession {
 
     public void reset() {
         cash.set(0f);
-        chips.restore(1, 0);
+        chips.restore(1, 0, 0);
+        collectibleStreak.reset();
         roundStats.reset();
         skillTree.reset();
     }

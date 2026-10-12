@@ -15,6 +15,7 @@ public final class GameSettings {
     private static final String MASTER_VOLUME = "masterVolume";
     private static final String EFFECTS_MUTED = "effectsMuted";
     private static final String MUSIC_MUTED = "musicMuted";
+    private static final String SHOW_FPS = "showFps";
 
     private static GameSettings instance;
 
@@ -27,6 +28,7 @@ public final class GameSettings {
     private float masterVolume;
     private boolean effectsMuted;
     private boolean musicMuted;
+    private boolean showFps;
     private boolean dirty;
 
     private GameSettings() {
@@ -43,6 +45,7 @@ public final class GameSettings {
         );
         effectsMuted = preferences.getBoolean(EFFECTS_MUTED, false);
         musicMuted = preferences.getBoolean(MUSIC_MUTED, false);
+        showFps = preferences.getBoolean(SHOW_FPS, false);
     }
 
     public float getMouseSensitivity() {
@@ -91,6 +94,16 @@ public final class GameSettings {
         dirty = true;
     }
 
+    public boolean isFpsVisible() {
+        return showFps;
+    }
+
+    public void setFpsVisible(boolean visible) {
+        if (showFps == visible) return;
+        showFps = visible;
+        dirty = true;
+    }
+
     public void flush() {
         if (!dirty) return;
 
@@ -99,6 +112,7 @@ public final class GameSettings {
             .putFloat(MASTER_VOLUME, masterVolume)
             .putBoolean(EFFECTS_MUTED, effectsMuted)
             .putBoolean(MUSIC_MUTED, musicMuted)
+            .putBoolean(SHOW_FPS, showFps)
             .flush();
         dirty = false;
     }

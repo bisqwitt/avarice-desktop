@@ -41,6 +41,8 @@ public class Main extends Game {
 
     @Override
     public void create() {
+        // Load player preferences before any audio, input, or UI singleton.
+        GameSettings.I();
         SeededRandomizer.setSeed(MathUtils.random(1000, 9999));
 
         batch = new SpriteBatch();
@@ -57,7 +59,8 @@ public class Main extends Game {
         BouncingSymbolManager.configure(
             services.gameSession().roundStats(),
             services.gameSession().runManager().getRoundsManager().getRoundTimer(),
-            services.gameSession().skillTree()
+            services.gameSession().skillTree(),
+            services.gameSession().collectibleStreak()
         );
 
         GameContext.init(
@@ -104,14 +107,20 @@ public class Main extends Game {
     }
 
     @Override
+    public void pause() {
+        GameSettings.I().flush();
+        super.pause();
+    }
+
+    @Override
     public void dispose() {
         if (disposed) return;
         disposed = true;
 
+        GameSettings.I().flush();
         if (services != null) {
             services.runSaves().saveNow();
         }
-        GameSettings.I().flush();
 
         if (screens != null) {
             screens.dispose();
