@@ -5,9 +5,11 @@ import com.avaricious.utility.GameSettings;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.Timer;
 
-public class AudioManager {
+/** Owns and plays the application's audio resources. */
+public final class AudioManager implements Disposable {
 
     private static final float EFFECTS_MASTER_VOLUME = 0.2f;
 
@@ -17,12 +19,20 @@ public class AudioManager {
         return instance == null ? instance = new AudioManager() : instance;
     }
 
+    public static void disposeInstance() {
+        if (instance == null) return;
+
+        instance.dispose();
+        instance = null;
+    }
+
     private final Sound hit = Gdx.audio.newSound(Gdx.files.internal("audio/hit.wav"));
 
     private final LoopingSound payout = new LoopingSound(
         "payout-start.wav", "payout-loop.wav", "payout-end.wav",
         0.9f * EFFECTS_MASTER_VOLUME, 1f
     );
+    private boolean disposed;
 
     // 0 = base, 2 = whole step, 3 = minor third, 5 = fourth, 7 = fifth
     private static final float[] HIT_LADDER = {0f, 2f, 3f, 5f, 7f};
@@ -200,5 +210,14 @@ public class AudioManager {
 
     public boolean isMusicMuted() {
         return GameSettings.I().isMusicMuted() || DevTools.audioMuted();
+    }
+
+    @Override
+    public void dispose() {
+        if (disposed) return;
+        disposed = true;
+
+        payout.dispose();
+        hit.dispose();
     }
 }

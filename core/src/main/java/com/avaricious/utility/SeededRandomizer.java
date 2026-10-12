@@ -2,25 +2,44 @@ package com.avaricious.utility;
 
 import com.badlogic.gdx.math.RandomXS128;
 
-public class SeededRandomizer {
-    public static RandomXS128 rng;
-    public static long seed;
+/** Shared deterministic random source for run-affecting decisions. */
+public final class SeededRandomizer {
+
+    private static RandomXS128 random;
+    private static long seed;
+
+    private SeededRandomizer() {
+    }
 
     public static void setSeed(long seed) {
-        rng = new RandomXS128(seed);
+        random = new RandomXS128(seed);
         SeededRandomizer.seed = seed;
     }
 
     public static float nextFloat(float min, float max) {
-        return min + rng.nextFloat() * (max - min);
+        if (max < min) {
+            throw new IllegalArgumentException("max must be at least min");
+        }
+        return min + get().nextFloat() * (max - min);
     }
 
     public static int nextInt(int min, int max) {
-        return min + rng.nextInt(max - min + 1);
+        if (max < min) {
+            throw new IllegalArgumentException("max must be at least min");
+        }
+        return min + get().nextInt(max - min + 1);
     }
 
     public static RandomXS128 get() {
-        return rng;
+        if (random == null) {
+            throw new IllegalStateException("Randomizer seed has not been set");
+        }
+        return random;
+    }
+
+    public static long getSeed() {
+        get();
+        return seed;
     }
 
 }

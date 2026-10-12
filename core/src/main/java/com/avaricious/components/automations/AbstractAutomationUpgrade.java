@@ -26,7 +26,9 @@ public abstract class AbstractAutomationUpgrade extends AbstractAutomation {
     protected void onActivate() {
     }
 
-    public void upgrade() {
+    public final void upgrade() {
+        if (isMaxed()) return;
+
         onUpgrade();
         updatePrice();
     }

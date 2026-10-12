@@ -1,13 +1,15 @@
 package com.avaricious;
 
-import com.avaricious.screens.LoadingScreen;
-import com.avaricious.app.navigation.ScreenManager;
 import com.avaricious.app.AppServices;
+import com.avaricious.app.GameContext;
+import com.avaricious.app.navigation.ScreenManager;
+import com.avaricious.audio.AudioManager;
 import com.avaricious.components.CompChipBar;
 import com.avaricious.components.roundInfoPanel.ScoreDisplay;
 import com.avaricious.components.slot.BouncingSymbolManager;
+import com.avaricious.screens.LoadingScreen;
+import com.avaricious.utility.Assets;
 import com.avaricious.utility.DeviceInfo;
-import com.avaricious.app.GameContext;
 import com.avaricious.utility.GameSettings;
 import com.avaricious.utility.MouseCursor;
 import com.avaricious.utility.SeededRandomizer;
@@ -27,6 +29,8 @@ public class Main extends Game {
     private DeviceInfo deviceInfo;
     private AppServices services;
     private ScreenManager screens;
+    private Cursor emptyCursor;
+    private boolean disposed;
 
     public Main(DeviceInfo deviceInfo) {
         this.deviceInfo = deviceInfo;
@@ -69,8 +73,7 @@ public class Main extends Game {
         Pixmap pixmap =
             new Pixmap(1, 1, Pixmap.Format.RGBA8888);
 
-        Cursor emptyCursor =
-            Gdx.graphics.newCursor(pixmap, 0, 0);
+        emptyCursor = Gdx.graphics.newCursor(pixmap, 0, 0);
 
         Gdx.graphics.setCursor(emptyCursor);
         MouseCursor.I().capture();
@@ -102,12 +105,24 @@ public class Main extends Game {
 
     @Override
     public void dispose() {
+        if (disposed) return;
+        disposed = true;
+
         if (services != null) {
             services.runSaves().saveNow();
         }
         GameSettings.I().flush();
+
+        if (screens != null) {
+            screens.dispose();
+        }
         super.dispose();
 
+        if (emptyCursor != null) {
+            emptyCursor.dispose();
+        }
+        AudioManager.disposeInstance();
+        Assets.disposeInstance();
         if (batch != null) {
             batch.dispose();
         }

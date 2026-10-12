@@ -11,16 +11,25 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Disposable;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Assets {
+/** Loads, caches, and owns shared visual assets. */
+public final class Assets implements Disposable {
 
     private static Assets instance;
 
     public static Assets I() {
         return instance == null ? instance = new Assets() : instance;
+    }
+
+    public static void disposeInstance() {
+        if (instance == null) return;
+
+        instance.dispose();
+        instance = null;
     }
 
     private Assets() {
@@ -30,6 +39,7 @@ public class Assets {
 
     private boolean queued = false;
     private boolean cached = false;
+    private boolean disposed;
 
     private final Color blue = new Color(0.1647f, 0.5412f, 0.7843f, 1f);
     private final Color red = new Color(0.7922f, 0.3765f, 0.3333f, 1f);
@@ -288,6 +298,24 @@ public class Assets {
         else if (rarity == UpgradeRarity.RARE) return rare;
         else if (rarity == UpgradeRarity.EPIC) return epic;
         else return legendary;
+    }
+
+    @Override
+    public void dispose() {
+        if (disposed) return;
+        disposed = true;
+
+        disposeFont(fabledFont);
+        disposeFont(titleFont);
+        disposeFont(bigFont);
+        disposeFont(mediumFont);
+        disposeFont(smallFont);
+        manager.dispose();
+        cachedTextures.clear();
+    }
+
+    private void disposeFont(BitmapFont font) {
+        if (font != null) font.dispose();
     }
 }
 

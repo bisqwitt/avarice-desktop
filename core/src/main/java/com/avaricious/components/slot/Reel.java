@@ -80,7 +80,8 @@ public class Reel {
 
     private void updateCruising(float delta) {
         float jitter = MathUtils.sin(
-            (elapsed + SeededRandomizer.seed) * MathUtils.PI2 * CRUISE_JITTER_HZ
+            (elapsed + SeededRandomizer.getSeed())
+                * MathUtils.PI2 * CRUISE_JITTER_HZ
         ) * CRUISE_JITTER;
         float target = activeCruiseVel + jitter;
 

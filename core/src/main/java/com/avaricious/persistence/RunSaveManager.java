@@ -24,6 +24,7 @@ import com.badlogic.gdx.Preferences;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntSupplier;
 
 /** Persistent, stable checkpoint for the current single-player run. */
 public final class RunSaveManager {
@@ -31,6 +32,7 @@ public final class RunSaveManager {
     private static final String PREFERENCES = "avarice-run-save";
     private static final int SAVE_VERSION = 1;
     private static final float AUTOSAVE_INTERVAL = 1f;
+    private static final int MAX_RESTORED_UPGRADES = 10_000;
 
     private final GameSession session;
     private final Preferences preferences;
@@ -275,30 +277,36 @@ public final class RunSaveManager {
         Automations automations = Automations.I();
         restoreSkillTreeProgress();
 
-        while (automations.getAutoSpinCapacity().getCapacity()
-            < preferences.getInteger("autoSpinCapacity", 3)) {
-            automations.getAutoSpinCapacity().upgrade();
-        }
-        while (automations.getSlotMachineSpeed().getTier()
-            < preferences.getInteger("slotMachineSpeedTier", 0)) {
-            automations.getSlotMachineSpeed().upgrade();
-        }
-        while (automations.getLuck().getBonusPercent()
-            < preferences.getInteger("luck", 0)) {
-            automations.getLuck().upgrade();
-        }
-        while (automations.getXpMultiplier().getMultiplier()
-            < preferences.getInteger("xpMultiplier", 1)) {
-            automations.getXpMultiplier().upgrade();
-        }
-        while (automations.getCollectorCapacity().getCount()
-            < preferences.getInteger("collectorCount", 0)) {
-            automations.getCollectorCapacity().upgrade();
-        }
-        while (automations.getHandCapacity().getCapacity()
-            < preferences.getInteger("handCapacity", 1)) {
-            automations.getHandCapacity().upgrade();
-        }
+        restoreUpgrade(
+            automations.getAutoSpinCapacity()::getCapacity,
+            preferences.getInteger("autoSpinCapacity", 3),
+            automations.getAutoSpinCapacity()::upgrade
+        );
+        restoreUpgrade(
+            automations.getSlotMachineSpeed()::getTier,
+            preferences.getInteger("slotMachineSpeedTier", 0),
+            automations.getSlotMachineSpeed()::upgrade
+        );
+        restoreUpgrade(
+            automations.getLuck()::getBonusPercent,
+            preferences.getInteger("luck", 0),
+            automations.getLuck()::upgrade
+        );
+        restoreUpgrade(
+            automations.getXpMultiplier()::getMultiplier,
+            preferences.getInteger("xpMultiplier", 1),
+            automations.getXpMultiplier()::upgrade
+        );
+        restoreUpgrade(
+            automations.getCollectorCapacity()::getCount,
+            preferences.getInteger("collectorCount", 0),
+            automations.getCollectorCapacity()::upgrade
+        );
+        restoreUpgrade(
+            automations.getHandCapacity()::getCapacity,
+            preferences.getInteger("handCapacity", 1),
+            automations.getHandCapacity()::upgrade
+        );
 
         restorePatterns(preferences.getInteger("patterns", 0));
         restoreStatUpgrades(automations);
@@ -354,42 +362,79 @@ public final class RunSaveManager {
     }
 
     private void restorePatterns(int targetCount) {
-        while (PatternUnlocks.I().getUnlockedCount() < targetCount) {
-            Automations.I().getPatternUnlock().upgrade();
-        }
+        restoreUpgrade(
+            PatternUnlocks.I()::getUnlockedCount,
+            targetCount,
+            Automations.I().getPatternUnlock()::upgrade
+        );
     }
 
     private void restoreStatUpgrades(Automations automations) {
-        while (CollectibleValues.I().getExtraCollectibleSpawnChance()
-            < preferences.getInteger("extraCollectibleChance", 0)) {
-            automations.getExtraCollectibleChance().upgrade();
-        }
-        while (CollectibleValues.I().getExtraSpadeSpawnChance()
-            < preferences.getInteger("extraSpadeChance", 0)) {
-            automations.getExtraSpadeChance().upgrade();
-        }
-        while (CollectibleValues.I().getCashChipSpawnChance()
-            < preferences.getInteger("cashChipChance", 0)) {
-            automations.getCashChipChance().upgrade();
-        }
-        while (CriticalHitValues.I().getCriticalHitChance()
-            < preferences.getInteger("criticalChance", 0)) {
-            automations.getCriticalHitChance().upgrade();
-        }
-        while (CriticalHitValues.I().getCriticalDamagePercent()
-            < preferences.getInteger(
+        restoreUpgrade(
+            CollectibleValues.I()::getExtraCollectibleSpawnChance,
+            preferences.getInteger("extraCollectibleChance", 0),
+            automations.getExtraCollectibleChance()::upgrade
+        );
+        restoreUpgrade(
+            CollectibleValues.I()::getExtraSpadeSpawnChance,
+            preferences.getInteger("extraSpadeChance", 0),
+            automations.getExtraSpadeChance()::upgrade
+        );
+        restoreUpgrade(
+            CollectibleValues.I()::getCashChipSpawnChance,
+            preferences.getInteger("cashChipChance", 0),
+            automations.getCashChipChance()::upgrade
+        );
+        restoreUpgrade(
+            CriticalHitValues.I()::getCriticalHitChance,
+            preferences.getInteger("criticalChance", 0),
+            automations.getCriticalHitChance()::upgrade
+        );
+        restoreUpgrade(
+            CriticalHitValues.I()::getCriticalDamagePercent,
+            preferences.getInteger(
                 "criticalDamage",
                 CriticalHitValues.BASE_CRITICAL_DAMAGE_PERCENT
-            )) {
-            automations.getCriticalDamage().upgrade();
+            ),
+            automations.getCriticalDamage()::upgrade
+        );
+        restoreUpgrade(
+            DoubleHitValues.I()::getDoubleHitChance,
+            preferences.getInteger("doubleHitChance", 0),
+            automations.getDoubleHitChance()::upgrade
+        );
+        restoreUpgrade(
+            ChestManager.I()::getDropChancePercent,
+            preferences.getInteger("chestDropChance", 0),
+            automations.getChestDropChance()::upgrade
+        );
+    }
+
+    /**
+     * Restores monotonically increasing upgrades without trusting persisted
+     * values to be reachable. A stale or edited save therefore cannot trap
+     * startup in an infinite loop after an upgrade reaches its maximum.
+     */
+    private void restoreUpgrade(
+        IntSupplier currentValue,
+        int savedTarget,
+        Runnable upgrade
+    ) {
+        int target = Math.max(0, savedTarget);
+        int upgradesApplied = 0;
+        while (currentValue.getAsInt() < target
+            && upgradesApplied < MAX_RESTORED_UPGRADES) {
+            int before = currentValue.getAsInt();
+            upgrade.run();
+            upgradesApplied++;
+            if (currentValue.getAsInt() <= before) break;
         }
-        while (DoubleHitValues.I().getDoubleHitChance()
-            < preferences.getInteger("doubleHitChance", 0)) {
-            automations.getDoubleHitChance().upgrade();
-        }
-        while (ChestManager.I().getDropChancePercent()
-            < preferences.getInteger("chestDropChance", 0)) {
-            automations.getChestDropChance().upgrade();
+
+        if (currentValue.getAsInt() < target) {
+            Gdx.app.error(
+                "RUN SAVE",
+                "Ignored unreachable upgrade target: " + savedTarget
+            );
         }
     }
 
